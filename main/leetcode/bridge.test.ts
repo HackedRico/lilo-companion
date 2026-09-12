@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
+import { unlink } from 'node:fs/promises'
 import { connect } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -55,5 +56,7 @@ test('events come in validated, marks go out, and junk is ignored', async (t) =>
     assert.ok(!bridge.connected)
   } finally {
     bridge.close()
+    // The server does not remove its own socket file, so a test run would otherwise leave one behind.
+    await unlink(path).catch(() => undefined)
   }
 })
