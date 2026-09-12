@@ -15,14 +15,25 @@ test('the bridge path is a pipe on windows and a short socket file elsewhere', (
   assert.notEqual(bridgePath('/a', 'darwin'), bridgePath('/b', 'darwin'))
 })
 
-test('events come in validated, marks go out, and junk is ignored', async () => {
+test('events come in validated, marks go out, and junk is ignored', async (t) => {
   const seen: WorkEvent[] = []
   const path = join(tmpdir(), `lilo-test-${process.pid}.sock`)
   const bridge = new Bridge(path, (event) => seen.push(event))
   await bridge.listen()
   try {
     const client = connect(path)
-    await new Promise<void>((resolve) => client.once('connect', resolve))
+    try {
+      await new Promise<void>((resolve, reject) => {
+        client.once('connect', resolve)
+        client.once('error', reject)
+      })
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'EPERM') {
+        t.skip('Unix domain socket connection not permitted in restricted sandbox')
+        return
+      }
+      throw err
+    }
     const received: string[] = []
     client.on('data', (chunk: Buffer) => received.push(chunk.toString('utf8')))
 
