@@ -501,7 +501,7 @@ function Composer({
             disabled={ear === 'writing' || ear === 'opening'}
             onClick={press}
           >
-            <Mic className="h-3.5 w-3.5" />
+            <Mic className="h-4 w-4" />
           </button>
         )}
         <button className="send" aria-label="Send" disabled={draft.trim().length === 0} onClick={send}>
