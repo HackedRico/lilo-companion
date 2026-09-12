@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { ZodType } from 'zod'
 import type { Ask, LlmLike } from '../llm/service.ts'
-import { briefInterview, degenerate } from './brief.ts'
+import { briefInterview, degenerate, tidy } from './brief.ts'
 import type { Account } from './sources.ts'
 
 const ACCOUNTS: Account[] = [
@@ -79,6 +79,18 @@ test('a chip reads as the account, with the board as the small print', async () 
   if (brief.kind !== 'brief') return
   assert.equal(brief.sources[0]!.company, 'Stripe SWE onsite')
   assert.equal(brief.sources[0]!.title, 'LeetCode discuss')
+})
+
+test('the prose closes over where a marker was, and one account is one chip', async () => {
+  assert.equal(tidy('Two rounds of an hour each . Then a debugging round , . Done .'), 'Two rounds of an hour each. Then a debugging round. Done.')
+  const llm = new Scripted()
+  llm.queue.push('Four rounds. [S:leetcode:1#0] A real codebase to fix. [S:leetcode:1#1] That is the shape of it.')
+  const brief = await briefInterview(llm, 'Stripe', ACCOUNTS, NOW)
+  assert.equal(brief.kind, 'brief')
+  if (brief.kind !== 'brief') return
+  assert.equal(brief.text, 'Four rounds. A real codebase to fix. That is the shape of it.')
+  assert.deepEqual(brief.citations, ['leetcode:1#0', 'leetcode:1#1'])
+  assert.equal(brief.sources.length, 1)
 })
 
 test('what counts as fallen apart', () => {

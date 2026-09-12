@@ -20,6 +20,15 @@ export function degenerate(text: string): boolean {
 }
 
 /** The chip reads as the account, so six citations are six different chips, and the source is the small print. */
+/** A marker pulled out of a sentence leaves a gap before the full stop; the prose closes over it. */
+export function tidy(text: string): string {
+  return text
+    .replace(/\s+([.,;:!?])/g, '$1')
+    .replace(/,\s*([.;:!?])/g, '$1')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim()
+}
+
 function evidenceOf(sentence: Sentence, account: Account): Evidence {
   return { sentence, company: account.title.slice(0, 60), title: SOURCE_LABEL[account.source], url: account.url }
 }
@@ -54,10 +63,12 @@ export async function briefInterview(
     })
     if (degenerate(raw)) return null
     const filter = new CitationFilter(new Set(sentences.map((sentence) => sentence.id)))
-    const text = `${filter.push(raw)}${filter.flush()}`.replace(/[ \t]{2,}/g, ' ').trim()
+    const text = tidy(`${filter.push(raw)}${filter.flush()}`)
     const cited = new Set(filter.citations)
+    // One chip per account: two sentences from one write-up are one place to go.
+    const seen = new Set<string>()
     const sources = sentences
-      .filter((sentence) => cited.has(sentence.id))
+      .filter((sentence) => cited.has(sentence.id) && !seen.has(sentence.postingId) && seen.add(sentence.postingId))
       .map((sentence) => evidenceOf(sentence, byId.get(sentence.postingId)!))
     return { kind: 'brief', text, citations: filter.citations, sources }
   }
