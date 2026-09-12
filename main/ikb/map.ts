@@ -79,7 +79,7 @@ function pushSupported(
 ): void {
   const canonical = ikb.vocabulary.get(raw.trim().toLowerCase())
   if (!canonical || out.has(canonical)) return
-  const hits = ikb.byTag.get(canonical)?.length ?? 0
+  const hits = ikb.postingsByTag.get(canonical) ?? 0
   const kind = ikb.taxonomy.get(canonical)?.kind
   if (hits > 0 && kind) out.set(canonical, { term: canonical, hits, kind, source })
 }
