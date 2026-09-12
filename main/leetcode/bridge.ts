@@ -17,6 +17,14 @@ export function bridgePath(userData: string, platform: NodeJS.Platform = process
 }
 
 /**
+ * Everything the app may say to the extension: a mark on the student's lines,
+ * and a request to say again what is open. The second exists because a page
+ * that has not changed reports nothing, so an app that started after the tab
+ * did would otherwise never learn which problem is on it.
+ */
+export type ToPage = { mark: Mark } | { resync: true }
+
+/**
  * The app's end of the line to Chrome. Events arrive one JSON object per
  * line and are validated before anything downstream sees them; the only thing
  * that goes back is a mark on the student's editor.
@@ -51,8 +59,7 @@ export class Bridge {
   }
 
   send(message: { mark: Mark }): void {
-    const line = `${JSON.stringify(message)}\n`
-    for (const client of this.clients) client.write(line)
+    for (const client of this.clients) write(client, message)
   }
 
   close(): void {
@@ -63,6 +70,11 @@ export class Bridge {
 
   private accept(socket: Socket): void {
     this.clients.add(socket)
+    // A restart of the app leaves the tab sitting there with nothing to report,
+    // and the practice stays empty however much the student edits: the hints
+    // all answer "nothing open". So the first thing said down a fresh line is a
+    // request for the page to say again what is on it.
+    write(socket, { resync: true })
     let pending = ''
     socket.on('data', (chunk: Buffer) => {
       pending += chunk.toString('utf8')
@@ -88,4 +100,8 @@ export class Bridge {
     this.lastEventAt = Date.now()
     this.onEvent(event.data)
   }
+}
+
+function write(socket: Socket, message: ToPage): void {
+  socket.write(`${JSON.stringify(message)}\n`)
 }

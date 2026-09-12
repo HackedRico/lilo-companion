@@ -1,5 +1,5 @@
 import type { Hint, Rung, Trace } from '../../shared/leetcode.ts'
-import { lineCount, type Work } from './state.ts'
+import { isPending, lineCount, type Work } from './state.ts'
 
 /**
  * The rules that make a tier hold. Nothing here asks a model anything: the
@@ -23,7 +23,7 @@ export interface Climb {
  * and the code has changed since the last one: hints are earned, not clicked.
  */
 export function nextRung(ceiling: Rung, last: Climb | null, work: Work, now: number): Rung | null {
-  if (!work.problem || work.changedAt === null || work.pending || !work.inFront) return null
+  if (!work.problem || work.changedAt === null || isPending(work, now) || !work.inFront) return null
   if (work.quietUntil !== null && now < work.quietUntil) return null
   if (work.outcome?.verdict === 'accepted') return null
   if (now - work.changedAt < CLIMB_EVERY) return null
@@ -79,12 +79,24 @@ export function gate(hint: Hint, ceiling: Rung, work: Work): Gate {
   return { ok: true }
 }
 
-/** A fenced block, or lines that read as code rather than as a sentence. */
+/** A line that opens with a statement, where the line start is the giveaway. */
+const OPENS_CODE = /^\s*(def |class |for |while |if |elif |else:|return |import |[A-Za-z_]\w*\s*(=[^=]|\[))/
+
+/** A statement written into a sentence: an assignment, or a loop header with its colon. */
+const INLINE_STATEMENT = [/[A-Za-z_]\w*(?:\[[^\]\n]*\])?\s*=[^=]/g, /\bfor\b[^\n]*?\bin\b[^\n]*?:/g]
+
+/**
+ * A fenced block, or the code written out in the words. Code usually arrives
+ * on its own lines and two of those is enough. It also arrives run together on
+ * one line, where the line start gives nothing away, so what a single line is
+ * carrying is counted wherever it begins: "wrote d = {}; for i, n in
+ * enumerate(nums): d[target - n] = i" is the answer however it is punctuated.
+ */
 export function handsOverCode(say: string): boolean {
   if (say.includes('```')) return true
   const lines = say.split('\n')
-  if (lines.length < 2) return false
-  return lines.filter((line) => /^\s*(def |class |for |while |if |elif |else:|return |import |[A-Za-z_]\w*\s*(=[^=]|\[))/.test(line)).length >= 2
+  if (lines.filter((line) => OPENS_CODE.test(line)).length >= 2) return true
+  return lines.some((line) => INLINE_STATEMENT.reduce((count, shape) => count + (line.match(shape)?.length ?? 0), 0) >= 2)
 }
 
 /**
@@ -105,9 +117,14 @@ export function namesFromCode(say: string, code: string): string[] {
  * same way, and a dry run of anything is at least the idea drawn. Below that
  * it is left at one, because saying what it sees is said in code, not asked
  * of a model.
+ *
+ * Code is rung 5, not rung 4. The tiers rest on that: tutor volunteers up to
+ * the steps and answers up to the answer, so code reaching only rung 4 is code
+ * handed over with nobody asking, which is the one thing tutor promises not to
+ * do. Asked outright, tutor's onAsk ceiling of 5 still gives it.
  */
 export function reachedRung(hint: Hint, work: Work): Rung {
-  if (handsOverCode(hint.say) || (hint.trace !== undefined && codeInTrace(hint.trace))) return 4
+  if (handsOverCode(hint.say) || (hint.trace !== undefined && codeInTrace(hint.trace))) return 5
   if (hint.lines.length > 0 || hint.names.length > 0 || namesFromCode(hint.say, work.code).length > 0) return 3
   if (hint.trace !== undefined && tracesTheirCode(hint.trace, work.code)) return 3
   if (hint.trace !== undefined) return 2

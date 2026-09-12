@@ -1,4 +1,4 @@
-import { TIER_CEILING, TIER_LABEL, type Mark, type Rung, type Tier, type Trace, type WorkEvent } from '../../shared/leetcode.ts'
+import { TIER_CEILING, TIER_LABEL, type Mark, type Problem, type Rung, type Tier, type Trace, type WorkEvent } from '../../shared/leetcode.ts'
 import type { OrbState, Suggestion, ThreadItem } from '../../shared/types.ts'
 import type { LlmLike } from '../llm/service.ts'
 import { coach } from './coach.ts'
@@ -93,10 +93,16 @@ export class LeetCodePractice {
 
   async observe(event: WorkEvent): Promise<void> {
     await this.deps.record?.(event)
+    const before = this.work
     this.work = fold(this.work, event)
     const { voice } = this.deps
     switch (event.kind) {
       case 'opened': {
+        // The page is asked to say again what is open every time the app
+        // reconnects, so hearing about the problem already in hand is a
+        // repeat. Greeting it again would make a reconnection read as a new
+        // problem, and would send the ladder back to the bottom.
+        if (before.problem?.slug === event.problem.slug) return
         this.last = null
         voice.focus(event.problem.title)
         // The editor's contents arrive a moment after the page says which problem
@@ -155,8 +161,10 @@ export class LeetCodePractice {
     const rung = nextRung(TIER_CEILING[this.deps.tier()].volunteer, this.last, this.work, now)
     if (rung === null) return
     this.busy = true
+    const asked = this.work.problem
     try {
       const result = await coach(this.deps.llm, this.work, rung, null, now)
+      if (!this.stillOn(asked)) return
       // Counted as a climb even when nothing was said, so silence is not retried every tick.
       this.last = { rung, at: now, codeAt: this.work.changedAt }
       if (result.kind === 'hint') await this.speak(result.hint)
@@ -190,10 +198,12 @@ export class LeetCodePractice {
   private async ask(question: string): Promise<void> {
     const { voice } = this.deps
     this.busy = true
+    const asked = this.work.problem
     voice.orb('thinking')
     try {
       const ceiling = TIER_CEILING[this.deps.tier()].onAsk
       const result = await coach(this.deps.llm, this.work, ceiling, question, this.now)
+      if (!this.stillOn(asked)) return
       if (result.kind === 'hint') {
         // The timer waits for another edit rather than piling on what was just
         // answered. The rung it would volunteer is left alone: what they asked
@@ -215,6 +225,16 @@ export class LeetCodePractice {
       this.busy = false
       voice.orb('idle')
     }
+  }
+
+  /**
+   * Whether the problem an answer was asked about is still the one on the page.
+   * A model call takes seconds, and the student can close the tab or move to
+   * the next problem inside them. A hint about code that is gone, and a mark on
+   * lines that are gone, are worse than saying nothing.
+   */
+  private stillOn(problem: Problem | null): boolean {
+    return problem !== null && this.work.problem?.slug === problem.slug
   }
 
   /** The words, the rung they reached, and the picture when there is one; then the mark. */

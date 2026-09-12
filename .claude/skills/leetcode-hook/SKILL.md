@@ -16,7 +16,7 @@ The companion sees the student's work on leetcode.com through three layers, and 
 ## Changing what is said
 
 - The floor is `describe` in `state.ts`. It has no model in it and is said at every tier; keep it that way.
-- A hint comes from `coachHint` in `shared/prompts.ts` and is parsed by `hintOut`. `gate` is what decides whether it is said. A hint may carry a `trace`, a dry run the thread draws in `renderer/thread/DryRun.tsx`; `gate` reads it like the say, so a trace on their names is rung 3, code in its notes is rung 4, and a mark off the end of the sequence is refused. A change to the prompt gets a case in `practice.test.ts`, where `ScriptedCoach` answers from a queue and the test asserts what was said, marked and withheld.
+- A hint comes from `coachHint` in `shared/prompts.ts` and is parsed by `hintOut`. `gate` is what decides whether it is said. A hint may carry a `trace`, a dry run the thread draws in `renderer/thread/DryRun.tsx`; `gate` reads it like the say, so a trace on their names is rung 3, code in its notes is rung 5 like code anywhere else, and a mark off the end of the sequence is refused. A change to the prompt gets a case in `practice.test.ts`, where `ScriptedCoach` answers from a queue and the test asserts what was said, marked and withheld.
 - Proactive timing lives in `nextRung`. Its constants are the manners: a minute between climbs, and only after an edit. Change them there, with the test beside them.
 
 ## Trying it

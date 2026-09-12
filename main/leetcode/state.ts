@@ -12,8 +12,8 @@ export interface Work {
   changedAt: number | null
   outcome: Outcome | null
   outcomeAt: number | null
-  /** A run or submit is in flight, so the verdict on file is stale. */
-  pending: boolean
+  /** When a run or submit went out, so the verdict on file is stale. Null once one came back. */
+  pendingAt: number | null
   inFront: boolean
   /** Outcomes since the problem opened, accepted or not. */
   attempts: number
@@ -28,7 +28,7 @@ export const EMPTY_WORK: Work = {
   changedAt: null,
   outcome: null,
   outcomeAt: null,
-  pending: false,
+  pendingAt: null,
   inFront: false,
   attempts: 0,
   tier: 'coach',
@@ -38,9 +38,27 @@ export const EMPTY_WORK: Work = {
 /** How long "quiet for a bit" lasts. */
 export const QUIET_MS = 10 * 60 * 1000
 
+/**
+ * How long a run is waited on. LeetCode answers a submit in seconds, so a
+ * judge that has said nothing for this long is not going to: the page dropped
+ * the verdict, or the site refused the run and never polled. Without an end to
+ * the wait one lost verdict silences the companion for the rest of the sitting.
+ */
+export const PENDING_STALE_MS = 60 * 1000
+
+/** Whether a run is still worth waiting on. */
+export function isPending(work: Work, now: number): boolean {
+  return work.pendingAt !== null && now - work.pendingAt < PENDING_STALE_MS
+}
+
 export function fold(work: Work, event: WorkEvent): Work {
   switch (event.kind) {
     case 'opened':
+      // The page says again what is open whenever the app reconnects to it, so
+      // the same problem twice is a repeat and not a reason to forget the code
+      // and the last verdict. The problem itself is taken again because a
+      // second fetch may have got the title the first one fell back on.
+      if (work.problem?.slug === event.problem.slug) return { ...work, problem: event.problem }
       // A new problem is a clean slate, apart from what the student chose.
       return { ...EMPTY_WORK, tier: work.tier, quietUntil: work.quietUntil, inFront: work.inFront, problem: event.problem }
     case 'closed':
@@ -49,9 +67,9 @@ export function fold(work: Work, event: WorkEvent): Work {
       if (event.code === work.code && event.language === work.language) return work
       return { ...work, code: event.code, language: event.language, changedAt: event.at }
     case 'pending':
-      return { ...work, pending: true }
+      return { ...work, pendingAt: event.at }
     case 'outcome':
-      return { ...work, pending: false, outcome: event.outcome, outcomeAt: event.at, attempts: work.attempts + 1 }
+      return { ...work, pendingAt: null, outcome: event.outcome, outcomeAt: event.at, attempts: work.attempts + 1 }
     case 'attention':
       return { ...work, inFront: event.inFront }
     case 'ceiling':
@@ -103,6 +121,6 @@ export function describe(work: Work, now: number): string {
     lines === 0
       ? 'Nothing written yet.'
       : `${lines} line${lines === 1 ? '' : 's'} of ${work.language || 'code'}, last changed ${ago(work.changedAt ?? now, now)}.`
-  const run = work.pending ? 'A run is in flight.' : work.outcome ? describeOutcome(work.outcome) : ''
+  const run = isPending(work, now) ? 'A run is in flight.' : work.outcome ? describeOutcome(work.outcome) : ''
   return [head, code, run].filter(Boolean).join(' ')
 }

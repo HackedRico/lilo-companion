@@ -7,5 +7,7 @@ window.addEventListener('message', (message) => {
 })
 
 chrome.runtime.onMessage.addListener((message) => {
-  if (message && message.mark) window.postMessage({ lilo: 'mark', lines: message.mark.lines }, location.origin)
+  if (!message) return
+  if (message.mark) window.postMessage({ lilo: 'mark', lines: message.mark.lines }, location.origin)
+  if (message.resync === true) window.postMessage({ lilo: 'resync' }, location.origin)
 })

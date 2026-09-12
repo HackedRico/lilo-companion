@@ -14,6 +14,13 @@ export type Coached =
 
 export const WITHHELD = 'I have a thought, but it is above the level you set. Raise it in settings if you want it.'
 
+/**
+ * The same, with nobody asking. What a tier volunteers stops lower than what it
+ * answers, so on tutor the level is already as high as it goes and "raise it in
+ * settings" would be a lie: the door there is to ask.
+ */
+export const WITHHELD_UNASKED = 'I have a thought, but it is more than I give you unasked. Ask me for it, or raise the level in settings.'
+
 /** Why the first reply was refused, in the words the prompt answers to. */
 type Retry = 'too_high' | 'unverified' | 'broken_trace' | 'promise' | 'not_a_question' | 'generic' | null
 
@@ -60,7 +67,7 @@ export async function coach(
   const second = asHint(await ask(retry))
   const again = gate(second, ceiling, work)
   if (again.ok) return { kind: 'hint', hint: second }
-  if (again.reason === 'too_high') return { kind: 'withheld', say: WITHHELD }
+  if (again.reason === 'too_high') return { kind: 'withheld', say: question === null ? WITHHELD_UNASKED : WITHHELD }
   return { kind: 'silent' }
 }
 

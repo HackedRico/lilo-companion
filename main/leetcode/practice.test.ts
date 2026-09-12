@@ -4,7 +4,7 @@ import type { ZodType } from 'zod'
 import type { Mark, Tier, Trace, WorkEvent } from '../../shared/leetcode.ts'
 import type { OrbState, Suggestion, ThreadItem } from '../../shared/types.ts'
 import type { Ask, LlmLike } from '../llm/service.ts'
-import { WITHHELD } from './coach.ts'
+import { WITHHELD, WITHHELD_UNASKED } from './coach.ts'
 import { CLIMB_EVERY } from './ladder.ts'
 import { LeetCodePractice, TRACE_QUESTION } from './practice.ts'
 
@@ -229,6 +229,57 @@ test('a question asked while the timer is thinking waits, and is never dropped',
   await volunteering
   assert.equal(h.llm.asks.length, 2, 'the question was asked, not swallowed')
   assert.match(h.llm.asks[1]!.system, /ceiling right now is rung 3/, 'and at the tier the student set')
+})
+
+test('tutor climbs to the steps and still never volunteers the code', async () => {
+  const h = harness('tutor')
+  await h.start()
+  // A minute and an edit apart, the way the student earns them.
+  const earned = async (minute: number, hint: { rung: number; say: string; names?: string[] }) => {
+    await h.practice.observe({ kind: 'changed', at: CLIMB_EVERY * minute, code: `${CODE}\n# ${minute}`, language: 'python' })
+    h.llm.queue.push({ lines: [], names: [], ...hint })
+    h.at(CLIMB_EVERY * (minute + 1) + 1)
+    await h.practice.tick()
+  }
+  await earned(0, { rung: 1, say: 'What would you need to have seen before n to answer at n?' })
+  await earned(2, { rung: 2, say: 'This one has a name: the single pass with a lookup table.' })
+  await earned(4, { rung: 3, say: 'seen is filled and never read.', names: ['seen'] })
+  assert.deepEqual(h.said.slice(-3).map((item) => item.rung), [1, 2, 3])
+
+  // Rung 4 is the steps, and the model answers with the whole thing anyway.
+  const solution = 'seen = {}\nfor i, n in enumerate(nums):\n    if target - n in seen:\n        return [seen[target - n], i]'
+  await h.practice.observe({ kind: 'changed', at: CLIMB_EVERY * 6, code: `${CODE}\n# 6`, language: 'python' })
+  h.llm.queue.push({ rung: 4, say: solution, lines: [], names: [] }, { rung: 4, say: solution, lines: [], names: [] })
+  h.at(CLIMB_EVERY * 7 + 1)
+  await h.practice.tick()
+  assert.match(h.llm.asks.at(-1)!.system, /ceiling right now is rung 4/, 'asked for the steps')
+  assert.ok(!h.said.some((item) => item.text.includes('return [seen')), 'and the answer was not handed over unasked')
+  assert.equal(h.said.at(-1)!.text, WITHHELD_UNASKED)
+  assert.equal(h.marks.length, 0)
+})
+
+test('the page saying again what is open is a repeat, not a new problem', async () => {
+  const h = harness('coach')
+  await h.start()
+  const before = h.said.length
+  // What the app asks for when it reconnects to a tab that has been sitting still.
+  await h.practice.observe({ kind: 'opened', at: 20, problem: PROBLEM })
+  assert.equal(h.said.length, before, 'the opening line is not said twice')
+  assert.equal(h.practice.work.code, CODE, 'and what they had written is still what it knows')
+})
+
+test('a problem closed while the model is thinking is neither said nor marked', async () => {
+  const h = harness('coach')
+  await h.start()
+  h.llm.queue.push({ rung: 3, say: 'seen is filled on line 4 and never read.', lines: [4], names: ['seen'] })
+  const answering = h.practice.observe({ kind: 'asked', at: 10, text: 'why is it always empty' })
+  // They shut the tab while the answer was on the wire.
+  await h.practice.observe({ kind: 'closed', at: 11 })
+  await answering
+  assert.equal(h.llm.asks.length, 1, 'the model was asked')
+  assert.ok(!h.said.some((item) => item.text.includes('seen is filled')), 'and nothing was said about code that is gone')
+  assert.equal(h.marks.length, 0, 'nor marked on a page that has moved on')
+  assert.deepEqual(h.suggestions(), [], 'and no chips are put back up for it')
 })
 
 test('asked to be walked through it, the coach draws a dry run and the line carries it', async () => {
