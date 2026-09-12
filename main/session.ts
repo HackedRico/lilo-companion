@@ -310,6 +310,11 @@ export class Session {
       const hit = firstMatch(line, this.state.watching)
       if (hit) return this.lockIn(hit)
     }
+    // Reading a lecture is several seconds of model time, and an upload that
+    // answers with nothing but dots reads as an upload that did not land. The
+    // interview path says the same kind of thing for the same reason.
+    await this.say('Reading it now.')
+    this.patch({ orb: 'thinking', composing: true })
     await this.why()
   }
 
