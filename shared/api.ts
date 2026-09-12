@@ -21,6 +21,7 @@ export const OUT = {
 export const IN = {
   ready: 'ui:ready',
   lectureOpen: 'lecture:open',
+  lectureDrop: 'lecture:drop',
   notes: 'input:notes',
   why: 'why:ask',
   chatSend: 'chat:send',
@@ -86,6 +87,12 @@ export interface LiloApi {
   ready(): void
   /** Asks main for the file dialog, since the renderer has no way to open one. */
   openLecture(): void
+  /**
+   * A lecture dragged onto the companion. The renderer cannot see where a file
+   * lives, so the preload reads its path and main opens it the same way the
+   * picker does.
+   */
+  dropLecture(file: File): void
   sendNotes(text: string): void
   send(intent: Intent): void
   type(text: string): void

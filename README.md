@@ -79,9 +79,10 @@ To run completely offline with Ollama:
 ## Lectures
 
 A lecture is a file you hand over: a transcript, captions, slides or your own
-notes. Text, Markdown, WebVTT, PDF and PowerPoint all read. Pick one from the
-menu bar mark under "Upload a lecture", press the button at the top of the
-panel, or paste notes into the composer. The companion names what is being
+notes. Text, Markdown, WebVTT, PDF and PowerPoint all read. Drag one onto the
+orb or the panel, pick one from the menu bar mark under "Upload a lecture",
+press the button at the top of the panel, or paste notes into the composer.
+Dropped on the orb, the panel opens itself to answer. The companion names what is being
 taught and says where it turns up at work. A long lecture is read from the top,
 because that is where a deck says what it is about. Nothing is bundled, so the
 first one is yours to bring.

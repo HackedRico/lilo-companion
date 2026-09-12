@@ -4,7 +4,7 @@ import { mkdtemp, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import JSZip from 'jszip'
-import { readLecture } from './lecture.ts'
+import { LECTURE_EXTENSIONS, readLecture, readableLecture } from './lecture.ts'
 
 test('a lecture written on either OS comes back one line per thing said', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'lilo-'))
@@ -82,4 +82,15 @@ test('a pptx lecture extracts slides and speaker notes in order', async () => {
       'Remind students that indexes have write amplification overhead.'
     ].join('\n')
   )
+})
+
+test('what can be dropped is what the picker offers', () => {
+  // The two ways in read the same list, so a file the picker would show is
+  // never refused when it arrives by being dragged onto the companion.
+  for (const ext of LECTURE_EXTENSIONS) assert.ok(readableLecture(`/tmp/lecture.${ext}`))
+  assert.ok(readableLecture('/tmp/Week 4 SLIDES.PDF'), 'however it is cased')
+  assert.ok(readableLecture('/Users/me/my.notes.on.caching.md'), 'and however many dots are in the name')
+  for (const path of ['/tmp/holiday.png', '/tmp/data.csv', '/tmp/lecture', '/tmp/archive.pdf.zip', '/tmp/.pdf']) {
+    assert.ok(!readableLecture(path), path)
+  }
 })

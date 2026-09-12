@@ -13,7 +13,7 @@ import {
   shell,
   systemPreferences
 } from 'electron'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { z } from 'zod'
 import { ASK, IN, OUT } from '../shared/api.ts'
 import { warmUp } from '../shared/prompts.ts'
@@ -29,7 +29,7 @@ import { PrefsWindow } from './prefs-window.ts'
 import { asAudio, asPoint, asSize, asText } from './guards.ts'
 import { ModelCatalogue, SettingsStore, osKeychain, testConnection } from './settings.ts'
 import { Prefs } from './store.ts'
-import { readLecture } from './lecture.ts'
+import { LECTURE_EXTENSIONS, readableLecture, readLecture } from './lecture.ts'
 import { Transcriber } from './voice.ts'
 import { Bridge, bridgePath } from './leetcode/bridge.ts'
 import { installNativeHost } from './leetcode/connect.ts'
@@ -196,9 +196,9 @@ app.whenReady().then(async () => {
       // The hint rides in the title, which every platform shows; message is macOS only.
       title: 'Upload a lecture: a transcript, slides, or notes',
       filters: [
-        { name: 'Lecture materials', extensions: ['txt', 'md', 'vtt', 'pdf', 'pptx'] },
-        { name: 'Presentations & Documents', extensions: ['pdf', 'pptx'] },
-        { name: 'Transcripts & Notes', extensions: ['txt', 'md', 'vtt'] }
+        { name: 'Lecture materials', extensions: [...LECTURE_EXTENSIONS] },
+        { name: 'Slides and documents', extensions: ['pdf', 'pptx'] },
+        { name: 'Transcripts and notes', extensions: ['txt', 'md', 'vtt'] }
       ],
       properties: ['openFile']
     })
@@ -266,6 +266,17 @@ app.whenReady().then(async () => {
   const tick = setInterval(() => void session.leetcode.tick(), TICK)
 
   ipcMain.on(IN.lectureOpen, () => void pickLecture())
+  ipcMain.on(IN.lectureDrop, (_event, dropped: unknown) => {
+    // The path comes from the preload rather than the page, but it still
+    // arrives over a channel, so it is read like anything else a renderer says.
+    const path = asText(dropped, 1024)
+    if (!path) return
+    // Dropped on the orb with the panel shut, everything the companion says
+    // about it would be said where nobody is looking.
+    panel.setExpanded(true)
+    if (readableLecture(path)) openLecture(path)
+    else void session.trouble(`I can read a transcript, notes, slides or a PDF. ${basename(path)} is none of those.`)
+  })
   ipcMain.on(IN.notes, (_event, text: unknown) => void session.useNotes(asText(text)))
   ipcMain.on(IN.intent, (_event, intent: Intent) => void session.run(intent))
   ipcMain.on(IN.typed, (_event, text: unknown) => void session.typed(asText(text)))

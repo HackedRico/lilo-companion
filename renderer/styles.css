@@ -264,6 +264,36 @@ button {
 
 /* The panel ------------------------------------------------------------- */
 
+/* A lecture is being carried over the window. Drawn over the panel rather than
+   inside it, so it covers the thread without the thread reflowing underneath. */
+.drop-over {
+  position: absolute;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  outline: 2px dashed var(--accent);
+  outline-offset: -8px;
+  pointer-events: none;
+}
+
+.drop-over span {
+  font-size: var(--step-body);
+  font-weight: 500;
+  color: var(--accent);
+  letter-spacing: 0.01em;
+}
+
+/* Over the orb, where there is no room for a word. */
+.drop-over[data-tight] {
+  border-radius: 999px;
+  background: transparent;
+  outline-width: 3px;
+  outline-offset: -2px;
+}
+
 .panel {
   position: absolute;
   display: flex;

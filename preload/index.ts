@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
+import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from 'electron'
 import { ASK, IN, OUT, type LiloApi, type TokenPayload } from '../shared/api.ts'
 import type { SettingsPatch } from '../shared/settings.ts'
 import type {
@@ -33,6 +33,12 @@ const api: LiloApi = {
 
   ready: () => ipcRenderer.send(IN.ready),
   openLecture: () => ipcRenderer.send(IN.lectureOpen),
+  // Where a dropped file lives is Electron's to say, not the renderer's, and
+  // this is the one place allowed to ask.
+  dropLecture: (file: File) => {
+    const path = webUtils.getPathForFile(file)
+    if (path) ipcRenderer.send(IN.lectureDrop, path)
+  },
   sendNotes: (text: string) => ipcRenderer.send(IN.notes, text),
   send: (intent: Intent) => ipcRenderer.send(IN.intent, intent),
   type: (text: string) => ipcRenderer.send(IN.typed, text),

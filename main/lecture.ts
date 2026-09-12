@@ -71,6 +71,18 @@ async function readPptx(buffer: Buffer): Promise<string> {
 }
 
 /**
+ * What a lecture may arrive as. The picker filters on it and a dropped file is
+ * checked against it, so the two ways in agree on what can be read.
+ */
+export const LECTURE_EXTENSIONS = ['txt', 'md', 'vtt', 'pdf', 'pptx'] as const
+
+/** Whether a path names something `readLecture` knows how to open. */
+export function readableLecture(path: string): boolean {
+  const ext = extname(path).toLowerCase().replace(/^\./, '')
+  return (LECTURE_EXTENSIONS as readonly string[]).includes(ext)
+}
+
+/**
  * A lecture the student hands over whole: a transcript, captions, slides or notes.
  * Kept as one line per thing said, because the watch looks for a concept on
  * the line where the lecturer said it, and a file written on Windows carries
