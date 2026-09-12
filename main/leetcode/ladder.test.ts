@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { Hint } from '../../shared/leetcode.ts'
-import { CLIMB_EVERY, gate, mentions, nextRung } from './ladder.ts'
+import { CLIMB_EVERY, gate, handsOverCode, mentions, namesFromCode, nextRung, reachedRung } from './ladder.ts'
 import { EMPTY_WORK, type Work } from './state.ts'
 
 const CODE = 'def twoSum(nums, target):\n    seen = {}\n    for i, n in enumerate(nums):\n        seen[n] = i\n    return []'
@@ -110,4 +110,36 @@ test('a verdict with a question tagged on the end is not a question', () => {
   assert.deepEqual(gate(real, 1, working), { ok: true })
   const quoted: Hint = { rung: 1, say: 'So what happens at the end of a window?"', lines: [], names: [] }
   assert.deepEqual(gate(quoted, 1, working), { ok: true }, 'a closing quote is still the end of a question')
+})
+
+test('what a hint actually says is what the ceiling answers to, not what it calls itself', () => {
+  // Code handed over is the top of the ladder however it is labelled.
+  const smuggled: Hint = {
+    rung: 2,
+    say: 'The idea is one pass with a map:\n```python\nseen = {}\nfor i, n in enumerate(nums):\n    return [seen[n], i]\n```',
+    lines: [],
+    names: []
+  }
+  assert.deepEqual(gate(smuggled, 2, working), { ok: false, reason: 'too_high' })
+  assert.deepEqual(gate(smuggled, 5, working), { ok: true }, 'and a tutor may still have it')
+
+  // A claim naming something out of their own code is a claim about their code.
+  const aboutTheirCode: Hint = { rung: 2, say: 'Notice that `seen` is filled and never read.', lines: [], names: [] }
+  assert.deepEqual(gate(aboutTheirCode, 2, working), { ok: false, reason: 'too_high' })
+  assert.deepEqual(gate(aboutTheirCode, 3, working), { ok: true })
+
+  // Prose about the idea, naming nothing of theirs, is left where the model put it.
+  const idea: Hint = { rung: 2, say: 'This one has a name: the single pass with a lookup table.', lines: [], names: [] }
+  assert.deepEqual(gate(idea, 2, working), { ok: true })
+})
+
+test('reading a hint back', () => {
+  assert.ok(handsOverCode('```python\nx = 1\n```'))
+  assert.ok(handsOverCode('Try this:\nseen = {}\nfor i, n in enumerate(nums):'))
+  assert.ok(!handsOverCode('Walk the array once, storing each value against its index as you go.'))
+  assert.ok(!handsOverCode('One line: think about what you store.'))
+  assert.deepEqual(namesFromCode('Notice that `seen` is filled but never read.', CODE), ['seen'])
+  assert.deepEqual(namesFromCode('Your twoSum loop is off by one.', CODE), ['twoSum'])
+  assert.deepEqual(namesFromCode('The loop never resets the count.', CODE), [], 'ordinary words are prose')
+  assert.equal(reachedRung({ rung: 0, say: 'Nested loops over the list.', lines: [], names: [] }, working), 1)
 })
