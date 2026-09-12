@@ -43,6 +43,19 @@ export function lectureWindow(transcript: string): string {
   return trimmed.length <= LECTURE_CHARS ? trimmed : trimmed.slice(0, LECTURE_CHARS)
 }
 
+/**
+ * A prompt whose only job is to be the size and shape of a real one, so the
+ * first call to a cold endpoint is this one rather than the student's. The
+ * lecture is filler: the reply is thrown away.
+ */
+export function warmUp(): Prompt {
+  return extractConcepts(
+    'Today we went over how a service answers a request, where the time goes, and what you do when it goes somewhere unexpected. '.repeat(
+      10
+    )
+  )
+}
+
 export function extractConcepts(transcript: string): Prompt {
   return {
     system: `You read a lecture a software engineering student has handed you, and name what is being taught.

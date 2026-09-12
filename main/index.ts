@@ -15,6 +15,7 @@ import {
 import { join } from 'node:path'
 import { z } from 'zod'
 import { ASK, IN, OUT } from '../shared/api.ts'
+import { warmUp } from '../shared/prompts.ts'
 import type { SettingsPatch } from '../shared/settings.ts'
 import type { Intent, Profile } from '../shared/types.ts'
 import { loadIkb } from './ikb/load.ts'
@@ -179,12 +180,16 @@ app.whenReady().then(async () => {
     console.log(`[lilo] ${ikb.postingCount} postings, model ${llm.available ? llm.config.fast : 'not configured'}`)
   }
 
-  // The first call to a cold endpoint is the slow one: measured against
-  // Featherless, 16s where every call after it was 2.4s. That first call is
-  // the student's first question, so it is spent here instead, on a token
-  // nobody reads. Unasked, so it takes no retries and no backoff, and a
-  // failure means only that the first real call pays what it would have paid.
-  void llm.text({ lane: 'fast', system: 'Reply with one word.', user: 'Ready?', maxTokens: 1, unasked: true }).catch(() => undefined)
+  // The first call to a cold endpoint is the slow one, and it was always the
+  // student's first question. It is spent here instead, on one token nobody
+  // reads. Measured against Featherless: no warm-up 5.5s, a two word warm-up
+  // 2.1s, and this one 1.2s, because what a cold endpoint is slow at is a
+  // prompt the size of a real one. It is the real prompt for that reason.
+  // Unasked, so it takes no retries and no backoff, and if it fails the only
+  // cost is that the first real call pays what it would have paid anyway.
+  void llm
+    .text({ ...warmUp(), lane: 'fast', maxTokens: 1, unasked: true })
+    .catch(() => undefined)
 
   ipcMain.on(IN.ready, () => {
     panel.emit(OUT.state, session.state)

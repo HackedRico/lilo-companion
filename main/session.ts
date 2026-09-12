@@ -537,19 +537,21 @@ export class Session {
   /**
    * What people wrote about interviewing at a company, read from public
    * accounts and said with a citation on every claim. Resolves false when
-   * there was nothing to read, so the question still gets an ordinary answer.
+   * there was nothing to read, so the question still gets an ordinary answer:
+   * half of one is often about the student rather than the company.
    */
   private async interviews(company: string): Promise<boolean> {
-    // The reading starts before the line about it is spoken, so the words cover the wait.
-    const reading = this.deps.gatherInterviews!(company)
-    await this.say(`Give me a moment. I am reading what people wrote about interviewing at ${company}.`)
-    const accounts = await reading
+    // Read before saying anything. The boards answer in about half a second,
+    // and naming a company before knowing whether there is anything under that
+    // name is how the companion ends up saying it is reading about Sarah.
+    const accounts = await this.deps.gatherInterviews!(company)
     if (accounts.length === 0) {
       await this.say(
         `I found nothing first-hand about a ${company} interview on the boards I read, and I would rather say that than make one up.`
       )
       return false
     }
+    await this.say(`Give me a moment. I am reading what people wrote about interviewing at ${company}.`)
     // say() clears the dots when its line lands, and writing the brief is
     // several more seconds after that. Without this the panel sits still and
     // silent for the whole of it, which reads as the companion having stopped.
