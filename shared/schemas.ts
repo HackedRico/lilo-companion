@@ -7,6 +7,13 @@ import { ROLE_FAMILIES } from './types.ts'
  * without passing through here.
  */
 
+/**
+ * The prompt asks for an empty list when nothing is being taught, and a model
+ * that has nothing to say says it by leaving the list out: hand it a
+ * conference deck and three replies in four are `{}`. That is the answer, not
+ * a fault, so a missing list reads as an empty one rather than throwing a
+ * schema error at a student who only uploaded a file.
+ */
 export const conceptsOut = z.object({
   concepts: z
     .array(
@@ -17,6 +24,7 @@ export const conceptsOut = z.object({
       })
     )
     .max(4)
+    .default([])
 })
 
 export const termsOut = z.object({

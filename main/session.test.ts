@@ -27,7 +27,12 @@ class ScriptedLlm implements LlmLike {
   readonly asks: Ask[] = []
   /** How long a call sits in flight, so overlapping work can be tested. */
   delayMs = 0
-  concept = { name: 'sampling variability', summary: 'Sample means move around', confidence: 'high' as const }
+  /** Null for a file the model finds nothing in, which comes back as no concepts. */
+  concept: { name: string; summary: string; confidence: 'high' } | null = {
+    name: 'sampling variability',
+    summary: 'Sample means move around',
+    confidence: 'high'
+  }
   terms = ['A/B testing', 'experimentation', 'not a real term at all']
 
   async json<T>(schema: ZodType<T>, ask: Ask): Promise<T> {
@@ -76,9 +81,7 @@ class ScriptedLlm implements LlmLike {
 
   private reply(schema: ZodType<unknown>, ask: Ask): unknown {
     if (schema === conceptsOut) {
-      return {
-        concepts: [this.concept]
-      }
+      return conceptsOut.parse(this.concept ? { concepts: [this.concept] } : {})
     }
     if (schema === termsOut) {
       return {
@@ -614,4 +617,18 @@ test('a wall of text pasted with a problem open goes to the coach, not the lectu
   assert.equal(session.state.composer.mode, 'leetcode')
   await session.typed(LECTURE.join('\n'))
   assert.ok(!llm.lastAsk('name what is being taught'), 'not read as a lecture while a problem is open')
+})
+
+test('a file the model finds nothing in is said plainly, not as a schema error', async () => {
+  // A conference deck came back as {} and the student was shown zod's own
+  // complaint: expected array, received undefined, in JSON, under "I could not
+  // read that back just then."
+  const llm = new ScriptedLlm()
+  llm.concept = null
+  const { session, thread } = harness(llm, ikb)
+  await teach(session)
+
+  const said = thread.filter((item) => item.speaker === 'companion').map((item) => item.text).join('\n')
+  assert.match(said, /not enough in that for me to work with/)
+  assert.doesNotMatch(said, /schema|expected|invalid_type|undefined/i)
 })

@@ -60,6 +60,9 @@ export function reasonFor(error: unknown, it = 'It'): string {
   if (status === 429 || status === 503 || status === 529) return `${it} asked for a pause. Try again in a moment.`
   if (/timeout|timed out|ETIMEDOUT|aborted/i.test(message)) return `${it} did not answer in time.`
   if (/ECONNREFUSED|fetch failed|ENOTFOUND|connection error/i.test(message)) return 'Nothing answered at that address.'
+  // A schema mismatch carries the whole of zod's complaint, and a student who
+  // uploaded a file was shown it: expected array, received undefined, in JSON.
+  if (/did not match the schema/i.test(message)) return `${it} answered with something I could not read.`
   return message.slice(0, 200)
 }
 
