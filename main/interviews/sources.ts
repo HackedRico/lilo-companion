@@ -51,7 +51,7 @@ function pattern(company: string): RegExp {
   return new RegExp(`(?<![A-Za-z0-9_-])${escapeRegExp(company)}(?![A-Za-z0-9_-])`, 'gi')
 }
 
-function mentions(text: string, company: string): boolean {
+export function mentions(text: string, company: string): boolean {
   return pattern(company).test(text)
 }
 

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { ZodType } from 'zod'
 import type { Ask, LlmLike } from '../llm/service.ts'
-import { ageOf, briefInterview, claims, degenerate, tidy } from './brief.ts'
+import { ageOf, briefInterview, claims, degenerate, firstSentences, tidy } from './brief.ts'
 import type { Account } from './sources.ts'
 
 const ACCOUNTS: Account[] = [
@@ -203,4 +203,19 @@ test('how old an account is, said the way a person says it', () => {
   assert.equal(ageOf(730), 'about two years old')
   assert.equal(ageOf(900), 'about two and a half years old')
   assert.equal(ageOf(1400), 'over three years old')
+})
+
+test('a write-up called nothing in particular is labelled by the company', () => {
+  // People title a post anything. A chip reading "fefrefrfrf" says nothing to
+  // the student and reads as a bug, whatever the account behind it is worth.
+  const junk: Account = {
+    id: 'leetcode:1', source: 'leetcode', title: 'fefrefrfrf',
+    text: 'The onsite had four rounds and the system design one was the hard part of the day.',
+    url: 'https://leetcode.com/discuss/post/1/', at: Date.now()
+  }
+  const named: Account = { ...junk, id: 'leetcode:2', title: 'Coinbase | SDE3 | Remote', url: 'https://leetcode.com/discuss/post/2/' }
+
+  const labels = firstSentences([junk, named], 'Coinbase').map((evidence) => evidence.company)
+  assert.ok(labels.includes('Coinbase interview'))
+  assert.ok(labels.includes('Coinbase | SDE3 | Remote'))
 })

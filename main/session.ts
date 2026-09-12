@@ -559,7 +559,7 @@ export class Session {
     // Without a model the accounts are still worth handing over.
     const brief = this.deps.llm.available
       ? await briefInterview(this.deps.llm, company, accounts)
-      : { kind: 'unwritable' as const, sources: firstSentences(accounts) }
+      : { kind: 'unwritable' as const, sources: firstSentences(accounts, company) }
     if (brief.kind === 'brief') {
       await this.say(brief.text, { citations: brief.citations, sources: brief.sources })
       return true

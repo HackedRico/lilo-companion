@@ -2,7 +2,7 @@ import type { Evidence, Sentence } from '../../shared/types.ts'
 import { interviewBrief } from '../../shared/prompts.ts'
 import type { LlmLike } from '../llm/service.ts'
 import { CitationFilter } from '../chat/citations.ts'
-import { SOURCE_LABEL, sentencesOf, type Account } from './sources.ts'
+import { SOURCE_LABEL, mentions, sentencesOf, type Account } from './sources.ts'
 
 export type Brief =
   | { kind: 'brief'; text: string; citations: string[]; sources: Evidence[] }
@@ -99,8 +99,18 @@ export function ageOf(daysAgo: number): string | null {
   return said ? `about ${said} old` : 'over three years old'
 }
 
-function evidenceOf(sentence: Sentence, account: Account): Evidence {
-  return { sentence, company: account.title.slice(0, 60), title: SOURCE_LABEL[account.source], url: account.url }
+/**
+ * The chip is labelled with what the write-up is called, and people call them
+ * anything. A title that does not name the company says nothing to a student
+ * and reads as a bug, so the company is what the chip says instead.
+ */
+function labelFor(account: Account, company: string): string {
+  const title = account.title.trim()
+  return mentions(title, company) ? title.slice(0, 60) : `${company} interview`
+}
+
+function evidenceOf(sentence: Sentence, account: Account, company: string): Evidence {
+  return { sentence, company: labelFor(account, company), title: SOURCE_LABEL[account.source], url: account.url }
 }
 
 /**
@@ -169,7 +179,7 @@ export async function briefInterview(
     const seen = new Set<string>()
     const sources = sentences
       .filter((sentence) => cited.has(sentence.id) && !seen.has(sentence.postingId) && seen.add(sentence.postingId))
-      .map((sentence) => evidenceOf(sentence, byId.get(sentence.postingId)!))
+      .map((sentence) => evidenceOf(sentence, byId.get(sentence.postingId)!, company))
     // The note is not a claim about the interview, it is what the code knows about
     // the accounts, so it is written on rather than put through the gate.
     return { kind: 'brief', text: `${note}${text}`, citations: [...cited], sources }
@@ -184,14 +194,14 @@ export async function briefInterview(
   const second = await attempt(sentences.slice(0, Math.max(6, Math.floor(sentences.length / 2))), 0.1)
   if (second) return second
 
-  return { kind: 'unwritable', sources: firstSentences(accounts) }
+  return { kind: 'unwritable', sources: firstSentences(accounts, company) }
 }
 
 /** One sentence per account, so the student can still read what was read. */
-export function firstSentences(accounts: Account[]): Evidence[] {
+export function firstSentences(accounts: Account[], company: string): Evidence[] {
   const byId = new Map(accounts.map((account) => [account.id, account]))
   const seen = new Set<string>()
   return sentencesOf(accounts)
     .filter((sentence) => !seen.has(sentence.postingId) && seen.add(sentence.postingId))
-    .map((sentence) => evidenceOf(sentence, byId.get(sentence.postingId)!))
+    .map((sentence) => evidenceOf(sentence, byId.get(sentence.postingId)!, company))
 }
