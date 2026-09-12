@@ -3,7 +3,7 @@ import type { Point, Size } from '../shared/types.ts'
 /**
  * Anything arriving over IPC comes from a renderer, and a renderer must never
  * be able to bring down the main process. Electron throws on a non-finite
- * coordinate rather than ignoring it, so nothing reaches a window untested.
+ * coordinate rather than ignoring it, so nothing reaches a window unchecked.
  */
 export function asPoint(value: unknown): Point | null {
   if (typeof value !== 'object' || value === null) return null

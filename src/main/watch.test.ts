@@ -10,7 +10,7 @@ test('the lecture reaching the concept fires the tap', () => {
 test('a word the concept happens to share does not fire it', () => {
   assert.ok(!matchesWatch('we will be testing your patience today', 'hypothesis testing'))
   assert.ok(!matchesWatch('unit testing is on the problem set', 'hypothesis testing'))
-  assert.ok(!matchesWatch('Monday we talked about sampling variability', 'hypothesis testing'))
+  assert.ok(!matchesWatch('last week we talked about sampling variability', 'hypothesis testing'))
 })
 
 test('punctuation and hyphens do not hide a match', () => {
