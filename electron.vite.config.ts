@@ -20,7 +20,8 @@ function devCsp(): Plugin {
 
 export default defineConfig({
   main: {
-    build: { rollupOptions: { input: resolve('main/index.ts') } }
+    // The host is a second entry with no Electron in it: Chrome runs it as plain Node.
+    build: { rollupOptions: { input: { index: resolve('main/index.ts'), host: resolve('main/host.ts') } } }
   },
   preload: {
     build: { rollupOptions: { input: resolve('preload/index.ts') } }

@@ -15,6 +15,14 @@ extraResources:
     to: data
     filter:
       - '**/*'
+  # The Chrome extension is loaded unpacked from here, and the native host
+  # runs from here as plain Node, so neither can live inside the asar.
+  - from: extension
+    to: extension
+    filter:
+      - '**/*'
+  - from: out/main/host.js
+    to: host.js
 
 mac:
   category: public.app-category.education

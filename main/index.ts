@@ -27,6 +27,8 @@ import { asPoint, asSize, asText } from './guards.ts'
 import { ModelCatalogue, SettingsStore, osKeychain, testConnection } from './settings.ts'
 import { Prefs } from './store.ts'
 import { readLecture } from './lecture.ts'
+import { Bridge, bridgePath } from './leetcode/bridge.ts'
+import { installNativeHost } from './leetcode/connect.ts'
 import { Recorder, readRecording, replay } from './leetcode/recording.ts'
 import { Session } from './session.ts'
 import { installTray } from './tray.ts'
@@ -52,9 +54,11 @@ app.whenReady().then(async () => {
   Menu.setApplicationMenu(null)
 
   const dev = Boolean(process.env['ELECTRON_RENDERER_URL'])
-  const dataDir = app.isPackaged
-    ? join(process.resourcesPath, 'data')
-    : join(app.getAppPath(), 'data')
+  const resources = app.isPackaged ? process.resourcesPath : app.getAppPath()
+  const dataDir = join(resources, 'data')
+  const extensionDir = join(resources, 'extension')
+  // Built beside the main bundle in dev; copied out of the asar when packaged.
+  const hostScript = app.isPackaged ? join(resources, 'host.js') : join(resources, 'out', 'main', 'host.js')
 
   const prefs = new Prefs()
   // One file per day. Nothing in it but what the page reported and what was asked.
@@ -99,8 +103,14 @@ app.whenReady().then(async () => {
     saveProfile: (profile) => {
       prefs.profile = profile
     },
-    record: (event) => recorder.write(event)
+    record: (event) => recorder.write(event),
+    mark: (mark) => bridge.send({ mark })
   })
+
+  // Chrome's native host connects here. Failing to listen costs the LeetCode
+  // practice, not the app, so it is a warning rather than a crash.
+  const bridge = new Bridge(bridgePath(app.getPath('userData')), (event) => void session.observe(event))
+  await bridge.listen().catch((error: unknown) => console.warn(`[lilo] no bridge for chrome: ${String(error)}`))
 
   panel.onExpandedChange = (expanded) => session.setExpanded(expanded)
 
@@ -260,6 +270,28 @@ app.whenReady().then(async () => {
     return session.getProfile()
   })
   ipcMain.handle(ASK.storagePath, () => prefs.path)
+  ipcMain.handle(ASK.connectChrome, async () => {
+    try {
+      await installNativeHost({
+        platform: process.platform,
+        home: app.getPath('home'),
+        userData: app.getPath('userData'),
+        execPath: process.execPath,
+        hostScript,
+        socketPath: bridgePath(app.getPath('userData')),
+        extensionDir
+      })
+      return { ok: true, detail: '', extensionDir }
+    } catch (error) {
+      return { ok: false, detail: (error as Error).message.slice(0, 200), extensionDir }
+    }
+  })
+  ipcMain.handle(ASK.chromeStatus, () => ({
+    connected: bridge.connected,
+    lastEventAt: bridge.lastEventAt,
+    extensionDir
+  }))
+  ipcMain.on(IN.revealExtension, () => shell.showItemInFolder(join(extensionDir, 'manifest.json')))
   ipcMain.handle(ASK.resolveAims, (_event, said: string[]) =>
     resolveAims(ikb, Array.isArray(said) ? said.map((one) => asText(one, 80)) : [])
   )
@@ -278,6 +310,7 @@ app.whenReady().then(async () => {
 
   app.on('before-quit', () => {
     clearInterval(tick)
+    bridge.close()
     globalShortcut.unregisterAll()
   })
 

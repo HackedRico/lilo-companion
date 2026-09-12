@@ -1,0 +1,48 @@
+import assert from 'node:assert/strict'
+import { test } from 'node:test'
+import { connect } from 'node:net'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import type { WorkEvent } from '../../shared/leetcode.ts'
+import { Bridge, bridgePath } from './bridge.ts'
+
+test('the bridge path is a pipe on windows and a short socket file elsewhere', () => {
+  const long = '/Users/someone/with/a/very/long/user/data/directory/that/goes/on/and/on/for/a/while/Lilo'
+  assert.match(bridgePath(long, 'win32'), /^\\\\\.\\pipe\\lilo-[0-9a-f]{12}$/)
+  const unix = bridgePath(long, 'darwin')
+  assert.ok(unix.startsWith(tmpdir()))
+  assert.ok(unix.length < 100, `${unix.length} characters is under the socket path cap`)
+  assert.notEqual(bridgePath('/a', 'darwin'), bridgePath('/b', 'darwin'))
+})
+
+test('events come in validated, marks go out, and junk is ignored', async () => {
+  const seen: WorkEvent[] = []
+  const path = join(tmpdir(), `lilo-test-${process.pid}.sock`)
+  const bridge = new Bridge(path, (event) => seen.push(event))
+  await bridge.listen()
+  try {
+    const client = connect(path)
+    await new Promise<void>((resolve) => client.once('connect', resolve))
+    const received: string[] = []
+    client.on('data', (chunk: Buffer) => received.push(chunk.toString('utf8')))
+
+    client.write('not json\n{"event":{"kind":"nope","at":1}}\n')
+    client.write('{"event":{"kind":"pending","at":5}}\n{"event":{"kind":"atten')
+    client.write('tion","at":6,"inFront":true}}\n')
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    assert.deepEqual(seen, [
+      { kind: 'pending', at: 5 },
+      { kind: 'attention', at: 6, inFront: true }
+    ])
+    assert.ok(bridge.connected)
+
+    bridge.send({ mark: { lines: [4] } })
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    assert.equal(received.join(''), '{"mark":{"lines":[4]}}\n')
+    client.destroy()
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    assert.ok(!bridge.connected)
+  } finally {
+    bridge.close()
+  }
+})

@@ -121,3 +121,17 @@ export interface Hint {
 export interface Mark {
   lines: number[]
 }
+
+/** Whether Chrome's extension is talking to the app right now. */
+export interface ChromeStatus {
+  connected: boolean
+  lastEventAt: number | null
+  extensionDir: string
+}
+
+/** What setting up Chrome came to. */
+export interface ChromeSetup {
+  ok: boolean
+  detail: string
+  extensionDir: string
+}

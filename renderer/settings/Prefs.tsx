@@ -7,11 +7,12 @@ import {
   type SettingsView
 } from '../../shared/settings.ts'
 import { ROLE_LABEL, type Profile, type RoleFamily } from '../../shared/types.ts'
+import { TIERS, TIER_LABEL, TIER_NOTE, type ChromeSetup, type ChromeStatus } from '../../shared/leetcode.ts'
 import { api } from '../api.ts'
 import { Action, Field, Group, KeyRow, TextInput } from './fields.tsx'
 import { ModelField } from './ModelField.tsx'
 
-type Tab = 'profile' | 'model'
+type Tab = 'profile' | 'model' | 'leetcode'
 
 const TABS: { value: Tab; label: string; icon: ReactElement }[] = [
   {
@@ -33,13 +34,24 @@ const TABS: { value: Tab; label: string; icon: ReactElement }[] = [
         <path d="M6.2 6.2h3.6v3.6H6.2z" />
       </svg>
     )
+  },
+  {
+    value: 'leetcode',
+    label: 'LeetCode',
+    icon: (
+      <svg viewBox="0 0 16 16" aria-hidden>
+        <path d="M6 3.5 2.8 8 6 12.5" />
+        <path d="M10 3.5 13.2 8 10 12.5" />
+      </svg>
+    )
   }
 ]
 
 /** Reopening should land where you were, which needs no round trip to ask. */
 function lastTab(): Tab {
   try {
-    return localStorage.getItem('prefs-tab') === 'model' ? 'model' : 'profile'
+    const saved = localStorage.getItem('prefs-tab')
+    return saved === 'model' || saved === 'leetcode' ? saved : 'profile'
   } catch {
     return 'profile'
   }
@@ -111,6 +123,8 @@ export function Prefs(): ReactElement {
               </p>
             ) : tab === 'profile' ? (
               <ProfileTab profile={profile} save={saveProfile} />
+            ) : tab === 'leetcode' ? (
+              <LeetCodeTab profile={profile} save={saveProfile} />
             ) : (
               <ModelTab settings={settings} save={saveSettings} />
             )}
@@ -347,6 +361,94 @@ function ModelTab({
           </span>
         )}
       </div>
+    </>
+  )
+}
+
+/**
+ * A ceiling on the ladder, not a personality, and the one-time step that lets
+ * the app see the page. The status is polled, because the connection lives in
+ * main and Chrome can drop it at any moment.
+ */
+function LeetCodeTab({
+  profile,
+  save
+}: {
+  profile: Profile
+  save: (patch: Partial<Profile>) => void
+}): ReactElement {
+  const [status, setStatus] = useState<ChromeStatus | null>(null)
+  const [setup, setSetup] = useState<ChromeSetup | null>(null)
+  const [connecting, setConnecting] = useState(false)
+
+  useEffect(() => {
+    const ask = (): void => void api.chromeStatus().then(setStatus)
+    ask()
+    const timer = setInterval(ask, 3000)
+    return () => clearInterval(timer)
+  }, [])
+
+  return (
+    <>
+      <p className="lede">
+        How much help you get on a problem, and the one step that lets Lilo see the page.
+      </p>
+      <Group title="How much help" note="A ceiling, not a personality. Cheering, and reading the state back, are the same at every level.">
+        <div className="flex flex-col gap-2">
+          {TIERS.map((tier) => (
+            <div key={tier} className="flex items-start gap-3">
+              <Action on={profile.tier === tier} onClick={() => save({ tier })}>
+                {TIER_LABEL[tier]}
+              </Action>
+              <p className="m-0 text-[12px] leading-[1.6]" style={{ color: 'var(--dim)' }}>
+                {TIER_NOTE[tier]}
+              </p>
+            </div>
+          ))}
+        </div>
+      </Group>
+      <Group
+        title="Chrome"
+        note="Lilo reads the editor on leetcode.com through a small extension you load once. What it sees goes to the model you configured and nowhere else."
+      >
+        <p className="mb-3 text-[12px]" style={{ color: status?.connected ? 'var(--ink)' : 'var(--faint)' }}>
+          {status === null ? 'Asking…' : status.connected ? 'Chrome is connected.' : 'Not connected.'}
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <Action
+            disabled={connecting}
+            onClick={() => {
+              setConnecting(true)
+              void api
+                .connectChrome()
+                .then(setSetup)
+                .finally(() => setConnecting(false))
+            }}
+          >
+            {connecting ? 'Setting up…' : 'Set up Chrome'}
+          </Action>
+          <Action onClick={() => api.revealExtension()}>Show the extension folder</Action>
+        </div>
+        {setup && !setup.ok && (
+          <p className="mt-3 text-[12px]" style={{ color: 'var(--live)' }}>
+            {setup.detail}
+          </p>
+        )}
+        {setup?.ok && (
+          <ol className="mt-3 pl-4 text-[12px] leading-[1.7]" style={{ color: 'var(--dim)' }}>
+            <li>Open chrome://extensions and turn on Developer mode.</li>
+            <li>
+              Press Load unpacked and pick{' '}
+              <span className="input-mono" title={setup.extensionDir}>
+                {setup.extensionDir}
+              </span>
+              .
+            </li>
+            <li>Open a problem on leetcode.com. This page says Connected once the extension has reached the app.</li>
+            <li>Restart Chrome if it was open before the first step.</li>
+          </ol>
+        )}
+      </Group>
     </>
   )
 }

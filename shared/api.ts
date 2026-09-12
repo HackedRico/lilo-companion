@@ -1,3 +1,4 @@
+import type { ChromeSetup, ChromeStatus } from './leetcode.ts'
 import type { ConnectionResult, SettingsPatch, SettingsView } from './settings.ts'
 import type { Aim, Card, CompanionState, Intent, Layout, Profile, Recap, ThreadItem } from './types.ts'
 
@@ -42,7 +43,8 @@ export const IN = {
   openLink: 'ui:open-link',
   typed: 'ui:typed',
   openPrefs: 'prefs:open',
-  closePrefs: 'prefs:close'
+  closePrefs: 'prefs:close',
+  revealExtension: 'chrome:reveal'
 } as const
 
 export interface TokenPayload {
@@ -60,7 +62,9 @@ export const ASK = {
   profileWrite: 'profile:write',
   storagePath: 'settings:where',
   models: 'settings:models',
-  resolveAims: 'profile:resolve-aims'
+  resolveAims: 'profile:resolve-aims',
+  connectChrome: 'chrome:connect',
+  chromeStatus: 'chrome:status'
 } as const
 
 /** What the preload hands the renderer. The renderer touches nothing else. */
@@ -113,4 +117,8 @@ export interface LiloApi {
   storagePath(): Promise<string>
   listModels(query: string): Promise<{ models: string[]; detail: string }>
   resolveAims(said: string[]): Promise<Aim[]>
+  /** Writes the native host manifest where Chrome looks for it. One time. */
+  connectChrome(): Promise<ChromeSetup>
+  chromeStatus(): Promise<ChromeStatus>
+  revealExtension(): void
 }

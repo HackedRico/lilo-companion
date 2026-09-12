@@ -61,7 +61,10 @@ const api: LiloApi = {
   writeProfile: (patch: Partial<Profile>) => ipcRenderer.invoke(ASK.profileWrite, patch),
   storagePath: () => ipcRenderer.invoke(ASK.storagePath),
   listModels: (query: string) => ipcRenderer.invoke(ASK.models, query),
-  resolveAims: (said: string[]) => ipcRenderer.invoke(ASK.resolveAims, said)
+  resolveAims: (said: string[]) => ipcRenderer.invoke(ASK.resolveAims, said),
+  connectChrome: () => ipcRenderer.invoke(ASK.connectChrome),
+  chromeStatus: () => ipcRenderer.invoke(ASK.chromeStatus),
+  revealExtension: () => ipcRenderer.send(IN.revealExtension)
 }
 
 contextBridge.exposeInMainWorld('lilo', api)

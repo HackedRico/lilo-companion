@@ -1,0 +1,37 @@
+{
+  "manifest_version": 3,
+  "name": "Lilo for LeetCode",
+  "version": "0.1.0",
+  "description": "Lets the Lilo companion on this machine see the LeetCode problem you are working on, and nothing else.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzGnT1BrnR5ANxzUbRY+HomNDRYDwBaH/KV5oPxgv9YjWoAZ1AWmYR+5CONywctcCz/v9LD4ElkYSJratb8EE8/drHrmhZCbkpDE8I4mIZwYEMqDk64o4PYProrETUpuWlmCjCAMb6k8jRjhzaPYrrvBn5dfwXNtqabUDCHvslBm15uPfuuVh3P4gfRBCEGfB0KCu8EOwcWOMCZemMFpCWk0+anLfJUopPo0EhWCxqtZGQ6s5Vj7BgQxCB6kt2MOLWCQCv82kGIuo1K7wefNs0NuCdh2Z+eg5xb9ag2s1IrAzN5oKQtAuKVtzixL7O/TQOtFUA9szDeDV1joOIOGxvQIDAQAB",
+  "permissions": [
+    "nativeMessaging"
+  ],
+  "host_permissions": [
+    "https://leetcode.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://leetcode.com/problems/*"
+      ],
+      "js": [
+        "agent.js"
+      ],
+      "world": "MAIN",
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://leetcode.com/problems/*"
+      ],
+      "js": [
+        "relay.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}
