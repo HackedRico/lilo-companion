@@ -81,9 +81,15 @@ export function Panel({
         <button className="lecture-button" title="Upload a lecture" onClick={() => api.openLecture()}>
           <span className="meta">Upload a lecture</span>
         </button>
-        <span className="flex items-center gap-0.5">
-          <button className="icon-button" aria-label="Settings" title="Settings" onClick={() => api.openPrefs()}>
+        <span className="flex items-center gap-1">
+          <button
+            className="lecture-button flex items-center gap-1.5"
+            aria-label="Settings"
+            title="Settings"
+            onClick={() => api.openPrefs()}
+          >
             <Gear />
+            <span className="meta">Settings</span>
           </button>
           <button className="icon-button" aria-label="Close" onClick={() => api.expand(false)}>
             <Cross />
@@ -314,7 +320,8 @@ function Gear(): ReactElement {
   return (
     <svg
       viewBox="0 0 16 16"
-      className="h-[13px] w-[13px] fill-none stroke-current"
+      className="h-3 w-3 shrink-0 fill-none stroke-current"
+      style={{ color: 'var(--dim)' }}
       strokeWidth={1.35}
       strokeLinecap="round"
       strokeLinejoin="round"
