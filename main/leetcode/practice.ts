@@ -97,9 +97,16 @@ export class LeetCodePractice {
   }
 
   async observe(event: WorkEvent): Promise<void> {
-    await this.deps.record?.(event)
+    // Folded before anything is awaited. Events arrive from the page in bursts,
+    // the recorder writes each one to disk, and three appends finish in
+    // whatever order the filesystem likes. Folding behind that await let
+    // `opened` land after the `changed` it was meant to precede, and `opened`
+    // on a problem the app has not seen is a clean slate, so it wiped the code
+    // the student already had. What that looked like: reconnect after a
+    // restart, and the companion says nothing is written when six lines are.
     const before = this.work
     this.work = fold(this.work, event)
+    await this.deps.record?.(event)
     const { voice } = this.deps
     switch (event.kind) {
       case 'opened': {

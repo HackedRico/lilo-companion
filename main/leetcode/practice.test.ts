@@ -273,12 +273,28 @@ test('the page saying again what is open is a repeat, not a new problem', async 
   assert.equal(h.practice.work.code, CODE, 'and what they had written is still what it knows')
 })
 
-test('a problem closed while the model is thinking is neither said nor marked', async () => {
+test('a problem closed before the ask is handled is not sent to the model at all', async () => {
   const h = harness('coach')
   await h.start()
   h.llm.queue.push({ rung: 3, say: 'seen is filled on line 4 and never read.', lines: [4], names: ['seen'] })
   const answering = h.practice.observe({ kind: 'asked', at: 10, text: 'why is it always empty' })
-  // They shut the tab while the answer was on the wire.
+  // They shut the tab in the same breath. Every event is folded as it arrives,
+  // so by the time the ask is handled the problem is already gone.
+  await h.practice.observe({ kind: 'closed', at: 11 })
+  await answering
+  assert.equal(h.llm.asks.length, 0, 'nothing was asked about a problem that is gone')
+  assert.ok(!h.said.some((item) => item.text.includes('seen is filled')), 'and nothing was said about code that is gone')
+  assert.equal(h.marks.length, 0, 'nor marked on a page that has moved on')
+  assert.deepEqual(h.suggestions(), [], 'and no chips are put back up for it')
+})
+
+test('a problem closed while the model is thinking is neither said nor marked', async () => {
+  const h = harness('coach')
+  await h.start()
+  h.llm.queue.push({ rung: 3, say: 'seen is filled on line 4 and never read.', lines: [4], names: ['seen'] })
+  // Asked and handled, so the model is on the wire before the tab is shut.
+  const answering = h.practice.observe({ kind: 'asked', at: 10, text: 'why is it always empty' })
+  await Promise.resolve()
   await h.practice.observe({ kind: 'closed', at: 11 })
   await answering
   assert.equal(h.llm.asks.length, 1, 'the model was asked')
@@ -337,4 +353,35 @@ test('code that arrives late is still what the greeting says', async () => {
   await h.practice.observe({ kind: 'changed', at: 0, code: CODE, language: 'python' })
   await greeting
   assert.match(h.said[0]!.text, /lines of python/)
+})
+
+test('a burst of events is folded in the order it arrived, whatever the recorder does', async () => {
+  // The recorder writes each event to disk and the fold used to wait on that.
+  // Three appends started together do not finish in the order they started, so
+  // `opened` could land after the `changed` it preceded, and `opened` on an
+  // unseen problem is a clean slate: the student's code went with it.
+  const h = harness('coach')
+  const delays = new Map<string, number>([
+    ['opened', 30],
+    ['changed', 1],
+    ['attention', 1]
+  ])
+  const slow = new LeetCodePractice({
+    llm: h.llm,
+    tier: () => 'coach',
+    now: () => 0,
+    nextId: () => '1',
+    record: (event) => new Promise((done) => setTimeout(done, delays.get(event.kind) ?? 1)),
+    voice: { say: async () => undefined, suggest: () => undefined, orb: () => undefined, mark: () => undefined, focus: () => undefined }
+  })
+
+  // Handed over the way the bridge hands them over: all at once, none awaited.
+  const all = [
+    slow.observe({ kind: 'opened', at: 0, problem: PROBLEM }),
+    slow.observe({ kind: 'changed', at: 0, code: CODE, language: 'python' }),
+    slow.observe({ kind: 'attention', at: 0, inFront: true })
+  ]
+  await Promise.all(all)
+  assert.equal(slow.work.code, CODE)
+  assert.equal(slow.work.problem?.slug, PROBLEM.slug)
 })
