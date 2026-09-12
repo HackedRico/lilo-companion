@@ -244,9 +244,10 @@ function ProfileTab({
 }
 
 /**
- * Typed in their own words, then answered by the data. Showing what each phrase
- * landed on keeps the app from quietly filtering on something else, and says
- * plainly when there is nothing behind it.
+ * In their own words, then answered by the data. Onboarding seeds this with the
+ * track it heard, so nothing is filtered on that is not shown here. Showing what
+ * each phrase landed on keeps the app from quietly filtering on something else,
+ * and says plainly when there is nothing behind it.
  */
 function Aims({
   profile,

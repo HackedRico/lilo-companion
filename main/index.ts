@@ -37,8 +37,12 @@ import { installTray } from './tray.ts'
 
 if (!app.requestSingleInstanceLock()) app.quit()
 
-/** How often the LeetCode practice is asked whether a hint is earned. */
-const TICK = 15000
+/**
+ * How often the LeetCode practice is asked whether a hint is earned. The answer
+ * is a handful of comparisons in `nextRung`, so asking often costs nothing, and
+ * asking rarely means a hint the ladder has earned arrives up to a tick late.
+ */
+const TICK = 2000
 
 /** A file named on the command line or in .env, so a change can be tried without clicking. */
 function fileArgument(flag: string, variable: string): string | null {
@@ -139,8 +143,12 @@ app.whenReady().then(async () => {
   async function pickLecture(): Promise<void> {
     const picked = await dialog.showOpenDialog({
       // The hint rides in the title, which every platform shows; message is macOS only.
-      title: 'Upload a lecture: a transcript or your notes, one line per thing said',
-      filters: [{ name: 'Transcript', extensions: ['txt', 'md', 'vtt'] }],
+      title: 'Upload a lecture: a transcript, slides, or notes',
+      filters: [
+        { name: 'Lecture materials', extensions: ['txt', 'md', 'vtt', 'pdf', 'pptx'] },
+        { name: 'Presentations & Documents', extensions: ['pdf', 'pptx'] },
+        { name: 'Transcripts & Notes', extensions: ['txt', 'md', 'vtt'] }
+      ],
       properties: ['openFile']
     })
     const path = picked.filePaths[0]

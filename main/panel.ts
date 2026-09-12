@@ -204,11 +204,15 @@ export class Panel {
 
   dragMove(at: Point): void {
     if (!this.dragOffset) return
-    const x = Math.round(at.x - this.dragOffset.x)
-    const y = Math.round(at.y - this.dragOffset.y)
+    const x = Math.round(at.x - this.dragOffset.x) | 0
+    const y = Math.round(at.y - this.dragOffset.y) | 0
     // Electron throws on a coordinate it cannot convert rather than ignoring it.
     if (!Number.isFinite(x) || !Number.isFinite(y)) return
-    this.win.setPosition(x, y)
+    try {
+      this.win.setPosition(x, y)
+    } catch {
+      // Ignore transient conversion issues during rapid drag
+    }
   }
 
   dragEnd(): Point {

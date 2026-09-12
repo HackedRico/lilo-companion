@@ -23,6 +23,12 @@ export interface Ask {
   user: string
   temperature?: number
   maxTokens?: number
+  /**
+   * True for a call nobody asked for. Every call is serialised, so the backoff
+   * sleeps and the schema retry of a volunteered line are paid for by whoever
+   * is waiting behind it. One that fails is simply not said.
+   */
+  unasked?: boolean
 }
 
 /** A model on this machine needs no key, and asking for one would be rude. */
@@ -137,47 +143,81 @@ export class ModelService implements LlmLike {
   }
 
   /** Serialises every call, and backs off when the endpoint pushes back. */
-  private queue<T>(work: () => Promise<T>): Promise<T> {
+  private queue<T>(work: (waited: number) => Promise<T>): Promise<T> {
     if (!this.available) return Promise.reject(new LlmError('no model configured'))
-    const run = this.tail.then(work, work)
+    const asked = Date.now()
+    const start = (): Promise<T> => work(Date.now() - asked)
+    const run = this.tail.then(start, start)
     this.tail = run.catch(() => undefined)
     return run
   }
 
-  private async withBackoff<T>(work: () => Promise<T>): Promise<T> {
+  /**
+   * Where one call's time went, so a slow reply can be read rather than
+   * guessed at: waiting behind another call, or out on the wire.
+   */
+  private trace(turn: Turn, waited: number, wire: number, reply: string): void {
+    if (!process.env['LILO_DEBUG_LLM']) return
+    const into = turn.system.length + turn.user.length
+    process.stderr.write(
+      `\n--- ${turn.model} | queued ${waited}ms | wire ${wire}ms | in ${into} chars | out ${reply.length} chars ---\n${reply}\n---\n`
+    )
+  }
+
+  private async withBackoff<T>(work: () => Promise<T>, tries = 3): Promise<T> {
     let wait = 800
     for (let attempt = 0; ; attempt++) {
       try {
         return await work()
       } catch (error) {
-        if (!isPushback(error) || attempt >= 2) throw error
+        if (!isPushback(error) || attempt >= tries - 1) throw error
         await new Promise((resolve) => setTimeout(resolve, wait + Math.random() * 400))
         wait *= 2
       }
     }
   }
 
+  /** A call nobody asked for waits for nothing: the queue behind it is a student. */
+  private tries(ask: Ask): number {
+    return ask.unasked ? 1 : 3
+  }
+
   /**
    * No protocol enforces a schema, so the schema goes in the prompt and Zod is
    * what actually decides. One retry, then give up: a dropped card is better
    * than an invented one.
+   *
+   * The first try does not ask for JSON mode. Where an endpoint implements it
+   * by constraining what the model may emit, it costs seconds rather than
+   * milliseconds: measured against Featherless, the same coach prompt answered
+   * in about two seconds plain and about seven with JSON mode on. `jsonFrom`
+   * already lifts an object out of fences or prose, so the fast way is tried
+   * first and the guarantee is what the retry buys.
    */
   async json<T>(schema: ZodType<T>, ask: Ask): Promise<T> {
-    return this.queue(async () => {
+    return this.queue(async (waited) => {
       let lastIssue = ''
-      for (let attempt = 0; attempt < 2; attempt++) {
+      // Set when the reply was not JSON at all, which is the only fault asking
+      // the endpoint to constrain its output can fix. A reply that parsed and
+      // then failed the schema is a different fault, and paying seconds of
+      // constrained decoding for it buys nothing.
+      let unparseable = false
+      const attempts = ask.unasked ? 1 : 2
+      for (let attempt = 0; attempt < attempts; attempt++) {
         const user =
           attempt === 0
             ? ask.user
             : `${ask.user}\n\nYour previous reply could not be used: ${lastIssue}\nReturn only a JSON object matching the schema, nothing else.`
-        const turn = this.turn({ ...ask, user }, true, 0.4, 1200)
-        const raw = await this.withBackoff(() => this.provider.complete(turn))
-        if (process.env['LILO_DEBUG_LLM']) {
-          process.stderr.write(`\n--- ${turn.model} ---\n${raw}\n---\n`)
-        }
+        const turn = this.turn({ ...ask, user }, unparseable, 0.4, 1200)
+        const sent = Date.now()
+        const raw = await this.withBackoff(() => this.provider.complete(turn), this.tries(ask))
+        this.trace(turn, waited, Date.now() - sent, raw)
         try {
-          return schema.parse(jsonFrom(raw))
+          const parsed = jsonFrom(raw)
+          unparseable = false
+          return schema.parse(parsed)
         } catch (error) {
+          unparseable = error instanceof LlmError || error instanceof SyntaxError
           lastIssue = (error as Error).message.slice(0, 400)
         }
       }
@@ -190,20 +230,23 @@ export class ModelService implements LlmLike {
    * and wrapping it in JSON only gives the model something else to get wrong.
    */
   async text(ask: Ask): Promise<string> {
-    return this.queue(async () => {
+    return this.queue(async (waited) => {
       const turn = this.turn(ask, false, 0.6, 300)
-      const raw = await this.withBackoff(() => this.provider.complete(turn))
-      if (process.env['LILO_DEBUG_LLM']) {
-        process.stderr.write(`\n--- ${turn.model} ---\n${raw}\n---\n`)
-      }
+      const sent = Date.now()
+      const raw = await this.withBackoff(() => this.provider.complete(turn), this.tries(ask))
+      this.trace(turn, waited, Date.now() - sent, raw)
       return raw.trim()
     })
   }
 
   /** Plain prose, streamed a token at a time. */
   async stream(ask: Ask, onToken: (token: string) => void): Promise<string> {
-    return this.queue(() =>
-      this.withBackoff(() => this.provider.stream(this.turn(ask, false, 0.6, 400), onToken))
-    )
+    return this.queue(async (waited) => {
+      const turn = this.turn(ask, false, 0.6, 400)
+      const sent = Date.now()
+      const reply = await this.withBackoff(() => this.provider.stream(turn, onToken), this.tries(ask))
+      this.trace(turn, waited, Date.now() - sent, reply)
+      return reply
+    })
   }
 }

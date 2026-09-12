@@ -9,7 +9,8 @@ import { escapeRegExp } from '../ikb/tag.ts'
  * fallback for one it does not.
  */
 
-const WORDS = "interview(?:s|ing|ed)?|onsite|on-site|phone screen|loop"
+// "loop" is deliberately absent: a student working a problem says "my loop".
+const WORDS = "interview(?:s|ing|ed)?|onsite|on-site|phone screen"
 const ASKING = new RegExp(`\\b(?:${WORDS})\\b`, 'gi')
 
 /** How many words may sit between the company and the word: "interview process at Stripe". */
@@ -49,12 +50,16 @@ export function interviewAsk(text: string, companies: readonly string[]): string
       if (beside(at, at + match[0].length)) found.push({ at, name: company })
     }
   }
-  // "interview at Coinbase", "Coinbase interview", "Ramp's onsite": a name the base does not know.
+  // "interview at Coinbase", "Coinbase interview", "Ramp's onsite": a name the base
+  // does not know. It has to sit beside the word like a known company does, or
+  // "is my loop wrong for Two Sum" reads as an interview at a company called Two.
   const typed = new RegExp(`\\b(?:at|with|for|from)\\s+(${NAME})|(${NAME})(?:'s)?\\s+(?:${WORDS})\\b`, 'g')
   for (const match of text.matchAll(typed)) {
     const name = match[1] ?? match[2] ?? ''
     if (!name || NOT_A_NAME.has(name)) continue
-    found.push({ at: match.index ?? 0, name })
+    const at = text.indexOf(name, match.index ?? 0)
+    if (!beside(at, at + name.length)) continue
+    found.push({ at, name })
   }
   found.sort((a, b) => a.at - b.at)
   return found[0]?.name ?? null

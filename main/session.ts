@@ -23,7 +23,7 @@ import { EMPTY_PROFILE, profileFromChat, summarise, withHeardTerms, withSignal }
 import { Transcript } from './transcript.ts'
 import { firstMatch } from './watch.ts'
 import type { Mark, WorkEvent } from '../shared/leetcode.ts'
-import { BETTER_QUESTION, LeetCodePractice } from './leetcode/practice.ts'
+import { ASKS, BETTER_QUESTION, LeetCodePractice, TRACE_QUESTION } from './leetcode/practice.ts'
 import { interviewAsk } from './interviews/ask.ts'
 import { briefInterview, firstSentences } from './interviews/brief.ts'
 import type { Account } from './interviews/sources.ts'
@@ -58,6 +58,14 @@ export interface SessionDeps {
 }
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
+
+/** As much as fits beside the orb: the first sentence, or the first line of code. */
+export function firstSentence(text: string, limit = 90): string {
+  const prose = text.split('```')[0]?.trim() || text.trim()
+  const end = prose.search(/[.!?](\s|$)/)
+  const first = end > 0 ? prose.slice(0, end + 1) : prose
+  return first.length > limit ? `${first.slice(0, limit - 1).trimEnd()}…` : first
+}
 
 function nextId(): string {
   return randomUUID().slice(0, 8)
@@ -95,6 +103,8 @@ export class Session {
   /** The second practice, beside the lecture. It speaks through the same thread. */
   readonly leetcode: LeetCodePractice
   private knownCompanies: string[] | null = null
+  /** The turn on the wire, so a second question queues behind it rather than being dropped. */
+  private working: Promise<unknown> | null = null
 
   constructor(deps: SessionDeps) {
     this.deps = deps
@@ -108,13 +118,28 @@ export class Session {
       record: deps.record,
       nextId,
       voice: {
-        say: (text, extra) => this.say(text, extra),
+        say: (text, extra) => this.saidWhileWorking(text, extra),
         suggest: (suggestions) => this.suggest(suggestions),
-        orb: (orb) => this.patch({ orb }),
+        // The dots are what says work is happening; the orb alone is easy to miss.
+        orb: (orb) => this.patch({ orb, composing: orb === 'thinking' }),
         mark: (mark) => deps.mark?.(mark),
         focus: (problem) => this.focusProblem(problem)
       }
     })
+  }
+
+  /**
+   * The student is in Chrome, so the panel is usually shut and the thread is
+   * out of sight. Whatever the practice says still goes in the thread, and a
+   * short form of it goes to the orb, or the companion would be talking to a
+   * closed window while they work.
+   */
+  private async saidWhileWorking(
+    text: string,
+    extra?: Omit<Partial<ThreadItem>, 'id' | 'text' | 'at'>
+  ): Promise<unknown> {
+    this.whisper(firstSentence(text))
+    return this.say(text, extra)
   }
 
   /** A LeetCode problem in view takes the composer; leaving it hands it back. */
@@ -156,10 +181,12 @@ export class Session {
   private async say(
     text: string,
     extra: Omit<Partial<ThreadItem>, 'id' | 'text' | 'at'> = {},
-    speaker: ThreadItem['speaker'] = 'companion'
+    speaker: ThreadItem['speaker'] = 'companion',
+    /** False for a line that carries on the turn already in progress. */
+    pause = true
   ): Promise<ThreadItem> {
     this.patch({ composing: true })
-    await sleep(this.pace.turn)
+    if (pause) await sleep(this.pace.turn)
     const item: ThreadItem = {
       id: nextId(),
       speaker,
@@ -172,7 +199,9 @@ export class Session {
     this.patch({ composing: false })
     for (const word of words(text)) {
       this.deps.emit.token(item.id, word)
-      await sleep(this.pace.word)
+      // words() keeps the separators so the line reads as it will finally look.
+      // Sleeping on those as well charged the pace twice per word.
+      if (word.trim()) await sleep(this.pace.word)
     }
     this.deps.emit.end(item.id)
     const done: ThreadItem = { ...item, text, streaming: false }
@@ -296,9 +325,10 @@ export class Session {
   /** The student asked, so extract from the window and say what it is worth. */
   async why(): Promise<void> {
     if (this.busy) return
-    this.busy = true
-    try {
-      this.patch({ orb: 'thinking' })
+    return this.hold(async () => {
+      this.busy = true
+      try {
+      this.patch({ orb: 'thinking', composing: true })
       if (this.transcript.empty) {
         await this.say('Nothing has come through yet. Upload a lecture or paste your notes and I will read it back.')
         return
@@ -308,13 +338,14 @@ export class Session {
         await this.say('Nothing much is being taught in that. Try another part of the lecture.')
         return
       }
-      await this.showCard(concept)
-    } catch (error) {
-      await this.apologise('read that back', error)
-    } finally {
-      this.busy = false
-      this.patch({ orb: 'idle' })
-    }
+        await this.showCard(concept)
+      } catch (error) {
+        await this.apologise('read that back', error)
+      } finally {
+        this.busy = false
+        this.patch({ orb: 'idle', composing: false })
+      }
+    })
   }
 
   private async showCard(concept: Concept): Promise<void> {
@@ -378,10 +409,8 @@ export class Session {
 
     for (const gap of gaps) {
       const evidence = evidenceOf(this.deps.ikb, gap.exampleSentence)
-      await this.say(
-        `${gap.practice}, in ${gap.pctOfPostings} percent of them.`,
-        evidence ? { evidence } : {}
-      )
+      // One turn, three lines: the pause belongs before the turn, not before each.
+      await this.say(`${gap.practice}, in ${gap.pctOfPostings} percent of them.`, evidence ? { evidence } : {}, 'companion', false)
     }
 
     this.suggest([
@@ -404,7 +433,10 @@ export class Session {
   async typed(text: string): Promise<void> {
     const { mode } = this.state.composer
     if (mode === 'onboarding') return this.onboardingTurn(text)
-    if (mode === 'leetcode') {
+    // A problem open in Chrome takes the composer, but asking what an interview
+    // there is like is never a question about the code on screen.
+    const aboutAnInterview = interviewAsk(text, this.companies) !== null
+    if (mode === 'leetcode' && !aboutAnInterview) {
       this.heardFromStudent(text)
       return this.observe({ kind: 'asked', at: Date.now(), text })
     }
@@ -412,7 +444,7 @@ export class Session {
   }
 
   async chat(text: string): Promise<void> {
-    if (this.busy || !text.trim()) return
+    if (!text.trim()) return
     const company = interviewAsk(text, this.companies)
     return this.turn(text, 'answer that', async () => {
       if (company && this.deps.gatherInterviews && (await this.interviews(company))) return
@@ -448,18 +480,34 @@ export class Session {
    * thinks while the body runs, and a failure is apologised for in the words
    * of what was being attempted. The busy flag lives here and nowhere else.
    */
+  /**
+   * One queue for everything that answers the student. Two answers writing into
+   * the thread at once interleave their lines and fight over the orb, so the
+   * second waits rather than racing, and nothing is dropped to avoid the race.
+   */
+  private hold<T>(work: () => Promise<T>): Promise<T> {
+    const ahead = this.working ?? Promise.resolve()
+    const run = ahead.catch(() => undefined).then(work)
+    this.working = run.catch(() => undefined)
+    return run
+  }
+
   private async turn(text: string, attempting: string, body: () => Promise<void>): Promise<void> {
-    this.busy = true
-    try {
-      this.heardFromStudent(text)
-      this.patch({ orb: 'thinking' })
-      await body()
-    } catch (error) {
-      await this.apologise(attempting, error)
-    } finally {
-      this.busy = false
-      this.patch({ orb: 'idle' })
-    }
+    // Said first, before any waiting: the composer has already cleared what they
+    // typed, so a line that is not put in the thread now is a line they lose.
+    this.heardFromStudent(text)
+    return this.hold(async () => {
+      this.busy = true
+      try {
+        this.patch({ orb: 'thinking', composing: true })
+        await body()
+      } catch (error) {
+        await this.apologise(attempting, error)
+      } finally {
+        this.busy = false
+        this.patch({ orb: 'idle', composing: false })
+      }
+    })
   }
 
   /**
@@ -508,10 +556,12 @@ export class Session {
     await sleep(this.pace.turn)
     const item: ThreadItem = { id: nextId(), speaker: 'companion', text: '', at: Date.now(), streaming: true }
     this.deps.emit.add(item)
-    this.patch({ composing: false })
     let full = ''
     try {
       const { citations, sources } = await produce((token) => {
+        // Not before: the dots are the only sign of life while the model thinks,
+        // and an empty line with no dots reads as the companion having given up.
+        if (!full) this.patch({ composing: false })
         full += token
         this.deps.emit.token(item.id, token)
       })
@@ -566,19 +616,28 @@ export class Session {
         ])
         return
       }
+      // A chip is the student asking, so the thread shows them asking it. Without
+      // this the answer arrives with nothing above it saying what was asked.
       case 'hint':
         this.suggest([])
+        this.heardFromStudent(ASKS.hint)
         return this.observe({ kind: 'help', at: Date.now() })
       case 'quiet':
         this.suggest([])
+        this.heardFromStudent(ASKS.quiet)
         return this.observe({ kind: 'quiet', at: Date.now() })
       case 'state':
+        this.heardFromStudent(ASKS.state)
         await this.say(this.leetcode.state())
         return
       case 'better':
         this.suggest([])
-        this.heardFromStudent(BETTER_QUESTION)
+        this.heardFromStudent(ASKS.better)
         return this.observe({ kind: 'asked', at: Date.now(), text: BETTER_QUESTION })
+      case 'trace':
+        this.suggest([])
+        this.heardFromStudent(ASKS.trace)
+        return this.observe({ kind: 'asked', at: Date.now(), text: TRACE_QUESTION })
       case 'reonboard':
         this.onboardingTurns.length = 0
         this.suggest([])

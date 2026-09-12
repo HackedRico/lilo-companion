@@ -1,4 +1,4 @@
-import { labelRoles, type Profile, type RoleFamily } from '../shared/types.ts'
+import { labelRoles, ROLE_LABEL, type Profile, type RoleFamily } from '../shared/types.ts'
 import { profileOut } from '../shared/schemas.ts'
 import { extractProfile } from '../shared/prompts.ts'
 import type { LlmLike } from './llm/service.ts'
@@ -46,13 +46,17 @@ export async function profileFromChat(
     maxTokens: 400,
     ...extractProfile(history)
   })
+  const targetRoles = read.targetRoles.length > 0 ? (read.targetRoles as RoleFamily[]) : current.targetRoles
   return {
     ...current,
     major: read.major || current.major,
     year: read.year || current.year,
     courses: read.courses.length > 0 ? read.courses : current.courses,
-    targetRoles: read.targetRoles.length > 0 ? (read.targetRoles as RoleFamily[]) : current.targetRoles,
-    aims: current.aims,
+    targetRoles,
+    // Onboarding names the track directly, so the preferences window would show
+    // an empty "Aiming at" while the companion filtered on it. It says the same
+    // thing in both places instead.
+    aims: current.aims.length > 0 ? current.aims : targetRoles.map((role) => ROLE_LABEL[role]),
     interests: read.interests.length > 0 ? read.interests : current.interests
   }
 }

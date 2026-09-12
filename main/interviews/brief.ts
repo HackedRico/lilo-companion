@@ -22,11 +22,24 @@ export function degenerate(text: string): boolean {
 /** The chip reads as the account, so six citations are six different chips, and the source is the small print. */
 /** A marker pulled out of a sentence leaves a gap before the full stop; the prose closes over it. */
 export function tidy(text: string): string {
-  return text
+  const closed = text
     .replace(/\s+([.,;:!?])/g, '$1')
     .replace(/,\s*([.;:!?])/g, '$1')
     .replace(/[ \t]{2,}/g, ' ')
     .trim()
+  if (/[.!?]["')\]]?$/.test(closed)) return closed
+  // The reply ran out of room mid-sentence. Half a sentence reads as a bug, so
+  // it is cut back to the last one that finished. A period inside a number, an
+  // initial or "e.g." is not one, so the end has to be a capital or nothing.
+  let end = -1
+  for (const match of closed.matchAll(/[.!?]["')\]]?\s+(?=[A-Z])/g)) {
+    const at = (match.index ?? 0) + match[0].trimEnd().length
+    const before = closed.slice(Math.max(0, at - 4), at - 1)
+    if (/\d$/.test(before) || /\b[a-z]$/.test(before) || /\b(e\.g|i\.e|etc|vs|Mr|Dr)$/i.test(before)) continue
+    end = at
+  }
+  // Long enough to read as a sentence rather than a stub.
+  return end > 24 ? closed.slice(0, end) : closed
 }
 
 function evidenceOf(sentence: Sentence, account: Account): Evidence {
@@ -56,14 +69,22 @@ export async function briefInterview(
 
   const attempt = async (sentences: Sentence[], temperature: number): Promise<Brief | null> => {
     const raw = await llm.text({
-      lane: 'strong',
+      // Prose, like companion chat, which is also on this lane. The careful lane
+      // is for the coach's judgement; measured against the configured endpoint
+      // the bigger model collapsed into a run of one character on this prompt
+      // four times out of four, and the quick one wrote it every time in a third
+      // of the wire time.
+      lane: 'fast',
       temperature,
-      maxTokens: 400,
+      maxTokens: 700,
       ...interviewBrief({ company, sentences, ...span })
     })
     if (degenerate(raw)) return null
     const filter = new CitationFilter(new Set(sentences.map((sentence) => sentence.id)))
     const text = tidy(`${filter.push(raw)}${filter.flush()}`)
+    // Prose about an interview with nothing behind it is the one thing this
+    // must not write, so it counts as a reply that did not work out.
+    if (filter.citations.length === 0) return null
     const cited = new Set(filter.citations)
     // One chip per account: two sentences from one write-up are one place to go.
     const seen = new Set<string>()

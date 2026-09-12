@@ -1,18 +1,18 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { ZodType } from 'zod'
-import type { Mark, Tier, WorkEvent } from '../../shared/leetcode.ts'
+import type { Mark, Tier, Trace, WorkEvent } from '../../shared/leetcode.ts'
 import type { OrbState, Suggestion, ThreadItem } from '../../shared/types.ts'
 import type { Ask, LlmLike } from '../llm/service.ts'
 import { WITHHELD } from './coach.ts'
 import { CLIMB_EVERY } from './ladder.ts'
-import { LeetCodePractice } from './practice.ts'
+import { LeetCodePractice, TRACE_QUESTION } from './practice.ts'
 
 /** Answers the hint schema from a queue, and keeps every prompt it was sent. */
 class ScriptedCoach implements LlmLike {
   available = true
   readonly asks: Ask[] = []
-  queue: { rung: number; say: string; lines: number[]; names: string[] }[] = []
+  queue: { rung: number; say: string; lines: number[]; names: string[]; trace?: Trace }[] = []
 
   async json<T>(schema: ZodType<T>, ask: Ask): Promise<T> {
     if (!this.available) throw new Error('no model configured')
@@ -33,6 +33,17 @@ class ScriptedCoach implements LlmLike {
 
 const PROBLEM = { slug: 'two-sum', title: 'Two Sum', difficulty: 'Easy', statement: 'Find two numbers.' }
 const CODE = 'def twoSum(nums, target):\n    seen = {}\n    for i, n in enumerate(nums):\n        seen[n] = i\n    return []'
+
+/** Two pointers walking in from the ends, on an example of the coach's own. */
+const WALK: Trace = {
+  input: 'a sorted array [1, 3, 5, 7], looking for a pair that makes 6',
+  items: ['1', '3', '5', '7'],
+  columns: ['sum'],
+  steps: [
+    { values: ['8'], marks: [{ at: 0, label: 'L' }, { at: 3, label: 'R' }], note: '1 and 7 make 8, over 6, so R steps in' },
+    { values: ['6'], marks: [{ at: 0, label: 'L' }, { at: 2, label: 'R' }], note: '1 and 5 make 6, the pair' }
+  ]
+}
 
 function harness(tier: Tier = 'coach') {
   const llm = new ScriptedCoach()
@@ -175,4 +186,76 @@ test('asking for a hint informs the user if model is not configured', async () =
   h.llm.available = false
   await h.practice.observe({ kind: 'asked', at: 10, text: 'Give me a hint' })
   assert.match(h.said.at(-1)!.text, /cannot coach you until a model is configured/i)
+})
+
+test('answering stops the timer piling on, and does not push the ladder up', async () => {
+  const h = harness('tutor')
+  await h.start()
+  h.llm.queue.push({ rung: 5, say: 'Walk the array once, storing each value against its index.', lines: [], names: [] })
+  await h.practice.observe({ kind: 'asked', at: 10, text: 'show me the answer' })
+  assert.equal(h.llm.asks.length, 1)
+
+  // The same code a minute later earns nothing, however high the answer was.
+  h.at(CLIMB_EVERY * 2)
+  await h.practice.tick()
+  assert.equal(h.llm.asks.length, 1, 'nothing is volunteered on top of what was just answered')
+
+  // An edit, and a minute, starts the climb at the bottom rather than at the ceiling.
+  await h.practice.observe({ kind: 'changed', at: CLIMB_EVERY * 2, code: `${CODE}\n# hmm`, language: 'python' })
+  h.llm.queue.push({ rung: 1, say: 'What do you need to have seen before n?', lines: [], names: [] })
+  h.at(CLIMB_EVERY * 3 + 1)
+  await h.practice.tick()
+  assert.match(h.llm.asks[1]!.system, /ceiling right now is rung 1/, 'the ladder starts again from the bottom')
+})
+
+test('what is already in the editor is waited for before the state is read back', async () => {
+  const h = harness('coach')
+  const opened = h.practice.observe({ kind: 'opened', at: 0, problem: PROBLEM })
+  // The page reports the editor a moment after it reports the problem.
+  await new Promise((resolve) => setTimeout(resolve, 300))
+  await h.practice.observe({ kind: 'changed', at: 1, code: CODE, language: 'python' })
+  await opened
+  assert.match(h.said[0]!.text, /5 lines of python/, 'not "nothing written yet" over a screen of code')
+})
+
+test('a question asked while the timer is thinking waits, and is never dropped', async () => {
+  const h = harness('coach')
+  await h.start()
+  // The timer takes a hint, and the student presses the chip while it is out.
+  h.llm.queue.push({ rung: 1, say: 'What do you need to have seen before n?', lines: [], names: [] })
+  h.at(CLIMB_EVERY)
+  const volunteering = h.practice.tick()
+  await h.practice.observe({ kind: 'help', at: CLIMB_EVERY })
+  await volunteering
+  assert.equal(h.llm.asks.length, 2, 'the question was asked, not swallowed')
+  assert.match(h.llm.asks[1]!.system, /ceiling right now is rung 3/, 'and at the tier the student set')
+})
+
+test('asked to be walked through it, the coach draws a dry run and the line carries it', async () => {
+  const h = harness('coach')
+  await h.start()
+  h.llm.queue.push({ rung: 2, say: 'Two pointers, one at each end, walking in.', lines: [], names: [], trace: WALK })
+  await h.practice.observe({ kind: 'asked', at: 10, text: TRACE_QUESTION })
+  assert.match(h.llm.asks[0]!.user, /step by step/, 'the ask reaches the model in the student\'s words')
+  assert.equal(h.said.at(-1)!.rung, 2)
+  assert.equal(h.said.at(-1)!.trace?.steps.length, 2, 'the picture rides out with the words')
+  assert.ok(h.suggestions().some((s) => s.intent.kind === 'trace'), 'and a walk-through is on offer')
+})
+
+test('hands off is offered no walk-through, and a dry run that does not hold together is asked for again', async () => {
+  const off = harness('hands_off')
+  await off.start()
+  assert.ok(!off.suggestions().some((s) => s.intent.kind === 'trace'), 'a picture of the idea is above hands off')
+
+  const h = harness('coach')
+  await h.start()
+  const broken = { ...WALK, steps: [{ ...WALK.steps[0]!, marks: [{ at: 9, label: 'R' }] }] }
+  h.llm.queue.push(
+    { rung: 2, say: 'Two pointers, one at each end.', lines: [], names: [], trace: broken },
+    { rung: 2, say: 'Two pointers, one at each end.', lines: [], names: [], trace: broken }
+  )
+  await h.practice.observe({ kind: 'asked', at: 10, text: TRACE_QUESTION })
+  assert.match(h.llm.asks[1]!.system, /did not hold together/, 'the second try is told what was wrong with the picture')
+  assert.equal(h.said.at(-1)!.text, 'I have nothing specific enough to say about that yet.')
+  assert.equal(h.said.at(-1)!.trace, undefined, 'and nothing broken is drawn')
 })

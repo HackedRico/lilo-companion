@@ -97,3 +97,31 @@ test('mapped terms still produce traceable posting evidence', () => {
     assert.ok(sentence.tags.some((tag) => mapped.some((hit) => hit.term === tag)))
   }
 })
+
+test('a concept said in the singular reaches a rule written in the plural', () => {
+  const singular = mapConceptTerms(ikb, {
+    name: 'Hash Table',
+    summary: 'A structure that finds a value by its key in constant time on average.',
+    confidence: 'high'
+  })
+  const plural = mapConceptTerms(ikb, {
+    name: 'Hash tables',
+    summary: 'A structure that finds a value by its key in constant time on average.',
+    confidence: 'high'
+  })
+  assert.ok(singular.length > 0, 'the singular form is not a dead end')
+  assert.deepEqual(
+    singular.map((term) => term.term).sort(),
+    plural.map((term) => term.term).sort(),
+    'and reaches the same terms the plural does'
+  )
+})
+
+test('an alias that is also an ordinary word is matched as written, not stemmed', () => {
+  const flag = mapConceptTerms(ikb, {
+    name: 'Loop invariants',
+    summary: 'The lecturer will set a flag when the loop finishes, and the invariant still holds.',
+    confidence: 'high'
+  })
+  assert.deepEqual(flag, [], 'setting a flag is not a lecture on hash tables')
+})

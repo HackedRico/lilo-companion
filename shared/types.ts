@@ -1,4 +1,4 @@
-import type { Rung, Tier } from './leetcode.ts'
+import type { Rung, Tier, Trace } from './leetcode.ts'
 
 // Domain -----------------------------------------------------------------
 
@@ -130,6 +130,8 @@ export interface ThreadItem {
   sources?: Evidence[]
   /** Set on a LeetCode hint, so the thread can say how much it gave away. */
   rung?: Rung
+  /** A dry run beside a hint, drawn in the thread and stepped through there. */
+  trace?: Trace
 }
 
 export type Intent =
@@ -145,6 +147,7 @@ export type Intent =
   | { kind: 'quiet' }
   | { kind: 'state' }
   | { kind: 'better' }
+  | { kind: 'trace' }
 
 /** Phrased the way the student would say it, never as a feature name. */
 export interface Suggestion {

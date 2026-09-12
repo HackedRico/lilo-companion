@@ -1,5 +1,5 @@
 import type { Hint, Rung } from '../../shared/leetcode.ts'
-import { hintOut } from '../../shared/schemas.ts'
+import { hintOut, type HintOut } from '../../shared/schemas.ts'
 import { coachHint } from '../../shared/prompts.ts'
 import type { LlmLike } from '../llm/service.ts'
 import { gate } from './ladder.ts'
@@ -14,6 +14,9 @@ export type Coached =
 
 export const WITHHELD = 'I have a thought, but it is above the level you set. Raise it in settings if you want it.'
 
+/** Why the first reply was refused, in the words the prompt answers to. */
+type Retry = 'too_high' | 'unverified' | 'broken_trace' | 'promise' | 'not_a_question' | 'generic' | null
+
 /**
  * One hint, gated. The model is asked once, checked, asked once more under a
  * stricter instruction if the first reply broke a rule, and then either said,
@@ -27,11 +30,15 @@ export async function coach(
   now: number
 ): Promise<Coached> {
   if (!work.problem) return { kind: 'silent' }
-  const ask = (retry: 'too_high' | 'unverified' | null) =>
+  const ask = (retry: Retry) =>
     llm.json(hintOut, {
       lane: 'strong',
+      // Nobody asked for a volunteered hint, so it never makes a student wait.
+      unasked: question === null,
       temperature: 0.4,
-      maxTokens: 300,
+      // The steps and the answer are long, a dry run is longer than its words,
+      // and a truncated reply is no reply at all.
+      maxTokens: ceiling >= 4 ? 1800 : 1000,
       ...coachHint({
         problem: work.problem!,
         state: describe(work, now),
@@ -48,7 +55,8 @@ export async function coach(
   if (verdict.ok) return { kind: 'hint', hint: first }
   if (verdict.reason === 'empty') return { kind: 'silent' }
 
-  const retry = verdict.reason === 'too_high' ? 'too_high' : 'unverified'
+  // 'empty' already returned above, so whatever is left names the fault plainly.
+  const retry: Retry = verdict.reason
   const second = asHint(await ask(retry))
   const again = gate(second, ceiling, work)
   if (again.ok) return { kind: 'hint', hint: second }
@@ -56,6 +64,9 @@ export async function coach(
   return { kind: 'silent' }
 }
 
-function asHint(out: { rung: number; say: string; lines: number[]; names: string[] }): Hint {
-  return { rung: out.rung as Rung, say: out.say.trim(), lines: out.lines, names: out.names }
+function asHint(out: HintOut): Hint {
+  const hint: Hint = { rung: out.rung as Rung, say: out.say.trim(), lines: out.lines, names: out.names }
+  // A dry run with no steps is no dry run, so it is not carried as one.
+  if (out.trace && out.trace.steps.length > 0) hint.trace = out.trace
+  return hint
 }

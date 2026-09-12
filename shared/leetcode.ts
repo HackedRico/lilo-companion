@@ -107,6 +107,34 @@ export type WorkEvent = z.infer<typeof workEvent>
 export type Problem = z.infer<typeof problem>
 export type Outcome = z.infer<typeof outcome>
 
+/** One row of a dry run: where the pointers stand, what the tracked values are, and what happened. */
+export interface TraceStep {
+  /** One value per column of the trace, as text. */
+  values: string[]
+  /** Pointers standing on items this step: which cell, and what to call it. */
+  marks: { at: number; label: string }[]
+  /** What happened, in a few words. */
+  note: string
+  /** The line of the student's code this step is on, when the walk is of their code. */
+  line?: number | null
+}
+
+/**
+ * A dry run: the idea, or their code, walked step by step on one input. It is
+ * a table of the values that change and, where there is a sequence, the cells
+ * the pointers stand on. The thread draws it and the student steps through it;
+ * no model is involved once it is here.
+ */
+export interface Trace {
+  /** The case being walked, in words. */
+  input: string
+  /** The sequence the pointers walk, one cell per element, or empty when there is none. */
+  items: string[]
+  /** The names whose values are tracked, one column each. */
+  columns: string[]
+  steps: TraceStep[]
+}
+
 /** A hint as the model returns it, before the gate has had its say. */
 export interface Hint {
   rung: Rung
@@ -115,6 +143,8 @@ export interface Hint {
   lines: number[]
   /** Names in the student's code the hint is about. */
   names: string[]
+  /** A dry run drawn beside the words, when the idea is about how state moves. */
+  trace?: Trace
 }
 
 /** What the companion can do on the page: mark lines, and only that. */

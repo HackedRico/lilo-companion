@@ -48,7 +48,7 @@ function service(provider: Provider, config: LlmConfig = CONFIG): ModelService {
   return new ModelService(config, () => provider)
 }
 
-test('the lane picks the model, and a json ask says so to the provider', async () => {
+test('the lane picks the model', async () => {
   const fake = new FakeProvider()
   fake.replies = ['{"ok":true}', '{"ok":true}']
   const llm = service(fake)
@@ -58,8 +58,22 @@ test('the lane picks the model, and a json ask says so to the provider', async (
     fake.turns.map((turn) => turn.model),
     ['quick', 'careful']
   )
-  assert.equal(fake.turns[0]?.json, true)
   assert.equal(fake.turns[0]?.system, 's')
+})
+
+test('json mode is what the retry buys, not what every call pays for', async () => {
+  const fake = new FakeProvider()
+  fake.replies = ['{"ok":true}']
+  const llm = service(fake)
+  await llm.json(OK, { lane: 'fast', system: 's', user: 'u' })
+  assert.equal(fake.turns[0]?.json, false, 'the first try is plain, which is several times faster')
+
+  // A reply the schema refuses is asked for again, and that one is constrained.
+  const again = new FakeProvider()
+  again.replies = ['not json at all', '{"ok":true}']
+  const second = service(again)
+  assert.deepEqual(await second.json(OK, { lane: 'fast', system: 's', user: 'u' }), { ok: true })
+  assert.deepEqual(again.turns.map((turn) => turn.json), [false, true])
 })
 
 test('plain text is asked for without json, and streams hand every token over', async () => {
@@ -171,4 +185,27 @@ test('how an endpoint speaks is decided from its address, and the address shaped
     assert.equal(normaliseBaseUrl(typed), 'https://api.anthropic.com', `from ${typed}`)
   }
   assert.equal(normaliseBaseUrl('   '), '', 'and blank stays blank')
+})
+
+test('a call nobody asked for waits for nothing, because a student is behind it', async () => {
+  // Pushed back every time: the asked call keeps trying, the volunteered one does not.
+  const pushed = () => new ProviderError('slow down', 429)
+  const pushy = new FakeProvider()
+  pushy.replies = [pushed(), pushed(), pushed()]
+  const llm = service(pushy)
+  await assert.rejects(llm.text({ lane: 'fast', system: 's', user: 'u' }))
+  assert.equal(pushy.turns.length, 3, 'an asked call is worth retrying')
+
+  pushy.turns.length = 0
+  pushy.replies = [pushed(), pushed(), pushed()]
+  await assert.rejects(llm.text({ lane: 'fast', system: 's', user: 'u', unasked: true }))
+  assert.equal(pushy.turns.length, 1, 'a volunteered one is said once or not at all')
+})
+
+test('a volunteered reply the schema refuses is dropped rather than asked again', async () => {
+  const junk = new FakeProvider()
+  junk.replies = ['not json', 'not json']
+  const llm = service(junk)
+  await assert.rejects(llm.json(OK, { lane: 'fast', system: 's', user: 'u', unasked: true }))
+  assert.equal(junk.turns.length, 1)
 })

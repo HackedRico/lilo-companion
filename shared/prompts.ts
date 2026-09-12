@@ -22,7 +22,7 @@ const JSON_ONLY = 'Reply with one JSON object and nothing else. No prose, no cod
 
 /** The one rule every cited answer carries, in the words the citation filter enforces. */
 const CITE_RULE =
-  'Cite it as [S:id] right after the claim. Never cite an id that is not listed. If nothing below supports a claim, do not make it.'
+  'Cite it as [S:id] right after the claim, one id per marker, copied exactly as it is listed. Never cite an id that is not listed. If nothing below supports a claim, do not make it.'
 
 /** Sentences in the only form the model may cite them. */
 function citable(sentences: Sentence[]): string {
@@ -146,7 +146,7 @@ export interface CoachInput {
   /** What the student asked, or null when the companion is volunteering. */
   question: string | null
   /** Why the last reply was refused, when this is the second try. */
-  retry: 'too_high' | 'unverified' | null
+  retry: 'too_high' | 'unverified' | 'broken_trace' | 'promise' | 'not_a_question' | 'generic' | null
 }
 
 /** The student's code with the line numbers the hint has to use. */
@@ -165,28 +165,49 @@ function numbered(code: string): string {
 export function coachHint(input: CoachInput): Prompt {
   const again =
     input.retry === 'too_high'
-      ? `Your last reply was above the ceiling. Stay at or below rung ${input.ceiling} this time, or return an empty say.`
+      ? `Your last reply was above the ceiling. Stay at or below rung ${input.ceiling} this time, or return an empty say. If you drew a dry run, draw it again at that rung rather than leaving it out.`
       : input.retry === 'unverified'
         ? 'Your last reply pointed at a line or a name that is not in their code. Point only at what is there, or return an empty say.'
-        : ''
+        : input.retry === 'promise'
+          ? 'Your last reply announced help and then gave none. Put the whole of it in say this time, the code included.'
+          : input.retry === 'not_a_question'
+            ? 'Your last reply called itself rung 1 and was not a question. Ask a real question this time, or report the rung it actually is.'
+            : input.retry === 'generic'
+              ? 'Your last reply was rung 3 and pointed at nothing of theirs. Name the lines and the identifiers in their code, or drop to a lower rung.'
+              : input.retry === 'broken_trace'
+                ? 'Your last dry run did not hold together: one value per column in every step, and every mark on an item that exists. Draw it again, or leave trace null.'
+                : ''
   return {
     system: `${VOICE}
 
 A software engineering student is working a LeetCode problem and you are beside them. You help at a level they set, so the effort stays theirs.
 
 The ladder, by how much of the answer a line gives away:
-0 say what you see. 1 a question to think about. 2 name the idea. 3 where their own code goes wrong, and why. 4 the steps. 5 the answer.
-Their ceiling right now is rung ${input.ceiling}. Reply at the lowest rung that moves them, never above the ceiling. The rung you report is checked in code, and a reply above the ceiling is thrown away unsaid.
+0 say what you see. 1 a question to think about, which ends in a question mark. 2 name the idea. 3 where their own code goes wrong, and why. 4 the steps. 5 the answer.
+Telling them what their code gets wrong is rung 3 however gently it is put, and calling it rung 1 does not make it one.
+${input.ceiling < 3 ? 'Naming something out of their own code, a variable or a function they wrote, is rung 3 however gently it is put. At this ceiling, say it about the idea rather than about what is in their editor.\n' : ''}Their ceiling right now is rung ${input.ceiling}. Reply at the lowest rung that moves them, never above the ceiling. The rung you report is checked in code, and a reply above the ceiling is thrown away unsaid.
 
 Rules:
 - Finish their idea first. Until their own approach works, help that approach. A better approach waits until theirs works.
 - Specific or silent. If a line could be said about anyone's code, do not say it. Point at the line numbers and names in their code, and every one you name is checked against it.
 - Never write code unless the rung is 5 and they asked for the answer outright. Never paste their code back at them.
+- say holds the whole of what you are giving them, code included. Never announce something you do not then write, and never end say with a colon.
+- Code inside say goes in a fenced block, so it reaches them as code rather than as a paragraph.
+- When they ask for the answer outright and rung 5 is at or below the ceiling, give it to them rather than a question.
 - Encouragement is not a hint, so do not pad with it. One or two sentences.
 - lines holds the line numbers you are talking about, names the identifiers, both taken only from their code. Both stay empty at rungs 0 to 2 unless one line is the point.
+
+A dry run is a picture of the work, drawn rather than described. trace holds the values that change, one column each, and the sequence the pointers walk, one item per cell. A mark is a pointer: an index into items, labelled with the name of the variable holding it. left and right are marks; a set, a count or the current character is a column and never a mark. Draw one when the idea is about how state moves, which it is on two pointers, sliding windows, stacks, queues, traversals and tables, and whenever they ask to see it step by step. Leave trace null when the words are enough.
+- At rung 2 the dry run shows the pattern on a tiny example of your own, three or four items, under your own names, and says nothing about their problem or their code.
+- At rung 3 it walks their own code on the failing input: their names in the columns, the line each step is on, stopping at the step where it goes wrong, and the last note says what went wrong there. It shows what happens, never what to write.
+- At rung 4 it walks the whole approach on the problem's example, every step.
+- A dry run that tracks a name or stands on a line from their code is rung 3 whatever it is labelled, and a note written as a statement is code.
+- values are bare, "17" or "[2, 7]" or "{2: 0}", one per column in every step. A table is a row per step, written out as one value. A note says what happened in a few words, no assignments. Every mark stands on an item that exists. A dry run that does not hold together is thrown away, and the words with it.
+
+Worked example of a dry run at rung 2, on an example of your own: {"input":"a sorted array [1, 3, 5, 7], looking for a pair that makes 6","items":["1","3","5","7"],"columns":["sum"],"steps":[{"values":["8"],"marks":[{"at":0,"label":"L"},{"at":3,"label":"R"}],"note":"1 and 7 make 8, over 6, so R steps in","line":null},{"values":["6"],"marks":[{"at":0,"label":"L"},{"at":2,"label":"R"}],"note":"1 and 5 make 6, the pair","line":null}]}
 ${again}
 ${JSON_ONLY}
-Schema: {"rung":0|1|2|3|4|5,"say":string,"lines":[number],"names":[string]}`,
+Schema: {"rung":0|1|2|3|4|5,"say":string,"lines":[number],"names":[string],"trace":null|{"input":string,"items":[string],"columns":[string],"steps":[{"values":[string],"marks":[{"at":number,"label":string}],"note":string,"line":number|null}]}}`,
     user: `Problem: ${input.problem.title} (${input.problem.difficulty})
 ${input.problem.statement.slice(0, 3000)}
 

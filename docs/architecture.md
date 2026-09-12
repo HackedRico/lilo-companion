@@ -30,7 +30,10 @@ for that they have not.
 claim about industry traces to a sentence in `data/ikb.json`, and every sentence
 traces to a posting with a URL. `citations.ts` strips any `[S:id]` the retriever
 did not return, so a model that invents a citation loses it rather than the
-student believing it.
+student believing it. A marker may carry several ids, and a run of sentences
+from one source arrives written short as `#0-#2`; both are taken apart and
+every piece is checked against what the retriever returned, so the shorthand
+is read and never believed on its own.
 
 **The ladder is enforced by code.** A hint carries a rung, 0 to 5, by how much
 of the answer it gives away. The tier the student picks is a ceiling on that
@@ -100,6 +103,20 @@ and every line number and name against the code; a reply that fails is asked
 once more under a stricter instruction and then withheld with an honest line,
 or dropped. The model is told the ceiling and never trusted with it.
 
+**A dry run is drawn, and read like the words.** A student stuck on a
+two pointer or sliding window problem is usually not missing the idea, they
+are missing how the pointers move, and a sentence about advancing the left one
+is hard to hold in the head. So a hint may carry a trace: the case being
+walked, the sequence the pointers stand on, the values that change, one row
+per step. The thread draws it and the student steps through it or plays it,
+with no model involved once it is there. The gate reads it under the same
+rules as the say: a column or a mark that names something in their code, or a
+step that stands on a line of theirs, is a claim about their code and rung 3
+whatever it is labelled; steps written as statements are code in pieces and
+the top of the ladder; any dry run is at least the idea drawn, so none reaches
+hands off. A mark off the end of the array or a row short of a value does not
+hold together and is asked for again, then dropped rather than drawn.
+
 **Climb on effort.** `nextRung` lets a volunteered hint rise one rung at a
 time, no oftener than a minute, and only after the code changed since the last
 one. Nothing is volunteered into a run, on top of an accepted answer, during
@@ -117,6 +134,42 @@ The host is the app's own binary run as plain Node on `main/host.ts`, relaying
 Chrome's framed messages to the running app over a local socket in
 `main/leetcode/bridge.ts`. [platforms.md](platforms.md) says where each
 platform keeps the manifest.
+
+## Where the time goes
+
+A student notices latency more than almost anything else, so the costs are
+written down here rather than rediscovered.
+
+**JSON mode is asked for only after a reply comes back that is not JSON.**
+Where an endpoint implements it by constraining what the model may emit, it
+costs seconds. Measured against Featherless with Qwen2.5-Coder, the same coach
+prompt answered in about two seconds plain and about seven with JSON mode on,
+on the larger model. `jsonFrom` already lifts an object out of fences or prose,
+so the fast way is tried first and the guarantee is what the retry buys. A
+reply that parsed and then failed the schema is a different fault, and asking
+the endpoint to constrain its output cannot fix it, so that retry stays plain.
+
+**Prose runs on the quick lane, judgement on the careful one.** Companion chat,
+the translation and the interview brief are prose. The coach is judgement. The
+brief was on the careful lane once: the configured code model collapsed into a
+run of one character on that prompt four times out of four, while the quick one
+wrote it every time in a third of the wire time. `degenerate` in
+`main/interviews/brief.ts` is what catches that when it happens anyway.
+
+**Nothing the student asks for is dropped.** Both the practice and the session
+hold what is on the wire in a promise and wait for it, rather than checking a
+flag and returning. A press or a typed line that is refused after the composer
+has cleared is a line the student loses, so what they said goes in the thread
+before any waiting starts.
+
+**The dots are the sign of life.** They stay up until something is on screen,
+which means through the model call, not until the empty line is created. `say`
+charges its pace per word and not per separator, which `words` keeps so a line
+reads as it will finally look.
+
+`LILO_DEBUG_LLM=1` prints every call as it returns, with how long it waited in
+the queue and how long it was on the wire, so a slow reply is read rather than
+guessed at.
 
 ## The window
 
@@ -179,7 +232,8 @@ query, going to two columns once there is room. It has two tabs, because it
 holds two unrelated things, and the tab is remembered in the window's own
 storage.
 
-What you are aiming at is typed, not picked. The eight tracks are what every
+What you are aiming at is yours to type, and onboarding writes down the track
+it heard so the window and the filter say the same thing. The eight tracks are what every
 posting is tagged with, and evidence and gap statistics both filter on them, so
 free text alone would match nothing. The phrase is searched against real job
 titles and resolves to the track those titles carry, with "nothing like it"

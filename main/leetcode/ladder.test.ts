@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import type { Hint } from '../../shared/leetcode.ts'
-import { CLIMB_EVERY, gate, mentions, nextRung } from './ladder.ts'
+import type { Hint, Trace } from '../../shared/leetcode.ts'
+import { CLIMB_EVERY, gate, handsOverCode, mentions, namesFromCode, nextRung, reachedRung } from './ladder.ts'
 import { EMPTY_WORK, type Work } from './state.ts'
 
 const CODE = 'def twoSum(nums, target):\n    seen = {}\n    for i, n in enumerate(nums):\n        seen[n] = i\n    return []'
@@ -56,7 +56,7 @@ test('a line or a name that is not in the code is never said', () => {
   assert.deepEqual(gate(real, 3, working), { ok: true })
 })
 
-test('from the rung that points at the work, the hint has to point at something', () => {
+test('a claim about their code has to point at their code', () => {
   const vague: Hint = { rung: 3, say: 'Think about what you store versus what you look up.', lines: [], names: [] }
   assert.deepEqual(gate(vague, 3, working), { ok: false, reason: 'generic' })
   const question: Hint = { rung: 1, say: 'What would you need to have seen before n to answer at n?', lines: [], names: [] }
@@ -70,4 +70,135 @@ test('a name counts as a whole word only', () => {
   assert.ok(!mentions(CODE, 'see'))
   assert.ok(!mentions(CODE, 'num'))
   assert.ok(!mentions(CODE, ''))
+})
+
+test('the steps and the answer are new work, so they point at nothing of theirs', () => {
+  const steps: Hint = { rung: 4, say: 'Walk the array once, storing each value against its index as you go.', lines: [], names: [] }
+  assert.deepEqual(gate(steps, 4, working), { ok: true })
+  const answer: Hint = { rung: 5, say: 'seen = {}\nfor i, n in enumerate(nums):\n    if target - n in seen:\n        return [seen[target - n], i]', lines: [], names: [] }
+  assert.deepEqual(gate(answer, 5, working), { ok: true }, 'a tutor who may answer can hand over code')
+  assert.deepEqual(gate(answer, 3, working), { ok: false, reason: 'too_high' }, 'and a coach still cannot')
+})
+
+test('a promise with nothing after it is refused rather than said', () => {
+  const promise: Hint = { rung: 5, say: "Here's the working code for Two Sum:", lines: [], names: [] }
+  assert.deepEqual(gate(promise, 5, working), { ok: false, reason: 'promise' })
+  const kept: Hint = { rung: 5, say: "Here's the working code:\nseen = {}\nfor i, n in enumerate(nums): ...", lines: [], names: [] }
+  assert.deepEqual(gate(kept, 5, working), { ok: true })
+  const naming: Hint = { rung: 2, say: 'The idea here has a name: the one pass with a map.', lines: [], names: [] }
+  assert.deepEqual(gate(naming, 3, working), { ok: true }, 'a low rung promises nothing, colon or not')
+})
+
+test('a statement about their code cannot arrive labelled as a question', () => {
+  const mislabelled: Hint = {
+    rung: 1,
+    say: "Your code counts brackets but never checks that they match in order.",
+    lines: [],
+    names: []
+  }
+  assert.deepEqual(gate(mislabelled, 2, working), { ok: false, reason: 'not_a_question' })
+  const asked: Hint = { ...mislabelled, say: 'What would tell you the brackets closed in the right order?' }
+  assert.deepEqual(gate(asked, 2, working), { ok: true })
+  const owned: Hint = { ...mislabelled, rung: 3, names: ['seen'] }
+  assert.deepEqual(gate(owned, 2, working), { ok: false, reason: 'too_high' }, 'reported honestly, the ceiling catches it')
+})
+
+test('a verdict with a question tagged on the end is not a question', () => {
+  const tagged: Hint = { rung: 1, say: 'Your loop never resets count after each window. See it?', lines: [], names: [] }
+  assert.deepEqual(gate(tagged, 1, working), { ok: false, reason: 'not_a_question' })
+  const real: Hint = { rung: 1, say: 'What resets count between windows?', lines: [], names: [] }
+  assert.deepEqual(gate(real, 1, working), { ok: true })
+  const quoted: Hint = { rung: 1, say: 'So what happens at the end of a window?"', lines: [], names: [] }
+  assert.deepEqual(gate(quoted, 1, working), { ok: true }, 'a closing quote is still the end of a question')
+})
+
+test('what a hint actually says is what the ceiling answers to, not what it calls itself', () => {
+  // Code handed over is the top of the ladder however it is labelled.
+  const smuggled: Hint = {
+    rung: 2,
+    say: 'The idea is one pass with a map:\n```python\nseen = {}\nfor i, n in enumerate(nums):\n    return [seen[n], i]\n```',
+    lines: [],
+    names: []
+  }
+  assert.deepEqual(gate(smuggled, 2, working), { ok: false, reason: 'too_high' })
+  assert.deepEqual(gate(smuggled, 5, working), { ok: true }, 'and a tutor may still have it')
+
+  // A claim naming something out of their own code is a claim about their code.
+  const aboutTheirCode: Hint = { rung: 2, say: 'Notice that `seen` is filled and never read.', lines: [], names: [] }
+  assert.deepEqual(gate(aboutTheirCode, 2, working), { ok: false, reason: 'too_high' })
+  assert.deepEqual(gate(aboutTheirCode, 3, working), { ok: true })
+
+  // Prose about the idea, naming nothing of theirs, is left where the model put it.
+  const idea: Hint = { rung: 2, say: 'This one has a name: the single pass with a lookup table.', lines: [], names: [] }
+  assert.deepEqual(gate(idea, 2, working), { ok: true })
+})
+
+test('reading a hint back', () => {
+  assert.ok(handsOverCode('```python\nx = 1\n```'))
+  assert.ok(handsOverCode('Try this:\nseen = {}\nfor i, n in enumerate(nums):'))
+  assert.ok(!handsOverCode('Walk the array once, storing each value against its index as you go.'))
+  assert.ok(!handsOverCode('One line: think about what you store.'))
+  assert.deepEqual(namesFromCode('Notice that `seen` is filled but never read.', CODE), ['seen'])
+  assert.deepEqual(namesFromCode('Your twoSum loop is off by one.', CODE), ['twoSum'])
+  assert.deepEqual(namesFromCode('The loop never resets the count.', CODE), [], 'ordinary words are prose')
+  assert.equal(reachedRung({ rung: 0, say: 'Nested loops over the list.', lines: [], names: [] }, working), 1)
+})
+
+/** Two pointers walking in from the ends of a sorted array, on an example of the coach's own. */
+const WALK: Trace = {
+  input: 'a sorted array [1, 3, 5, 7], looking for a pair that makes 6',
+  items: ['1', '3', '5', '7'],
+  columns: ['sum'],
+  steps: [
+    { values: ['8'], marks: [{ at: 0, label: 'L' }, { at: 3, label: 'R' }], note: '1 and 7 make 8, over 6, so R steps in' },
+    { values: ['6'], marks: [{ at: 0, label: 'L' }, { at: 2, label: 'R' }], note: '1 and 5 make 6, which is the pair' }
+  ]
+}
+
+test('a dry run of the idea on its own example is rung 2, and one on their names is rung 3', () => {
+  const idea: Hint = { rung: 2, say: 'Two pointers, one at each end, walking in.', lines: [], names: [], trace: WALK }
+  assert.deepEqual(gate(idea, 2, working), { ok: true })
+  assert.deepEqual(gate(idea, 1, working), { ok: false, reason: 'too_high' }, 'a picture of the idea is never a question')
+
+  const theirs: Hint = { ...idea, trace: { ...WALK, columns: ['seen'] } }
+  assert.deepEqual(gate(theirs, 2, working), { ok: false, reason: 'too_high' }, 'tracking their variable is a claim about their code')
+  assert.deepEqual(gate({ ...theirs, rung: 3 }, 3, working), { ok: true })
+
+  const onTheirLine: Hint = { ...idea, trace: { ...WALK, steps: [{ ...WALK.steps[0]!, line: 4 }] } }
+  assert.deepEqual(gate(onTheirLine, 2, working), { ok: false, reason: 'too_high' })
+  assert.deepEqual(gate({ ...onTheirLine, rung: 3 }, 3, working), { ok: true }, 'and standing on their line is pointing at their code')
+})
+
+test('a dry run that does not hold together is refused rather than drawn', () => {
+  const idea: Hint = { rung: 2, say: 'Two pointers, one at each end.', lines: [], names: [], trace: WALK }
+  const offTheEnd = { ...WALK, steps: [{ ...WALK.steps[0]!, marks: [{ at: 4, label: 'R' }] }] }
+  assert.deepEqual(gate({ ...idea, trace: offTheEnd }, 3, working), { ok: false, reason: 'broken_trace' })
+  const shortRow = { ...WALK, steps: [{ ...WALK.steps[0]!, values: [] }] }
+  assert.deepEqual(gate({ ...idea, trace: shortRow }, 3, working), { ok: false, reason: 'broken_trace' })
+  const noSuchLine = { ...WALK, steps: [{ ...WALK.steps[0]!, line: 9 }] }
+  assert.deepEqual(gate({ ...idea, rung: 3, trace: noSuchLine }, 3, working), { ok: false, reason: 'unverified' })
+})
+
+test('code in the steps of a dry run is the top of the ladder, whatever the rung says', () => {
+  const smuggled: Trace = {
+    ...WALK,
+    steps: [
+      { values: ['8'], marks: [], note: 'seen[n] = i' },
+      { values: ['6'], marks: [], note: 'return [seen[target - n], i]' }
+    ]
+  }
+  const hint: Hint = { rung: 3, say: 'Here is how it goes.', lines: [], names: ['seen'], trace: smuggled }
+  assert.deepEqual(gate(hint, 3, working), { ok: false, reason: 'too_high' })
+  assert.deepEqual(gate(hint, 4, working), { ok: true })
+  const narrated: Trace = {
+    ...WALK,
+    steps: [
+      { values: ['8'], marks: [], note: 'if the sum is over, R steps in' },
+      { values: ['6'], marks: [], note: 'if the sum is under, L steps in' }
+    ]
+  }
+  assert.deepEqual(gate({ ...hint, names: [], rung: 2, trace: narrated }, 2, working), { ok: true }, 'a sentence that starts with if is still a sentence')
+  // A say that ends by introducing the picture has kept its promise.
+  const intro: Hint = { rung: 4, say: 'Watch the two ends walk in:', lines: [], names: [], trace: WALK }
+  assert.deepEqual(gate(intro, 4, working), { ok: true })
 })

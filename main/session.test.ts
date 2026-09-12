@@ -12,7 +12,7 @@ import type { CompanionState, Profile, ThreadItem } from '../shared/types.ts'
 import { loadIkb, type Ikb } from './ikb/load.ts'
 import type { Ask, LlmLike } from './llm/service.ts'
 import { EMPTY_PROFILE } from './profile.ts'
-import { Session } from './session.ts'
+import { Session, firstSentence } from './session.ts'
 
 /**
  * A model that answers from a script, so the orchestration can be checked
@@ -41,12 +41,13 @@ class ScriptedLlm implements LlmLike {
         oneLiner: 'This is the part interviews test because production code still needs clean fundamentals.'
       }) as T
     }
-    return schema.parse(this.reply(schema)) as T
+    return schema.parse(this.reply(schema, ask)) as T
   }
 
+  /** The brief is the one call that comes back whole, so this answers as one. */
   async text(ask: Ask): Promise<string> {
     this.asks.push(ask)
-    return 'Oh, that was our holiday sale week. Does that matter?'
+    return 'Four rounds, and the debugging one is the hard one. [S:hn:1#0] Nobody said otherwise. [S:made-up]'
   }
 
   async stream(ask: Ask, onToken: (token: string) => void): Promise<string> {
@@ -61,7 +62,7 @@ class ScriptedLlm implements LlmLike {
     return [...this.asks].reverse().find((ask) => ask.system.includes(matching))
   }
 
-  private reply(schema: ZodType<unknown>): unknown {
+  private reply(schema: ZodType<unknown>, ask: Ask): unknown {
     if (schema === conceptsOut) {
       return {
         concepts: [this.concept]
@@ -77,6 +78,24 @@ class ScriptedLlm implements LlmLike {
       return { major: 'Computer Science', year: 'junior', courses: [], targetRoles: ['swe'], interests: [] }
     }
     if (schema === hintOut) {
+      // Asked to see it step by step, the coach draws the idea on an example of its own.
+      if (ask.user.includes('step by step')) {
+        return {
+          rung: 2,
+          say: 'Two pointers, one at each end, walking in.',
+          lines: [],
+          names: [],
+          trace: {
+            input: 'a sorted array [1, 3, 5, 7], looking for a pair that makes 6',
+            items: ['1', '3', '5', '7'],
+            columns: ['sum'],
+            steps: [
+              { values: ['8'], marks: [{ at: 0, label: 'L' }, { at: 3, label: 'R' }], note: '1 and 7 make 8, over 6, so R steps in' },
+              { values: ['6'], marks: [{ at: 0, label: 'L' }, { at: 2, label: 'R' }], note: '1 and 5 make 6, the pair' }
+            ]
+          }
+        }
+      }
       return { rung: 1, say: 'What do you need to have seen before n to answer at n?', lines: [], names: [] }
     }
     throw new Error('no scripted reply for that schema')
@@ -297,8 +316,9 @@ test('asking about an interview at a company reads the accounts, not the posting
   assert.ok(llm.lastAsk('first-hand account'), 'the brief was asked for')
   assert.ok(!llm.lastAsk("never do a student's homework"), 'and companion chat was not')
   const answer = thread.at(-1)!
-  assert.doesNotMatch(answer.text, /\[S:/)
-  assert.deepEqual(answer.citations, [], 'an invented id is not credited')
+  assert.doesNotMatch(answer.text, /\[S:/, 'the markers never reach the student')
+  assert.deepEqual(answer.citations, ['hn:1#0'], 'an invented id is not credited, a real one is')
+  assert.equal(answer.sources?.[0]?.url, 'https://news.ycombinator.com/item?id=1', 'and the chip opens the account')
 })
 
 test('with nothing to read, the companion says so and still answers the question', async () => {
@@ -322,4 +342,88 @@ test('a line that breaks off mid-stream is closed as it stands', async () => {
   assert.ok(broken, 'what was said stays in the thread')
   assert.equal(broken.streaming, false, 'and the caret stops')
   assert.match(thread.at(-1)!.text, /could not answer that/)
+})
+
+test('a problem open in chrome takes the composer, but not an interview ask', async () => {
+  const llm = new ScriptedLlm()
+  const asked: string[] = []
+  const { session } = harness(llm, ikb, {
+    gatherInterviews: async (company) => {
+      asked.push(company)
+      return []
+    }
+  })
+  await session.observe({
+    kind: 'opened',
+    at: Date.now(),
+    problem: { slug: 'two-sum', title: 'Two Sum', difficulty: 'Easy', statement: 'Find two numbers.' }
+  })
+  assert.equal(session.state.composer.mode, 'leetcode')
+
+  await session.typed('why is my loop wrong')
+  assert.deepEqual(asked, [], 'a question about the code reaches the coach')
+
+  await session.typed('what is the Stripe interview like')
+  assert.deepEqual(asked, ['Stripe'], 'and one about an interview does not')
+  assert.equal(session.state.composer.mode, 'leetcode', 'the problem still has the composer afterwards')
+})
+
+test('what the practice says reaches the orb while the panel is shut', async () => {
+  const llm = new ScriptedLlm()
+  const { session, states } = harness(llm, ikb)
+  session.setExpanded(false)
+  await session.observe({
+    kind: 'opened',
+    at: Date.now(),
+    problem: { slug: 'two-sum', title: 'Two Sum', difficulty: 'Easy', statement: 'Find two numbers.' }
+  })
+  const whispered = states.filter((patch) => patch.whisper).at(-1)?.whisper
+  assert.ok(whispered, 'the student working in chrome is told there is something to read')
+  assert.equal(whispered.text, 'Two Sum, easy.')
+
+  // With the panel open there is nothing to nudge them about: they can see it.
+  session.setExpanded(true)
+  const before = states.filter((patch) => patch.whisper).length
+  await session.observe({ kind: 'outcome', at: Date.now(), outcome: { verdict: 'time_limit', detail: '' } })
+  assert.equal(states.filter((patch) => patch.whisper).length, before)
+})
+
+test('a whisper is one sentence, and never a wall of code', () => {
+  assert.equal(firstSentence('Two Sum, easy. Nothing written yet. You have me on Coach.'), 'Two Sum, easy.')
+  assert.equal(firstSentence("Here's the working code:\n```python\nseen = {}\n```"), "Here's the working code:")
+  assert.equal(firstSentence('What resets count between windows?'), 'What resets count between windows?')
+  assert.ok(firstSentence('x'.repeat(200)).length <= 90)
+})
+
+test('a line typed while the companion is busy is shown at once and answered after', async () => {
+  const llm = new ScriptedLlm()
+  llm.delayMs = 40
+  const { session, thread } = harness(llm, ikb)
+  const first = session.chat('what do teams use for testing')
+  await session.chat('and what about code review')
+  await first
+  const mine = thread.filter((item) => item.speaker === 'user').map((item) => item.text)
+  assert.deepEqual(mine, ['what do teams use for testing', 'and what about code review'], 'neither line vanished')
+  assert.equal(thread.filter((item) => item.speaker === 'companion').length, 2, 'and both were answered')
+})
+
+test('asking to be walked through it reaches the coach, and the dry run rides out with the line', async () => {
+  const llm = new ScriptedLlm()
+  const { session, thread } = harness(llm, ikb)
+  await session.observe({
+    kind: 'opened',
+    at: Date.now(),
+    problem: { slug: 'two-sum', title: 'Two Sum', difficulty: 'Easy', statement: 'Find two numbers.' }
+  })
+  await session.observe({ kind: 'changed', at: Date.now(), code: 'def twoSum(nums, target):\n    pass', language: 'python' })
+  await session.run({ kind: 'trace' })
+
+  const asked = llm.lastAsk('LeetCode problem')
+  assert.ok(asked, 'the coach was asked, not the companion chat')
+  assert.match(asked.user, /step by step/, 'in the words on the chip')
+  assert.equal(thread.at(-2)!.speaker, 'user', 'and those words are the student\'s own line in the thread')
+  const drawn = thread.at(-1)!
+  assert.equal(drawn.rung, 2)
+  assert.equal(drawn.trace?.steps.length, 2, 'the picture is on the line the renderer draws')
+  assert.deepEqual(drawn.trace?.items, ['1', '3', '5', '7'])
 })

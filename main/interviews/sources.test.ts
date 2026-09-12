@@ -26,6 +26,16 @@ const leetcode = {
             title: 'LinkedIn | From constant rejections to an offer',
             post: { content: 'Interview at: LinkedIn. Role: SSE.', creationDate: Math.floor((NOW - 10 * day) / 1000) }
           }
+        },
+        {
+          node: {
+            id: 5867781,
+            title: 'Atlassian (P40)',
+            post: {
+              content: 'Five rounds at Atlassian. I had also interviewed at Stripe earlier that year, which was harder.',
+              creationDate: Math.floor((NOW - 20 * day) / 1000)
+            }
+          }
         }
       ]
     }
@@ -57,9 +67,10 @@ const hn = {
   ]
 }
 
-test('the discuss board keeps only the topics that name the company', () => {
+test('the discuss board keeps only the write-ups titled with the company', () => {
   const accounts = parseLeetCode(leetcode, 'Stripe')
-  assert.equal(accounts.length, 1)
+  assert.equal(accounts.length, 1, 'someone else\'s loop that mentions the company in passing is not an account of it')
+  assert.ok(!accounts.some((account) => account.title.includes('Atlassian')))
   assert.equal(accounts[0]!.id, 'leetcode:5984403')
   assert.equal(accounts[0]!.url, 'https://leetcode.com/discuss/post/5984403/')
   assert.match(accounts[0]!.text, /^Sharing my onsite interview experience/)
