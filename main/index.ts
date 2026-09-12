@@ -143,8 +143,12 @@ app.whenReady().then(async () => {
   async function pickLecture(): Promise<void> {
     const picked = await dialog.showOpenDialog({
       // The hint rides in the title, which every platform shows; message is macOS only.
-      title: 'Upload a lecture: a transcript or your notes, one line per thing said',
-      filters: [{ name: 'Transcript', extensions: ['txt', 'md', 'vtt'] }],
+      title: 'Upload a lecture: a transcript, slides, or notes',
+      filters: [
+        { name: 'Lecture materials', extensions: ['txt', 'md', 'vtt', 'pdf', 'pptx'] },
+        { name: 'Presentations & Documents', extensions: ['pdf', 'pptx'] },
+        { name: 'Transcripts & Notes', extensions: ['txt', 'md', 'vtt'] }
+      ],
       properties: ['openFile']
     })
     const path = picked.filePaths[0]
