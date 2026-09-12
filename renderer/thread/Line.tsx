@@ -11,6 +11,16 @@ import { DryRun } from './DryRun.tsx'
  */
 export function Line({ item }: { item: ThreadItem }): ReactElement {
   if (item.speaker === 'user') {
+    // A file is still the student speaking, so it sits on their side, but it
+    // is a thing handed over rather than something said.
+    if (item.file) {
+      return (
+        <p className="mine arriving handed">
+          <Paper />
+          {item.file}
+        </p>
+      )
+    }
     return <p className="mine arriving">{item.text}</p>
   }
   return (
@@ -83,8 +93,26 @@ function Sources({ item }: { item: ThreadItem }): ReactElement | null {
           onClick={() => api.openLink(source.url)}
         >
           {source.company}
+          {/* Who wants it is the company and the job, and the job is the half a student is reading for. */}
+          {source.title && <span className="chip-role">{source.title}</span>}
         </button>
       ))}
     </div>
+  )
+}
+
+/** A page, for a file the student handed over. */
+function Paper(): ReactElement {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      className="h-3.5 w-3.5 shrink-0 fill-none stroke-current opacity-70"
+      strokeWidth={1.35}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M9 1.75H4.25v12.5h7.5V4.5z" />
+      <path d="M9 1.75V4.5h2.75" />
+    </svg>
   )
 }

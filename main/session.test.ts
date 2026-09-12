@@ -656,3 +656,47 @@ test('switching the practice off hands the composer back', async () => {
   assert.equal(session.state.composer.mode, 'chat')
   assert.equal(session.state.practice, false)
 })
+
+test('a file handed over is in the thread on the student side', async () => {
+  // A paste appears as the words it is. A file appeared as nothing at all, so
+  // the companion read as answering a question nobody had asked.
+  const llm = new ScriptedLlm()
+  const { session, thread } = harness(llm, ikb)
+  await session.useNotes(LECTURE.join('\n'), 'Week 6 Databases.pdf')
+
+  const handed = thread.find((item) => item.speaker === 'user')
+  assert.ok(handed, 'the upload is in the thread')
+  assert.equal(handed.file, 'Week 6 Databases.pdf')
+  assert.equal(handed.text, 'Week 6 Databases.pdf')
+})
+
+test('a file with nothing readable in it is still shown as handed over', async () => {
+  const llm = new ScriptedLlm()
+  const { session, thread } = harness(llm, ikb)
+  await session.useNotes('   ', 'scanned-slides.pdf')
+
+  assert.ok(thread.some((item) => item.file === 'scanned-slides.pdf'))
+  assert.ok(thread.some((item) => /no words in that one/.test(item.text)))
+})
+
+test('pasted notes are still words, not a file', async () => {
+  const llm = new ScriptedLlm()
+  const { session, thread } = harness(llm, ikb)
+  await session.useNotes(LECTURE.join('\n'))
+  assert.ok(!thread.some((item) => item.file))
+})
+
+test('a card shows every company that asks for it, not only the first', async () => {
+  // Three postings at three companies are retrieved and one was shown, so the
+  // breadth of who wants this, which is the point, was thrown away.
+  const llm = new ScriptedLlm()
+  const { session, thread } = harness(llm, ikb)
+  await teach(session)
+
+  const cited = thread.find((item) => item.evidence)
+  assert.ok(cited?.evidence)
+  assert.ok(cited.sources && cited.sources.length > 0, 'the other postings are there too')
+  const companies = [cited.evidence.company, ...cited.sources.map((source) => source.company)]
+  assert.equal(new Set(companies).size, companies.length, 'and no company is shown twice')
+  for (const source of cited.sources) assert.ok(source.url.startsWith('http'))
+})

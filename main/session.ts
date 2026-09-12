@@ -248,8 +248,8 @@ export class Session {
   }
 
   /** The student's own line, which arrives whole. */
-  private heardFromStudent(text: string): void {
-    const item: ThreadItem = { id: nextId(), speaker: 'user', text, at: Date.now() }
+  private heardFromStudent(text: string, file?: string): void {
+    const item: ThreadItem = { id: nextId(), speaker: 'user', text, at: Date.now(), ...(file ? { file } : {}) }
     this.state.thread.push(item)
     this.deps.emit.add(item)
   }
@@ -331,12 +331,18 @@ export class Session {
 
   // Reading a lecture ----------------------------------------------------
 
-  /** A lecture arrives whole: uploaded from the tray, or pasted as notes. */
-  async useNotes(text: string): Promise<void> {
+  /**
+   * A lecture arrives whole: dropped on the companion, picked from the tray,
+   * or pasted as notes. `file` names it where one was handed over, because a
+   * paste appears in the thread as the words it is and a file appeared as
+   * nothing, which read as the companion answering a question nobody asked.
+   */
+  async useNotes(text: string, file?: string): Promise<void> {
     // Scanned slides and an empty file both read as nothing. Saying so beats
     // answering from the lecture before it, which is what happens if this falls
     // through to a transcript that is not empty.
     if (!text.trim()) {
+      if (file) this.heardFromStudent(file, file)
       await this.say('There were no words in that one. If it is scanned slides or an image, I cannot read it yet.')
       return
     }
@@ -355,6 +361,7 @@ export class Session {
     // were both read as the second one, because the first read had not started
     // by the time the second replaced what it was going to read.
     return this.hold(async () => {
+      if (file) this.heardFromStudent(file, file)
       this.transcript.take(text)
       // Reading a lecture is several seconds of model time, and an upload that
       // answers with nothing but dots reads as an upload that did not land. The
@@ -426,8 +433,14 @@ export class Session {
     this.profile = withHeardTerms(this.profile, card.terms.map((term) => term.term))
     this.deps.saveProfile(this.profile)
 
-    const sentence = card.sentences[0]
-    const evidence = sentence ? evidenceOf(this.deps.ikb, sentence) : undefined
+    // The card is built from three postings at three different companies and
+    // only the first was ever shown, so the breadth of who asks for this, which
+    // is the whole point, was computed and thrown away.
+    const [first, ...rest] = card.sentences
+    const evidence = first ? evidenceOf(this.deps.ikb, first) : undefined
+    const alsoAsking = rest
+      .map((sentence) => evidenceOf(this.deps.ikb, sentence))
+      .filter((one): one is Evidence => one !== undefined)
 
     if (card.terms.length === 0) {
       await this.say(card.oneLiner)
@@ -442,7 +455,7 @@ export class Session {
     await this.say(card.oneLiner)
     await this.say(
       `They do not call it ${concept.name} though. On a posting it reads as ${top.term}, and I have ${top.hits} ${top.hits === 1 ? 'posting' : 'postings'} that ask for it.`,
-      evidence ? { evidence } : {}
+      { ...(evidence ? { evidence } : {}), ...(alsoAsking.length > 0 ? { sources: alsoAsking } : {}) }
     )
 
     this.suggest([

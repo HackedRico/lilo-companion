@@ -177,8 +177,8 @@ app.whenReady().then(async () => {
   /** Reads a lecture whole and hands it to the loop. */
   function openLecture(path: string): void {
     void readLecture(path)
-      .then((text) => session.useNotes(text))
-      .catch(() => void session.trouble(`I could not read ${path}.`))
+      .then((text) => session.useNotes(text, basename(path)))
+      .catch(() => void session.trouble(`I could not read ${basename(path)}.`))
   }
 
   /**

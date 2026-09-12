@@ -139,6 +139,12 @@ export interface ThreadItem {
   rung?: Rung
   /** A dry run beside a hint, drawn in the thread and stepped through there. */
   trace?: Trace
+  /**
+   * The name of a file the student handed over. Pasted notes arrive as words
+   * and appear as words; a file arrived as nothing at all, so an upload read
+   * as the companion talking to itself.
+   */
+  file?: string
 }
 
 export type Intent =
