@@ -196,3 +196,13 @@ test('answering stops the timer piling on, and does not push the ladder up', asy
   await h.practice.tick()
   assert.match(h.llm.asks[1]!.system, /ceiling right now is rung 1/, 'the ladder starts again from the bottom')
 })
+
+test('what is already in the editor is waited for before the state is read back', async () => {
+  const h = harness('coach')
+  const opened = h.practice.observe({ kind: 'opened', at: 0, problem: PROBLEM })
+  // The page reports the editor a moment after it reports the problem.
+  await new Promise((resolve) => setTimeout(resolve, 300))
+  await h.practice.observe({ kind: 'changed', at: 1, code: CODE, language: 'python' })
+  await opened
+  assert.match(h.said[0]!.text, /5 lines of python/, 'not "nothing written yet" over a screen of code')
+})

@@ -135,7 +135,9 @@
     try {
       const method = ((init && init.method) || (input && input.method) || 'GET').toUpperCase()
       if (method === 'POST' && /\/(submit|interpret_solution)\/?(\?|$)/.test(url)) post({ kind: 'pending' })
-      if (/\/submissions\/detail\/[^/]+\/check\/?(\?|$)/.test(url)) {
+      // The submit poll carries a version segment the run poll does not:
+      // /submissions/detail/<id>/v2/check/ against /submissions/detail/<id>/check/.
+      if (/\/submissions\/detail\/[^/]+\/(?:v\d+\/)?check\/?(\?|$)/.test(url)) {
         const data = await response.clone().json()
         if (data && data.state === 'SUCCESS') post({ kind: 'outcome', outcome: outcomeOf(data) })
       }

@@ -58,17 +58,36 @@ export class LeetCodePractice {
     return describe(this.work, this.now)
   }
 
+  /** How long the page is given to report what is already in the editor. */
+  private static readonly SETTLE_MS = 2000
+
+  /** The state once the code that was already there has had time to arrive. */
+  private async settle(): Promise<string> {
+    const problem = this.work.problem
+    for (let waited = 0; waited < LeetCodePractice.SETTLE_MS; waited += 250) {
+      if (this.work.code) break
+      await new Promise((resolve) => setTimeout(resolve, 250))
+      // They moved on while we waited, so the line would be about the wrong thing.
+      if (this.work.problem !== problem) break
+    }
+    return this.state()
+  }
+
   async observe(event: WorkEvent): Promise<void> {
     await this.deps.record?.(event)
     this.work = fold(this.work, event)
     const { voice } = this.deps
     switch (event.kind) {
-      case 'opened':
+      case 'opened': {
         this.last = null
         voice.focus(event.problem.title)
-        await voice.say(`${this.state()} You have me on ${TIER_LABEL[this.deps.tier()]}.`)
+        // The editor's contents arrive a moment after the page says which problem
+        // it is, so what is already written is waited for rather than denied.
+        const settled = await this.settle()
+        await voice.say(`${settled} You have me on ${TIER_LABEL[this.deps.tier()]}.`)
         this.offer()
         return
+      }
       case 'closed':
         this.last = null
         voice.focus(null)
