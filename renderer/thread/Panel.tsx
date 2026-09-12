@@ -81,7 +81,7 @@ export function Panel({
         <button className="lecture-button" title="Upload a lecture" onClick={() => api.openLecture()}>
           <span className="meta">Upload a lecture</span>
         </button>
-        <span className="flex items-center gap-1">
+        <span className="flex items-center gap-3">
           <button
             className="lecture-button flex items-center gap-1.5"
             aria-label="Settings"
