@@ -1,0 +1,335 @@
+[
+  {
+    "term": "Python",
+    "aliases": [
+      "Python3"
+    ]
+  },
+  {
+    "term": "Java",
+    "aliases": []
+  },
+  {
+    "term": "JavaScript",
+    "aliases": [
+      "JS"
+    ]
+  },
+  {
+    "term": "TypeScript",
+    "aliases": [
+      "TS"
+    ]
+  },
+  {
+    "term": "C++",
+    "aliases": [
+      "CPP"
+    ]
+  },
+  {
+    "term": "C#",
+    "aliases": [
+      "CSharp"
+    ]
+  },
+  {
+    "term": "Go",
+    "aliases": [
+      "Golang"
+    ]
+  },
+  {
+    "term": "Rust",
+    "aliases": []
+  },
+  {
+    "term": "Ruby",
+    "aliases": []
+  },
+  {
+    "term": "PHP",
+    "aliases": []
+  },
+  {
+    "term": "Scala",
+    "aliases": []
+  },
+  {
+    "term": "Kotlin",
+    "aliases": []
+  },
+  {
+    "term": "Swift",
+    "aliases": []
+  },
+  {
+    "term": "R",
+    "aliases": []
+  },
+  {
+    "term": "SQL",
+    "aliases": []
+  },
+  {
+    "term": "NoSQL",
+    "aliases": []
+  },
+  {
+    "term": "React",
+    "aliases": [
+      "ReactJS",
+      "React.js"
+    ]
+  },
+  {
+    "term": "Angular",
+    "aliases": []
+  },
+  {
+    "term": "Vue",
+    "aliases": [
+      "Vue.js"
+    ]
+  },
+  {
+    "term": "Node.js",
+    "aliases": [
+      "NodeJS",
+      "Node"
+    ]
+  },
+  {
+    "term": "Django",
+    "aliases": []
+  },
+  {
+    "term": "Flask",
+    "aliases": []
+  },
+  {
+    "term": "Spring",
+    "aliases": [
+      "Spring Boot"
+    ]
+  },
+  {
+    "term": "Rails",
+    "aliases": [
+      "Ruby on Rails"
+    ]
+  },
+  {
+    "term": ".NET",
+    "aliases": [
+      "dotnet"
+    ]
+  },
+  {
+    "term": "GraphQL",
+    "aliases": []
+  },
+  {
+    "term": "REST",
+    "aliases": [
+      "RESTful"
+    ]
+  },
+  {
+    "term": "gRPC",
+    "aliases": []
+  },
+  {
+    "term": "PostgreSQL",
+    "aliases": [
+      "Postgres"
+    ]
+  },
+  {
+    "term": "MySQL",
+    "aliases": []
+  },
+  {
+    "term": "MongoDB",
+    "aliases": []
+  },
+  {
+    "term": "Redis",
+    "aliases": []
+  },
+  {
+    "term": "Elasticsearch",
+    "aliases": [
+      "Elastic Search"
+    ]
+  },
+  {
+    "term": "Kafka",
+    "aliases": []
+  },
+  {
+    "term": "Spark",
+    "aliases": [
+      "PySpark"
+    ]
+  },
+  {
+    "term": "Hadoop",
+    "aliases": []
+  },
+  {
+    "term": "Airflow",
+    "aliases": []
+  },
+  {
+    "term": "dbt",
+    "aliases": []
+  },
+  {
+    "term": "Snowflake",
+    "aliases": []
+  },
+  {
+    "term": "BigQuery",
+    "aliases": []
+  },
+  {
+    "term": "Redshift",
+    "aliases": []
+  },
+  {
+    "term": "Databricks",
+    "aliases": []
+  },
+  {
+    "term": "Docker",
+    "aliases": []
+  },
+  {
+    "term": "Kubernetes",
+    "aliases": [
+      "K8s"
+    ]
+  },
+  {
+    "term": "Terraform",
+    "aliases": []
+  },
+  {
+    "term": "Ansible",
+    "aliases": []
+  },
+  {
+    "term": "Jenkins",
+    "aliases": []
+  },
+  {
+    "term": "GitHub Actions",
+    "aliases": []
+  },
+  {
+    "term": "CircleCI",
+    "aliases": [
+      "Circle CI"
+    ]
+  },
+  {
+    "term": "AWS",
+    "aliases": [
+      "Amazon Web Services"
+    ]
+  },
+  {
+    "term": "GCP",
+    "aliases": [
+      "Google Cloud"
+    ]
+  },
+  {
+    "term": "Azure",
+    "aliases": []
+  },
+  {
+    "term": "Linux",
+    "aliases": []
+  },
+  {
+    "term": "Git",
+    "aliases": []
+  },
+  {
+    "term": "Jira",
+    "aliases": []
+  },
+  {
+    "term": "Figma",
+    "aliases": []
+  },
+  {
+    "term": "Tableau",
+    "aliases": []
+  },
+  {
+    "term": "Looker",
+    "aliases": []
+  },
+  {
+    "term": "Excel",
+    "aliases": []
+  },
+  {
+    "term": "Pandas",
+    "aliases": []
+  },
+  {
+    "term": "NumPy",
+    "aliases": []
+  },
+  {
+    "term": "PyTorch",
+    "aliases": []
+  },
+  {
+    "term": "TensorFlow",
+    "aliases": []
+  },
+  {
+    "term": "scikit-learn",
+    "aliases": [
+      "sklearn",
+      "scikit learn"
+    ]
+  },
+  {
+    "term": "Jupyter",
+    "aliases": []
+  },
+  {
+    "term": "Datadog",
+    "aliases": [
+      "Data Dog"
+    ]
+  },
+  {
+    "term": "Splunk",
+    "aliases": []
+  },
+  {
+    "term": "Prometheus",
+    "aliases": []
+  },
+  {
+    "term": "Grafana",
+    "aliases": []
+  },
+  {
+    "term": "Sentry",
+    "aliases": []
+  },
+  {
+    "term": "PagerDuty",
+    "aliases": [
+      "Pager Duty"
+    ]
+  }
+]

@@ -1,0 +1,282 @@
+[
+  {
+    "term": "code review",
+    "aliases": [
+      "peer review",
+      "reviewing code",
+      "code reviews"
+    ]
+  },
+  {
+    "term": "unit testing",
+    "aliases": [
+      "unit tests",
+      "unit test"
+    ]
+  },
+  {
+    "term": "integration testing",
+    "aliases": [
+      "integration tests"
+    ]
+  },
+  {
+    "term": "test automation",
+    "aliases": [
+      "automated testing",
+      "automated tests"
+    ]
+  },
+  {
+    "term": "CI/CD",
+    "aliases": [
+      "continuous integration",
+      "continuous delivery",
+      "continuous deployment"
+    ]
+  },
+  {
+    "term": "version control",
+    "aliases": [
+      "source control"
+    ]
+  },
+  {
+    "term": "git workflow",
+    "aliases": [
+      "branching strategy",
+      "pull requests",
+      "pull request"
+    ]
+  },
+  {
+    "term": "on-call",
+    "aliases": [
+      "oncall",
+      "on call"
+    ]
+  },
+  {
+    "term": "incident response",
+    "aliases": [
+      "incident management",
+      "incidents"
+    ]
+  },
+  {
+    "term": "monitoring",
+    "aliases": [
+      "observability"
+    ]
+  },
+  {
+    "term": "logging",
+    "aliases": [
+      "log analysis"
+    ]
+  },
+  {
+    "term": "alerting",
+    "aliases": [
+      "alerts"
+    ]
+  },
+  {
+    "term": "documentation",
+    "aliases": [
+      "technical writing",
+      "design docs",
+      "design documents"
+    ]
+  },
+  {
+    "term": "stakeholder communication",
+    "aliases": [
+      "stakeholders",
+      "stakeholder management"
+    ]
+  },
+  {
+    "term": "cross-functional collaboration",
+    "aliases": [
+      "cross functional",
+      "cross-functional"
+    ]
+  },
+  {
+    "term": "agile",
+    "aliases": [
+      "scrum",
+      "sprint planning",
+      "sprints"
+    ]
+  },
+  {
+    "term": "A/B testing",
+    "aliases": [
+      "a/b tests",
+      "split testing",
+      "experimentation"
+    ]
+  },
+  {
+    "term": "data pipelines",
+    "aliases": [
+      "data pipeline",
+      "ETL",
+      "ELT"
+    ]
+  },
+  {
+    "term": "API design",
+    "aliases": [
+      "designing APIs",
+      "API development"
+    ]
+  },
+  {
+    "term": "system design",
+    "aliases": [
+      "architecture design",
+      "distributed systems"
+    ]
+  },
+  {
+    "term": "scalability",
+    "aliases": [
+      "scalable",
+      "at scale",
+      "horizontally scalable"
+    ]
+  },
+  {
+    "term": "performance optimization",
+    "aliases": [
+      "performance tuning",
+      "latency"
+    ]
+  },
+  {
+    "term": "security best practices",
+    "aliases": [
+      "secure coding",
+      "threat modeling"
+    ]
+  },
+  {
+    "term": "refactoring",
+    "aliases": [
+      "technical debt",
+      "tech debt"
+    ]
+  },
+  {
+    "term": "debugging",
+    "aliases": [
+      "troubleshooting",
+      "root cause analysis"
+    ]
+  },
+  {
+    "term": "deployment",
+    "aliases": [
+      "release management",
+      "deploys",
+      "deployment pipeline"
+    ]
+  },
+  {
+    "term": "infrastructure as code",
+    "aliases": [
+      "IaC"
+    ]
+  },
+  {
+    "term": "containerization",
+    "aliases": [
+      "containers"
+    ]
+  },
+  {
+    "term": "cloud infrastructure",
+    "aliases": [
+      "cloud platforms",
+      "cloud services"
+    ]
+  },
+  {
+    "term": "microservices",
+    "aliases": [
+      "service oriented architecture"
+    ]
+  },
+  {
+    "term": "mentoring",
+    "aliases": [
+      "mentorship",
+      "coaching"
+    ]
+  },
+  {
+    "term": "postmortem",
+    "aliases": [
+      "post-mortem",
+      "retrospective",
+      "retrospectives"
+    ]
+  },
+  {
+    "term": "SLA",
+    "aliases": [
+      "SLO",
+      "service level objective"
+    ]
+  },
+  {
+    "term": "product requirements",
+    "aliases": [
+      "requirements gathering",
+      "PRD"
+    ]
+  },
+  {
+    "term": "user research",
+    "aliases": [
+      "customer interviews",
+      "user interviews"
+    ]
+  },
+  {
+    "term": "customer feedback",
+    "aliases": [
+      "voice of customer"
+    ]
+  },
+  {
+    "term": "metrics",
+    "aliases": [
+      "KPIs",
+      "key metrics",
+      "success metrics"
+    ]
+  },
+  {
+    "term": "dashboards",
+    "aliases": [
+      "reporting"
+    ]
+  },
+  {
+    "term": "data visualization",
+    "aliases": [
+      "visualizations"
+    ]
+  },
+  {
+    "term": "estimation",
+    "aliases": [
+      "scoping",
+      "project planning"
+    ]
+  }
+]

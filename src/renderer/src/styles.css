@@ -1,0 +1,1155 @@
+@import 'tailwindcss';
+
+/*
+ * Lilo reads job postings as primary sources, so the interface treats them
+ * that way. Two worlds, two surfaces: the app is cool ink on a cool ground, and
+ * anything quoted from the working world arrives on warm paper in a serif. The
+ * companion's own voice is neither, it is marginalia: unboxed, flush left, the
+ * thing written in the margin of your notes.
+ */
+
+:root {
+  color-scheme: light dark;
+
+  /* Ink and ground ----------------------------------------------------- */
+  --ink: #10131a;
+  --ink-soft: #3d4350;
+  --dim: #656d7d;
+  --faint: #939aa8;
+
+  /* Four clear steps, so a field reads as a field and a card reads as a card. */
+  --ground: #eef0f4;
+  --surface: #ffffff;
+  --raised: #f7f8fa;
+  --well: #ffffff;
+
+  /* The working world: warmer, and always a shade apart from the chrome. */
+  --paper: #f8f2e4;
+  --paper-edge: #ddd2b8;
+  --paper-ink: #2b2620;
+
+  --rule: #dfe3ea;
+  --rule-strong: #c3cad6;
+
+  --accent: #2b5bd7;
+  --accent-soft: #e6ecfc;
+  --gold: #9a6b12;
+  --live: #d33b31;
+
+  --mine: #e8eefc;
+
+  /* Depth is layered light, not a border on everything. */
+  --lift: 0 1px 2px rgba(16, 19, 26, 0.07), 0 8px 24px -8px rgba(16, 19, 26, 0.18);
+  --lift-high: 0 1px 2px rgba(16, 19, 26, 0.09), 0 24px 60px -16px rgba(16, 19, 26, 0.34);
+
+  /* Type --------------------------------------------------------------- */
+  --sans: ui-sans-serif, -apple-system, 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
+  /* New York on macOS, Georgia elsewhere: quoted matter reads as a document. */
+  --serif: ui-serif, 'New York', Georgia, 'Iowan Old Style', serif;
+  --mono: ui-monospace, 'SF Mono', 'Cascadia Code', 'Roboto Mono', monospace;
+
+  --step-meta: 11px;
+  --step-fine: 12px;
+  --step-small: 13px;
+  --step-body: 14px;
+  --step-quote: 14.5px;
+  --step-title: 16px;
+  --step-masthead: 16px;
+
+  --ease: cubic-bezier(0.22, 0.8, 0.28, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #eef0f4;
+    --ink-soft: #bcc2cd;
+    --dim: #8a919f;
+    --faint: #5f6675;
+
+    /* Blue-black rather than neutral mud, and four steps that are actually
+       four steps: a field has to be visible without squinting at it. */
+    --ground: #0b0d12;
+    --surface: #151921;
+    --raised: #1b2029;
+    --well: #1f2530;
+
+    --paper: #262019;
+    --paper-edge: #453a2c;
+    --paper-ink: #ece2d0;
+
+    --rule: #272d38;
+    --rule-strong: #3a4250;
+
+    --accent: #6f95ff;
+    --accent-soft: #17203a;
+    --gold: #e0a63e;
+    --live: #ff5f55;
+
+    --mine: #1d2841;
+
+    --lift: 0 1px 2px rgba(0, 0, 0, 0.55), 0 10px 30px -10px rgba(0, 0, 0, 0.65);
+    --lift-high: 0 1px 2px rgba(0, 0, 0, 0.65), 0 28px 70px -18px rgba(0, 0, 0, 0.85);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--sans);
+  font-size: var(--step-body);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  user-select: none;
+  cursor: default;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  cursor: default;
+}
+
+/* The one label treatment used for anything that names a thing rather than
+   says it: a company, a role, a verdict, a field. */
+.meta {
+  font-size: var(--step-meta);
+  font-weight: 600;
+  letter-spacing: 0.085em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.scroller {
+  scrollbar-gutter: stable;
+}
+
+.scroller::-webkit-scrollbar {
+  width: 9px;
+}
+
+.scroller::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 99px;
+  background-clip: content-box;
+  background-color: var(--rule-strong);
+}
+
+.scroller::-webkit-scrollbar-thumb:hover {
+  background-color: var(--faint);
+}
+
+/* The orb --------------------------------------------------------------- */
+
+/* Both drag surfaces take the pointer outright. Without this a touchscreen or a
+   pen claims the gesture for panning first, and the drag dies mid stroke: a
+   thing that cannot happen on a Mac and happens on any Windows laptop with a
+   touch display. */
+.orb-slot {
+  position: absolute;
+  touch-action: none;
+}
+
+.orb {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.orb-body {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 33% 27%, #ffffff 0%, #f7f8fb 58%, #e9ecf3 100%);
+  box-shadow:
+    0 1px 1px rgba(16, 34, 80, 0.14),
+    0 8px 20px -6px rgba(16, 34, 80, 0.42),
+    inset 0 -1.5px 2px rgba(16, 34, 80, 0.1),
+    inset 0 1.5px 1px rgba(255, 255, 255, 0.9);
+  animation: breathe 5s var(--ease) infinite alternate;
+}
+
+.orb-body svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.orb[data-state='thinking'] .orb-body {
+  animation: breathe 1.15s var(--ease) infinite alternate;
+}
+
+@keyframes breathe {
+  from {
+    scale: 1;
+  }
+  to {
+    scale: 1.028;
+  }
+}
+
+.orb-ring {
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 2.5px solid transparent;
+  pointer-events: none;
+}
+
+.orb[data-listening='true'] .orb-ring {
+  border-color: var(--live);
+  box-shadow: 0 0 0 1px rgba(214, 55, 47, 0.2), 0 0 12px rgba(214, 55, 47, 0.4);
+  animation: live 2.6s var(--ease) infinite;
+}
+
+.orb[data-state='alert'] .orb-ring {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 1px rgba(168, 116, 26, 0.25), 0 0 18px rgba(168, 116, 26, 0.55);
+  animation: none;
+}
+
+@keyframes live {
+  0%,
+  100% {
+    opacity: 1;
+    scale: 1;
+  }
+  50% {
+    opacity: 0.5;
+    scale: 1.055;
+  }
+}
+
+.orb-burst {
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 2px solid var(--gold);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* The panel ------------------------------------------------------------- */
+
+.panel {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: var(--lift-high);
+  overflow: hidden;
+  /* A hairline of light along the top edge, the way a real card catches it. */
+  outline: 1px solid var(--rule);
+  outline-offset: -1px;
+}
+
+.panel::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.7), transparent);
+  pointer-events: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  .panel::before {
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+  }
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 11px 14px 10px;
+  border-bottom: 1px solid var(--rule);
+  background: var(--raised);
+}
+
+.icon-button {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--dim);
+  transition: background 140ms var(--ease), color 140ms var(--ease);
+}
+
+.icon-button:hover {
+  background: var(--well);
+  color: var(--ink);
+}
+
+.listen-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 9px 3px 7px;
+  border: 1px solid transparent;
+  border-radius: 99px;
+  background: transparent;
+  transition: background 140ms var(--ease), border-color 140ms var(--ease);
+}
+
+.listen-toggle:hover {
+  background: var(--well);
+}
+
+.listen-toggle[data-on='true'] {
+  border-color: color-mix(in srgb, var(--live) 35%, transparent);
+  background: color-mix(in srgb, var(--live) 9%, transparent);
+}
+
+.listen-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--rule-strong);
+}
+
+.listen-toggle[data-on='true'] .listen-dot {
+  background: var(--live);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--live) 18%, transparent);
+  animation: live 2.6s var(--ease) infinite;
+}
+
+/* The panel's free corner. Quiet until the pointer is near it, and always the
+   corner away from the orb, because the orb is what the layout is measured
+   from and the panel grows in the other direction. */
+.handle {
+  position: absolute;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  touch-action: none;
+}
+
+.handle[data-side='right'] {
+  right: 0;
+}
+
+.handle[data-side='left'] {
+  left: 0;
+}
+
+.handle[data-edge='down'] {
+  bottom: 0;
+}
+
+.handle[data-edge='up'] {
+  top: 0;
+}
+
+.handle::after {
+  content: '';
+  width: 10px;
+  height: 2px;
+  border-radius: 99px;
+  background: var(--rule-strong);
+  transition: width 140ms var(--ease), background 140ms var(--ease);
+}
+
+.handle:hover::after {
+  width: 14px;
+  background: var(--faint);
+}
+
+/* The bar lies across the diagonal the corner actually travels along. */
+.handle[data-side='right'][data-edge='down'],
+.handle[data-side='left'][data-edge='up'] {
+  cursor: nwse-resize;
+}
+
+.handle[data-side='right'][data-edge='down']::after,
+.handle[data-side='left'][data-edge='up']::after {
+  rotate: -45deg;
+}
+
+.handle[data-side='right'][data-edge='up'],
+.handle[data-side='left'][data-edge='down'] {
+  cursor: nesw-resize;
+}
+
+.handle[data-side='right'][data-edge='up']::after,
+.handle[data-side='left'][data-edge='down']::after {
+  rotate: 45deg;
+}
+
+/* The thread ------------------------------------------------------------ */
+
+.thread {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  /* Bottom anchored: a short conversation sits at the bottom, not the top. */
+  margin-top: auto;
+  padding: 16px 16px 8px;
+}
+
+.arriving {
+  animation: arrive 320ms var(--ease) both;
+}
+
+@keyframes arrive {
+  from {
+    opacity: 0;
+    translate: 0 7px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+/* The companion is a voice, not a message. No bubble, no avatar, no name. */
+.said {
+  margin: 0;
+  font-size: var(--step-body);
+  line-height: 1.58;
+  color: var(--ink);
+  white-space: pre-wrap;
+  text-wrap: pretty;
+}
+
+.said-quiet {
+  color: var(--ink-soft);
+}
+
+.caret::after {
+  content: '';
+  display: inline-block;
+  width: 1.5px;
+  height: 0.92em;
+  margin-left: 2px;
+  vertical-align: -0.12em;
+  background: var(--accent);
+  animation: blink 1.05s steps(2, start) infinite;
+}
+
+@keyframes blink {
+  to {
+    visibility: hidden;
+  }
+}
+
+/* The student, quieter and to the right: this is their own voice coming back. */
+.mine {
+  align-self: flex-end;
+  max-width: 86%;
+  margin: 0;
+  padding: 7px 11px;
+  border-radius: 13px 13px 4px 13px;
+  background: var(--mine);
+  font-size: var(--step-small);
+  line-height: 1.5;
+  color: var(--ink);
+  white-space: pre-wrap;
+}
+
+/* A request from the working world arrives as a document, not a chat line. */
+.dispatch {
+  border: 1px solid var(--paper-edge);
+  border-radius: 11px;
+  background: var(--paper);
+  color: var(--paper-ink);
+  overflow: hidden;
+  /* Laid paper, at a strength you notice only if you look for it. */
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(120, 96, 54, 0.035) 0 1px,
+    transparent 1px 5px
+  );
+}
+
+.dispatch-head {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  padding: 8px 12px 7px;
+  border-bottom: 1px solid color-mix(in srgb, var(--paper-edge) 70%, transparent);
+}
+
+.dispatch-from {
+  font-size: var(--step-fine);
+  font-weight: 650;
+  letter-spacing: -0.005em;
+  color: var(--paper-ink);
+}
+
+.dispatch-role {
+  font-size: var(--step-meta);
+  font-weight: 600;
+  letter-spacing: 0.075em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--paper-ink) 52%, transparent);
+}
+
+.dispatch-body {
+  margin: 0;
+  padding: 10px 12px 11px;
+  font-family: var(--serif);
+  font-size: var(--step-quote);
+  line-height: 1.62;
+  white-space: pre-wrap;
+  text-wrap: pretty;
+}
+
+.dispatch pre {
+  margin: 0 12px 12px;
+  padding: 9px 11px;
+  max-height: 190px;
+  overflow: auto;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--paper-ink) 7%, transparent);
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+/* A review is a proof mark: a rule down the side and a verdict, nothing more. */
+.review {
+  padding-left: 11px;
+  border-left: 2px solid var(--rule-strong);
+}
+
+.review[data-verdict='ship'] {
+  border-left-color: var(--accent);
+}
+
+.review[data-verdict='not-yet'] {
+  border-left-color: var(--gold);
+}
+
+.review-who {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 3px;
+}
+
+/* Evidence: the citation, set apart and attributed the way a source should be. */
+.evidence {
+  display: block;
+  width: 100%;
+  margin-top: 9px;
+  padding: 10px 12px 9px;
+  border: 1px solid var(--paper-edge);
+  border-radius: 10px;
+  background: var(--paper);
+  text-align: left;
+  transition: border-color 160ms var(--ease), transform 160ms var(--ease);
+}
+
+.evidence:hover {
+  border-color: color-mix(in srgb, var(--gold) 55%, var(--paper-edge));
+  transform: translateY(-1px);
+}
+
+.evidence-quote {
+  display: block;
+  font-family: var(--serif);
+  font-size: var(--step-quote);
+  line-height: 1.55;
+  color: var(--paper-ink);
+  text-wrap: pretty;
+}
+
+.evidence-source {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: 7px;
+  padding-top: 7px;
+  border-top: 1px solid color-mix(in srgb, var(--paper-edge) 75%, transparent);
+}
+
+.evidence-company {
+  font-size: var(--step-meta);
+  font-weight: 700;
+  letter-spacing: 0.085em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--paper-ink) 78%, transparent);
+}
+
+.evidence-role {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--step-fine);
+  color: color-mix(in srgb, var(--paper-ink) 55%, transparent);
+}
+
+/* What they said last time, kept beside what they are about to say now. */
+.prior {
+  margin-bottom: 8px;
+  padding: 6px 0 6px 11px;
+  border-left: 2px solid var(--rule);
+  font-family: var(--serif);
+  font-size: var(--step-small);
+  font-style: italic;
+  line-height: 1.5;
+  color: var(--dim);
+}
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.chip {
+  padding: 2px 9px;
+  border: 1px solid var(--rule);
+  border-radius: 99px;
+  background: var(--raised);
+  font-size: var(--step-meta);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dim);
+  transition: border-color 140ms var(--ease), color 140ms var(--ease);
+}
+
+.chip:hover {
+  border-color: var(--rule-strong);
+  color: var(--ink);
+}
+
+.dots {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  height: 14px;
+}
+
+.dots span {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--faint);
+  animation: ripple 1.15s var(--ease) infinite;
+}
+
+.dots span:nth-child(2) {
+  animation-delay: 0.13s;
+}
+
+.dots span:nth-child(3) {
+  animation-delay: 0.26s;
+}
+
+@keyframes ripple {
+  0%,
+  62%,
+  100% {
+    opacity: 0.35;
+    translate: 0 0;
+  }
+  31% {
+    opacity: 1;
+    translate: 0 -3.5px;
+  }
+}
+
+/* Below the thread ------------------------------------------------------ */
+
+/* Inline only: the chips set their own vertical padding in the markup, and a
+   padding shorthand here is unlayered, so it would beat them silently. */
+.tray {
+  padding-inline: 16px;
+  background: var(--surface);
+}
+
+/* What the student could say next, in their words. */
+.reply {
+  padding: 5px 11px;
+  border: 1px solid var(--rule);
+  border-radius: 99px;
+  background: var(--raised);
+  font-size: var(--step-small);
+  line-height: 1.35;
+  color: var(--ink);
+  transition: border-color 140ms var(--ease), background 140ms var(--ease), transform 140ms var(--ease);
+}
+
+.reply:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  transform: translateY(-1px);
+}
+
+/* Where what you type is going, when it is not going to the companion. One
+   line directly above the field, not another box competing with it. */
+.aim {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 16px 0;
+}
+
+.aim-who {
+  font-size: var(--step-fine);
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.composer {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 8px 16px 14px;
+}
+
+/* The field owns its own height, in the composer rather than in here: it is
+   measured against what is typed, and overridden by a drag on the grip. The
+   name is qualified because the preferences form has a `.field` of its own. */
+.composer-field {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Half on the field's top edge and half above it, so taking hold of it never
+   costs the first line of text. */
+.grip {
+  position: absolute;
+  touch-action: none;
+  top: -5px;
+  right: 0;
+  left: 0;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  height: 10px;
+  cursor: ns-resize;
+}
+
+.grip::after {
+  content: '';
+  width: 26px;
+  height: 2px;
+  border-radius: 99px;
+  background: var(--rule-strong);
+  transition: width 140ms var(--ease), background 140ms var(--ease);
+}
+
+.grip:hover::after {
+  width: 34px;
+  background: var(--faint);
+}
+
+.composer textarea {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  background: var(--well);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--step-body);
+  line-height: 1.55;
+  resize: none;
+  outline: none;
+  user-select: text;
+  transition: border-color 140ms var(--ease), background 140ms var(--ease);
+}
+
+/* The field is sized to what it holds, so a scrollbar is either an artefact of
+   the moment between typing and measuring, or a field dragged shorter on
+   purpose. Neither wants a bar drawn down the side of it. */
+.composer textarea {
+  scrollbar-width: none;
+}
+
+.composer textarea::-webkit-scrollbar {
+  display: none;
+}
+
+.composer textarea::placeholder {
+  color: var(--faint);
+}
+
+.composer textarea:focus {
+  border-color: var(--accent);
+  background: var(--surface);
+}
+
+.send {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 29px;
+  height: 29px;
+  border: 0;
+  border-radius: 9px;
+  background: var(--ink);
+  color: var(--surface);
+  transition: opacity 140ms var(--ease), transform 140ms var(--ease);
+}
+
+.send:disabled {
+  opacity: 0.22;
+}
+
+.send:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+.send svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.empty {
+  max-width: 25ch;
+  margin: auto;
+  text-align: center;
+  font-size: var(--step-small);
+  line-height: 1.6;
+  color: var(--dim);
+}
+
+/* Preferences ----------------------------------------------------------- */
+
+.prefs {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  /* Without a bounded row the pane grows to its content and pushes the footer
+     off the window instead of scrolling inside it. */
+  grid-template-rows: minmax(0, 100%);
+  height: 100%;
+  background: var(--ground);
+  color: var(--ink);
+}
+
+.rail {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 11px;
+  border-right: 1px solid var(--rule);
+  background: var(--raised);
+}
+
+/* Only macOS puts the traffic lights inside the window, so only macOS has to
+   leave room for them. Elsewhere the window has a title bar of its own. */
+:root[data-platform='darwin'] .rail {
+  padding-top: 38px;
+}
+
+.rail-title {
+  padding: 6px 10px 14px;
+  font-size: var(--step-masthead);
+  font-weight: 640;
+  letter-spacing: -0.02em;
+}
+
+.rail button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: var(--step-body);
+  text-align: left;
+  transition: background 150ms var(--ease), color 150ms var(--ease);
+}
+
+.rail button:hover {
+  background: var(--well);
+  color: var(--ink);
+}
+
+.rail button[data-on='true'] {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 560;
+}
+
+.rail button svg {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.pane {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.pane-body {
+  /* The form answers to the width it is given, not to the window. */
+  container-type: inline-size;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 34px 32px 30px;
+}
+
+.pane-inner {
+  /* Wide enough for two real columns, capped so a line never becomes a
+     paragraph you have to track across. The slack is split, not dumped to one
+     side, so a stretched window reads as deliberate. */
+  max-width: 880px;
+  margin-inline: auto;
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0 30px;
+}
+
+@container (min-width: 470px) {
+  .fields {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+/* Anything that wants the whole measure: a row of pills, a list of tags. */
+.field-wide {
+  grid-column: 1 / -1;
+}
+
+.pane-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 13px 32px;
+  border-top: 1px solid var(--rule);
+  background: var(--raised);
+}
+
+/* A sub-section inside a pane, where a group genuinely stands apart. */
+.group {
+  margin-top: 28px;
+  padding-top: 22px;
+  border-top: 1px solid var(--rule);
+}
+
+.group-title {
+  margin: 0 0 3px;
+  font-size: var(--step-title);
+  font-weight: 620;
+  letter-spacing: -0.015em;
+}
+
+.lede {
+  margin: 0 0 22px;
+  max-width: 52ch;
+  font-size: var(--step-small);
+  line-height: 1.6;
+  color: var(--dim);
+}
+
+.group .lede {
+  margin-bottom: 16px;
+}
+
+.field {
+  margin-bottom: 15px;
+}
+
+.field > label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 5px;
+  font-size: var(--step-fine);
+  color: var(--dim);
+}
+
+.input {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 8px;
+  background: var(--well);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--step-small);
+  line-height: 1.45;
+  outline: none;
+  user-select: text;
+  transition: border-color 140ms var(--ease), box-shadow 140ms var(--ease);
+}
+
+.input::placeholder {
+  color: var(--faint);
+}
+
+.input:hover {
+  border-color: var(--faint);
+}
+
+.input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.input-mono {
+  font-family: var(--mono);
+  font-size: 11.5px;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 5px 3px 10px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 99px;
+  background: var(--well);
+  font-size: var(--step-small);
+  color: var(--ink);
+}
+
+.tag button {
+  display: grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--faint);
+  font-size: 13px;
+  line-height: 1;
+  transition: background 120ms var(--ease), color 120ms var(--ease);
+}
+
+.tag button:hover {
+  background: var(--rule);
+  color: var(--ink);
+}
+
+.action {
+  padding: 5px 12px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 8px;
+  background: var(--well);
+  font-size: var(--step-small);
+  color: var(--ink);
+  transition: all 140ms var(--ease);
+}
+
+.action:hover:not(:disabled) {
+  border-color: var(--faint);
+  background: var(--surface);
+}
+
+.action:disabled {
+  opacity: 0.45;
+}
+
+.action[data-on='true'] {
+  border-color: var(--faint);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.action[data-tone='danger'] {
+  color: var(--live);
+}
+
+.action[data-tone='danger']:hover {
+  border-color: color-mix(in srgb, var(--live) 50%, transparent);
+  background: color-mix(in srgb, var(--live) 8%, transparent);
+}
+
+.verdict {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--step-small);
+}
+
+.menu {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 5px);
+  z-index: 20;
+  max-height: 214px;
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: var(--lift);
+}
+
+.menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  text-align: left;
+  font-size: var(--step-small);
+  transition: background 110ms var(--ease);
+}
+
+.menu button:hover {
+  background: var(--well);
+}
+
+/* Motion only where it means something. */
+@media (prefers-reduced-motion: reduce) {
+  .orb-body,
+  .orb-ring,
+  .listen-toggle[data-on='true'] .listen-dot,
+  .dots span,
+  .arriving,
+  .caret::after {
+    animation: none !important;
+  }
+
+  .evidence:hover,
+  .reply:hover,
+  .send:not(:disabled):hover {
+    transform: none;
+  }
+}

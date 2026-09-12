@@ -1,0 +1,146 @@
+# How it fits together
+
+The shape of the app, and the reasoning behind the parts that are not obvious
+from reading them.
+
+## The loop
+
+`src/main/session.ts` holds one loop and every state it can be in.
+
+**Hear.** Transcript arrives a line at a time, from the microphone through
+Deepgram or from a saved lecture read back at speaking pace. Every fifteen
+seconds the last few minutes are considered, and if enough has been said, one
+call names at most three concepts.
+
+**See.** A concept is translated into what postings call the same thing. The
+model is not asked to guess: the terms that appear in postings nearest the
+concept are retrieved first and handed over, and it is told to copy one exactly.
+Anything it returns that the retriever cannot find is dropped. What survives
+becomes a card with three sentences quoted from three different companies.
+
+**Do.** A card can become a scenario: a vague request from a coworker, with
+three or four hidden facts that each change what the right answer is. The
+student asks questions, submits an answer, and a senior reviews it.
+
+**Lock in.** A review names a topic in three words or fewer. `watch.ts` listens
+for those exact words in a later lecture and turns the orb gold when they
+arrive.
+
+**Recap.** What the student met, and what the postings for their aim ask for
+that they have not.
+
+## Two rules
+
+**The LLM translates, role-plays and explains. Real postings prove.** Every
+claim about industry traces to a sentence in `data/ikb.json`, and every sentence
+traces to a posting with a URL. `citations.ts` strips any `[S:id]` the retriever
+did not return, so a model that invents a citation loses it rather than the
+student believing it.
+
+**The coworker is only ever told what the student has already uncovered.**
+`revealFacts` is a separate call that decides which hidden facts a question
+reaches. The persona is then written with only those facts in its prompt, so it
+cannot leak what it never had. Gating in the prompt alone would be a request;
+gating by what is passed in is a fact about the call.
+
+## The evidence base
+
+`ingest-ikb.ts` pulls public ATS endpoints, strips boilerplate, splits
+requirements into sentences and tags each one against the tool and practice
+vocabularies. Postings get a role family and a seniority from their title.
+
+Retrieval is exact where it can be and fuzzy where it has to be. `byTag` is the
+exact index, `MiniSearch` covers free text and loose phrasing, and a term only
+survives if the index has hits for it.
+
+Gap percentages need a cohort big enough to quote. Below 40 postings the cohort
+widens from the seniority to the whole role family, and `computeGaps` returns
+which cohort it used, so the companion can say so.
+
+A tagger rule reads `data scien\w*` rather than `data scien\b`, because a word
+boundary after a prefix can never match the letter that follows it.
+
+## The window
+
+The panel is transparent, frameless and always on top, and it must not take the
+lecture out of front when it opens. On macOS that is `type: 'panel'`, which
+applies `NSWindowStyleMaskNonactivatingPanel`, plus `app.dock.hide()` to make
+the app an accessory. See [platforms.md](platforms.md) for what Windows does
+instead.
+
+The window is bigger than what it draws, by the room the orb needs to breathe.
+That padding would otherwise eat clicks meant for the app underneath, so the
+renderer hit-tests the pointer and toggles `setIgnoreMouseEvents`. It starts
+solid and the first mouse move decides, so the orb is never dead on arrival, and
+the menu bar item has a switch that turns the whole behaviour off.
+
+The native shadow is off permanently: a transparent window's shadow is
+recomputed from the alpha mask every frame, so the panel draws its own in CSS.
+
+macOS routes Cmd C and Cmd V through the application menu, and this app has
+none, because Escape and Cmd W have to reach the renderer. The editing
+shortcuts are bridged by hand in `index.ts`.
+
+Nothing from a renderer reaches a window unchecked. Electron throws on a
+coordinate it cannot convert, so a malformed drag point would take the main
+process down with it. Points and text pass through `guards.ts` first.
+
+## Settings
+
+There is no provider setting. Everything that speaks the OpenAI chat API differs
+only in an address, a key and two model names, so that is all there is. The
+preset buttons fill in an address and nothing more, the model list is read from
+the endpoint's own `/models`, and `isLocal` is what decides whether to ask for a
+key. Adding another provider is adding a row of data.
+
+Keys are sealed with Electron's `safeStorage`, which is the OS keychain. The
+preferences window only ever receives whether a key is set and its last four
+characters. Where there is no keychain the key is stored as written and the
+window says so rather than pretending. A setting left blank falls through to
+`.env`.
+
+Preferences are a second window rather than part of the thread. The companion is
+one conversation, and typing an API key into a conversation would be absurd. It
+is a rail and a pane rather than a centred column, because a settings window
+gets stretched: the form answers to the width it is given through a container
+query, going to two columns once there is room. It has two tabs, because it
+holds two unrelated things, and the tab is remembered in the window's own
+storage.
+
+What you are aiming at is typed, not picked. The seven role families are what
+every posting is tagged with, and evidence and gap statistics both filter on
+them, so free text alone would match nothing. The phrase is searched against
+real job titles and resolves to the family those titles carry, with "nothing
+like it" said plainly when there is no such work.
+
+## The look
+
+Postings are primary sources, so the interface treats them that way. Two
+surfaces, and the split carries the whole idea:
+
+- **The app** is cool ink on a cool ground, in the system sans.
+- **The working world** is warm paper in `ui-serif`, which is New York on macOS
+  and Georgia elsewhere. Anything quoted from a posting, and anything a coworker
+  sends, arrives on it. It should look like it came from somewhere else.
+
+The companion's own voice is neither: no bubble, no avatar, no name, flush left.
+It is marginalia, the thing written in the margin of your notes. Four things
+speak in the thread and each gets its own treatment rather than a variant of a
+chat bubble: the companion, the student's own words coming back quieter on the
+right, a request from the working world as a document, and a review as a proof
+mark with a rule down the side in the colour of its verdict.
+
+No font files are bundled. `ui-serif` and `ui-monospace` reach the platform's
+own optically sized faces. Swapping in a licensed face is two lines in
+`styles.css`. The mark is drawn in code, in `bubble/logo.ts` for the orb and
+`tray-mark.ts` for the menu bar, so there is no binary asset to keep in step.
+
+## Two conventions
+
+Relative imports carry explicit `.ts` extensions, and there are no TypeScript
+parameter properties anywhere. Both exist so `node --test` can load any module
+directly, with no build step and no test runner.
+
+`electron-store` ships as ESM only and the main process is bundled as CommonJS,
+so the import arrives as a module namespace. It is unwrapped in one place, in
+`src/main/store.ts`.

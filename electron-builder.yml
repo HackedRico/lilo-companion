@@ -1,0 +1,38 @@
+appId: com.lilo.companion
+productName: Lilo
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - out/**
+  - package.json
+
+# The evidence base is read from disk at runtime rather than bundled into the
+# main process, so it stays a file you can regenerate without a rebuild.
+extraResources:
+  - from: data
+    to: data
+    filter:
+      - '**/*'
+
+mac:
+  category: public.app-category.education
+  target:
+    - dmg
+    - zip
+  extendInfo:
+    NSMicrophoneUsageDescription: >-
+      Lilo listens to your lecture so it can tell you where the concept turns
+      up in real jobs. Audio is never saved.
+    # A menu bar companion, not a Dock app.
+    LSUIElement: true
+
+win:
+  target:
+    - nsis
+
+linux:
+  target:
+    - AppImage
+  category: Education

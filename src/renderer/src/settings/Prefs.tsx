@@ -1,0 +1,391 @@
+import { useEffect, useRef, useState, type ReactElement } from 'react'
+import type { Aim } from '../../../shared/types.ts'
+import {
+  CHECKED,
+  PRESETS,
+  presetFor,
+  type ConnectionResult,
+  type SettingsPatch,
+  type SettingsView
+} from '../../../shared/settings.ts'
+import { ROLE_LABEL, type Profile, type RoleFamily } from '../../../shared/types.ts'
+import { api } from '../api.ts'
+import { Action, Field, Group, KeyRow, Tags, TextInput } from './fields.tsx'
+import { ModelField } from './ModelField.tsx'
+
+type Tab = 'profile' | 'model'
+
+const TABS: { value: Tab; label: string; icon: ReactElement }[] = [
+  {
+    value: 'profile',
+    label: 'Profile',
+    icon: (
+      <svg viewBox="0 0 16 16" aria-hidden>
+        <circle cx="8" cy="5.6" r="2.9" />
+        <path d="M2.6 14c.6-2.8 2.7-4.3 5.4-4.3s4.8 1.5 5.4 4.3" />
+      </svg>
+    )
+  },
+  {
+    value: 'model',
+    label: 'Model',
+    icon: (
+      <svg viewBox="0 0 16 16" aria-hidden>
+        <rect x="2.4" y="2.4" width="11.2" height="11.2" rx="3" />
+        <path d="M6.2 6.2h3.6v3.6H6.2z" />
+      </svg>
+    )
+  }
+]
+
+/** Reopening should land where you were, which needs no round trip to ask. */
+function lastTab(): Tab {
+  try {
+    return localStorage.getItem('prefs-tab') === 'model' ? 'model' : 'profile'
+  } catch {
+    return 'profile'
+  }
+}
+
+export function Prefs(): ReactElement {
+  const [tab, setTab] = useState<Tab>(lastTab)
+  const [settings, setSettings] = useState<SettingsView | null>(null)
+  const [profile, setProfile] = useState<Profile | null>(null)
+  const [storage, setStorage] = useState('')
+  const [saved, setSaved] = useState(false)
+  const fade = useRef<ReturnType<typeof setTimeout>>(undefined)
+
+  useEffect(() => {
+    void api.readSettings().then(setSettings)
+    void api.readProfile().then(setProfile)
+    void api.storagePath().then(setStorage)
+  }, [])
+
+  const pick = (next: Tab): void => {
+    setTab(next)
+    try {
+      localStorage.setItem('prefs-tab', next)
+    } catch {
+      // Forgetting which tab you were on is not worth an error.
+    }
+  }
+
+  const flash = (): void => {
+    setSaved(true)
+    clearTimeout(fade.current)
+    fade.current = setTimeout(() => setSaved(false), 1300)
+  }
+
+  const saveSettings = (patch: SettingsPatch): void => {
+    void api.writeSettings(patch).then((next) => {
+      setSettings(next)
+      flash()
+    })
+  }
+
+  const saveProfile = (patch: Partial<Profile>): void => {
+    void api.writeProfile(patch).then((next) => {
+      setProfile(next)
+      flash()
+    })
+  }
+
+  return (
+    <div className="prefs">
+      <nav className="rail" style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}>
+        <div className="rail-title">Lilo</div>
+        <div style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
+          {TABS.map((one) => (
+            <button key={one.value} data-on={tab === one.value} onClick={() => pick(one.value)}>
+              {one.icon}
+              {one.label}
+            </button>
+          ))}
+        </div>
+      </nav>
+
+      <div className="pane">
+        <div className="pane-body scroller">
+          <div className="pane-inner">
+            {!settings || !profile ? (
+              <p className="text-[12px]" style={{ color: 'var(--dim)' }}>
+                Reading what you had…
+              </p>
+            ) : tab === 'profile' ? (
+              <ProfileTab profile={profile} save={saveProfile} />
+            ) : (
+              <ModelTab settings={settings} save={saveSettings} />
+            )}
+          </div>
+        </div>
+
+        <footer className="pane-foot">
+          <p className="m-0 min-w-0 flex-1 text-[11px] leading-[1.6]" style={{ color: 'var(--faint)' }}>
+            {settings?.encrypted === false
+              ? 'No keychain here, so keys sit in plain text.'
+              : 'Keys are in your keychain.'}{' '}
+            {/* One line: a path broken mid-word is worse than a path you hover. */}
+            <span className="input-mono truncate" title={storage}>
+              {storage}
+            </span>
+          </p>
+          <span
+            className="shrink-0 text-[11.5px] transition-opacity duration-300"
+            style={{ color: 'var(--dim)', opacity: saved ? 1 : 0 }}
+          >
+            Saved
+          </span>
+          <Action
+            tone="danger"
+            onClick={() => {
+              if (!window.confirm('Forget your profile, your keys and everything else?')) return
+              void api.forgetSettings().then(setSettings)
+              void api.readProfile().then(setProfile)
+            }}
+          >
+            Forget everything
+          </Action>
+        </footer>
+      </div>
+    </div>
+  )
+}
+
+function ProfileTab({
+  profile,
+  save
+}: {
+  profile: Profile
+  save: (patch: Partial<Profile>) => void
+}): ReactElement {
+  const leaning = Object.entries(profile.roleAffinity)
+    .filter(([, votes]) => votes > 0)
+    .sort((a, b) => b[1] - a[1])
+    .map(([role]) => ROLE_LABEL[role as RoleFamily])
+
+  return (
+    <>
+      <p className="lede">
+        What the companion tailors itself to: which postings it shows you, and who the work comes from.
+      </p>
+      <div className="fields">
+        <Field label="Studying">
+          <TextInput value={profile.major} placeholder="Statistics" onCommit={(major) => save({ major })} />
+        </Field>
+        <Field label="Year">
+          <TextInput value={profile.year} placeholder="Junior" onCommit={(year) => save({ year })} />
+        </Field>
+        <Field
+          wide
+          label="Aiming at"
+          hint={
+            leaning.length > 0
+              ? `You keep saying ${leaning.join(' and ')} sounds like you, which nudges the same way.`
+              : 'Say it however you like. What it matches in real postings is shown beside it.'
+          }
+        >
+          <Aims profile={profile} save={save} />
+        </Field>
+        <Field label="Courses">
+          <Tags items={profile.courses} placeholder="Add one, press enter" onChange={(courses) => save({ courses })} />
+        </Field>
+        <Field label="Into" hint="Used to pick the setting a work scenario is written in.">
+          <Tags
+            items={profile.interests}
+            placeholder="Add one, press enter"
+            onChange={(interests) => save({ interests })}
+          />
+        </Field>
+      </div>
+
+      <Group title="Heard so far" note="The recap will not offer these back to you as gaps.">
+        {profile.heardTerms.length === 0 ? (
+          <p className="text-[12px]" style={{ color: 'var(--faint)' }}>
+            Nothing yet. This fills in as concepts are read back to you.
+          </p>
+        ) : (
+          <>
+            <div className="mb-3 flex flex-wrap gap-1.5">
+              {profile.heardTerms.map((term) => (
+                <span key={term} className="tag" style={{ color: 'var(--dim)' }}>
+                  {term}
+                </span>
+              ))}
+            </div>
+            <Action onClick={() => save({ heardTerms: [] })}>Clear these</Action>
+          </>
+        )}
+      </Group>
+    </>
+  )
+}
+
+/**
+ * Typed in their own words, then answered by the data. Showing what each phrase
+ * landed on keeps the app from quietly filtering on something else, and says
+ * plainly when there is nothing behind it.
+ */
+function Aims({
+  profile,
+  save
+}: {
+  profile: Profile
+  save: (patch: Partial<Profile>) => void
+}): ReactElement {
+  const [aims, setAims] = useState<Aim[]>([])
+  const [draft, setDraft] = useState('')
+  const key = profile.aims.join('|')
+
+  useEffect(() => {
+    void api.resolveAims(profile.aims).then(setAims)
+  }, [key])
+
+  const commit = (next: string[]): void => save({ aims: next })
+
+  return (
+    <>
+      {aims.length > 0 && (
+        <div className="mb-2 flex flex-wrap gap-1.5">
+          {aims.map((aim) => (
+            <span key={aim.said} className="tag">
+              {aim.said}
+              <span className="meta" style={aim.family ? undefined : { color: 'var(--live)' }}>
+                {aim.family ? ROLE_LABEL[aim.family] : 'nothing like it'}
+              </span>
+              <button
+                aria-label={`Remove ${aim.said}`}
+                onClick={() => commit(profile.aims.filter((one) => one !== aim.said))}
+              >
+                &times;
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      <input
+        className="input"
+        value={draft}
+        placeholder="Quantitative finance, backend, product design…"
+        spellCheck={false}
+        onChange={(event) => setDraft(event.target.value)}
+        onBlur={() => {
+          const value = draft.trim()
+          if (value && !profile.aims.includes(value)) commit([...profile.aims, value])
+          setDraft('')
+        }}
+        onKeyDown={(event) => {
+          if (event.key !== 'Enter') return
+          event.preventDefault()
+          event.currentTarget.blur()
+        }}
+      />
+    </>
+  )
+}
+
+function ModelTab({
+  settings,
+  save
+}: {
+  settings: SettingsView
+  save: (patch: SettingsPatch) => void
+}): ReactElement {
+  const [tested, setTested] = useState<ConnectionResult | null>(null)
+  const [testing, setTesting] = useState(false)
+  // A preset is a shortcut for filling in an address, so the one that matches
+  // the address is the one that reads as chosen. Typing a URL chooses nothing.
+  const chosen = presetFor(settings.baseUrl)
+
+  const change = (patch: SettingsPatch): void => {
+    setTested(null)
+    save(patch)
+  }
+
+  return (
+    <>
+      <p className="lede">
+        Anywhere that speaks the OpenAI chat API: a service, or a model running on this machine.
+      </p>
+      <div className="mb-4 flex flex-wrap gap-1.5">
+        {PRESETS.map((preset) => (
+          <Action
+            key={preset.id}
+            title={preset.note}
+            on={chosen?.id === preset.id}
+            onClick={() => change({ baseUrl: preset.baseUrl, ...(preset.models ? { modelFast: preset.models.fast, modelStrong: preset.models.strong } : {}) })}
+          >
+            {preset.label}
+          </Action>
+        ))}
+      </div>
+      <div className="fields">
+        <Field
+          label="Address"
+          hint={chosen?.note ?? (settings.local ? 'On this machine, so no key is wanted.' : undefined)}
+        >
+          <TextInput
+            mono
+            value={settings.baseUrl}
+            placeholder="https://api.featherless.ai/v1"
+            onCommit={(baseUrl) => change({ baseUrl })}
+          />
+        </Field>
+        <Field label="Key">
+          <KeyRow
+            state={settings.apiKey}
+            envName="LLM_API_KEY"
+            absent={settings.local ? 'Not needed' : 'Not set'}
+            onSet={(apiKey) => change({ apiKey })}
+          />
+        </Field>
+        <Field
+          label="Quick model"
+          hint="Reads the lecture and plays the coworker."
+          badge={CHECKED.has(settings.modelFast) ? 'checked' : undefined}
+        >
+          <ModelField value={settings.modelFast} onPick={(modelFast) => change({ modelFast })} />
+        </Field>
+        <Field
+          label="Careful model"
+          hint="Writes the work and reviews your answer."
+          badge={CHECKED.has(settings.modelStrong) ? 'checked' : undefined}
+        >
+          <ModelField value={settings.modelStrong} onPick={(modelStrong) => change({ modelStrong })} />
+        </Field>
+      </div>
+      <div className="mt-5 flex items-center gap-3">
+        <Action
+          disabled={testing}
+          onClick={() => {
+            setTesting(true)
+            setTested(null)
+            void api
+              .testConnection()
+              .then(setTested)
+              .finally(() => setTesting(false))
+          }}
+        >
+          {testing ? 'Asking…' : 'Test it'}
+        </Action>
+        {tested && (
+          <span className="verdict" style={{ color: tested.ok ? 'var(--dim)' : 'var(--live)' }}>
+            {tested.ok ? `Answered in ${(tested.ms / 1000).toFixed(1)}s` : tested.detail}
+          </span>
+        )}
+      </div>
+
+      <Group
+        title="Lectures"
+        note="Without a key, saved lectures and pasted notes still work. Audio is sent straight out and never written down."
+      >
+        <Field label="Deepgram key">
+          <KeyRow
+            state={settings.deepgramKey}
+            envName="DEEPGRAM_API_KEY"
+            onSet={(deepgramKey) => change({ deepgramKey })}
+          />
+        </Field>
+      </Group>
+    </>
+  )
+}
