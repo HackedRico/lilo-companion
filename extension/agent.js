@@ -8,25 +8,37 @@
   window.__lilo = { version: 1 }
 
   const POLL_MS = 1000
-  const state = { slug: null, code: null, language: null, inFront: null, marks: null }
+  /** An edit is reported once the code has sat still this long, not on every keystroke. */
+  const SETTLE_MS = 1500
+  const state = { slug: null, code: null, language: null, inFront: null, marks: null, draft: null }
 
   const post = (event) => window.postMessage({ lilo: 'event', event: { at: Date.now(), ...event } }, location.origin)
 
   const slugOf = () => (location.pathname.match(/^\/problems\/([^/]+)/) || [])[1] || null
 
+  const languageOf = (model) => (model && model.getLanguageId ? model.getLanguageId() : '')
+
+  // The page has more than one Monaco: the test case box and the console are
+  // plain text. The code editor is the one with a language, and the biggest
+  // of those when several have one.
+  const isCode = (model) => {
+    const language = languageOf(model)
+    return language !== '' && language !== 'plaintext'
+  }
+
   const editor = () => {
     const monaco = window.monaco
     if (!monaco || !monaco.editor || !monaco.editor.getEditors) return null
-    return monaco.editor.getEditors()[0] || null
+    const editors = monaco.editor.getEditors().filter((one) => one.getModel && isCode(one.getModel()))
+    return editors.sort((a, b) => b.getModel().getValueLength() - a.getModel().getValueLength())[0] || null
   }
 
-  // The editor's model is the code, whatever the page draws around it.
   const model = () => {
     const live = editor()
-    if (live && live.getModel) return live.getModel()
+    if (live) return live.getModel()
     const monaco = window.monaco
     const models = monaco && monaco.editor && monaco.editor.getModels ? monaco.editor.getModels() : []
-    return models.slice().sort((a, b) => b.getValueLength() - a.getValueLength())[0] || null
+    return models.filter(isCode).sort((a, b) => b.getValueLength() - a.getValueLength())[0] || null
   }
 
   const textOf = (html) => {
@@ -66,10 +78,16 @@
     const live = model()
     if (slug && live) {
       const code = live.getValue()
-      const language = live.getLanguageId ? live.getLanguageId() : ''
-      if (code !== state.code || language !== state.language) {
+      const language = languageOf(live)
+      if (code === state.code && language === state.language) {
+        state.draft = null
+      } else if (!state.draft || state.draft.code !== code || state.draft.language !== language) {
+        // Still typing. Remember what it looks like and wait for it to settle.
+        state.draft = { code, language, since: Date.now() }
+      } else if (Date.now() - state.draft.since >= SETTLE_MS) {
         state.code = code
         state.language = language
+        state.draft = null
         post({ kind: 'changed', code: code.slice(0, 20000), language })
         clearMarks()
       }
