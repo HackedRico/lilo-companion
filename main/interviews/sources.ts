@@ -71,16 +71,24 @@ export function dateOf(value: unknown): number | null {
   return null
 }
 
+/** The words of an interview loop, as opposed to an interview on a podcast. */
+const LOOP = /\b(onsite|on-site|phone screen|screening|coding (round|interview|challenge)|system design|technical interview|interview loop|rounds?|recruiter|hiring process|offer|rejected|take-?home)\b/gi
+
 /**
- * Whether the company is named near the word interview, rather than both
- * turning up somewhere in a long comment about something else.
+ * Whether the comment is about interviewing at the company: the company
+ * named as the interviewer ("interviewed at Stripe", "Stripe's onsite"), or
+ * named near the words of an interview loop. "An interview with Stripe's
+ * CEO on a podcast" is neither.
  */
-export function aboutInterviewingAt(text: string, company: string, within = 250): boolean {
-  const interviews = [...text.matchAll(/interview/gi)].map((match) => match.index ?? 0)
-  if (interviews.length === 0) return false
+export function aboutInterviewingAt(text: string, company: string, within = 200): boolean {
+  const name = escapeRegExp(company)
+  if (new RegExp(`\\binterview(?:ed|ing|s)?\\s+(?:at|with|for)\\s+${name}\\b`, 'i').test(text)) return true
+  if (new RegExp(`\\b${name}(?:'s)?\\s+(?:interview|onsite|on-site|phone screen|loop|hiring process)`, 'i').test(text)) return true
+  const loops = [...text.matchAll(LOOP)].map((match) => match.index ?? 0)
+  if (loops.length === 0) return false
   for (const match of text.matchAll(pattern(company))) {
     const at = match.index ?? 0
-    if (interviews.some((index) => Math.abs(index - at) <= within)) return true
+    if (loops.some((index) => Math.abs(index - at) <= within)) return true
   }
   return false
 }
@@ -196,10 +204,12 @@ export async function fetchHn(company: string, fetchFn: Fetch, now = Date.now())
 }
 
 /**
- * What the sources have, newest first: the last year where that is enough,
- * and back to three years where it is not, which the brief says. One source
- * failing is skipped; every source failing throws, so an outage is never
- * mistaken for a company nobody has written about.
+ * What the sources have. A write-up on the interview experience board is
+ * first-hand by construction and is read back to three years; a comment on
+ * Hacker News is read from the last year, and older only when the last year
+ * is thin. Write-ups come first, then newest first, and the brief says how
+ * old they are. One source failing is skipped; every source failing throws,
+ * so an outage is never mistaken for a company nobody has written about.
  */
 export async function gather(company: string, fetchFn: Fetch = fetch, now = Date.now()): Promise<Account[]> {
   const settled = await Promise.allSettled([fetchLeetCode(company, fetchFn), fetchHn(company, fetchFn, now)])
@@ -209,9 +219,13 @@ export async function gather(company: string, fetchFn: Fetch = fetch, now = Date
   const accounts = settled
     .flatMap((result) => (result.status === 'fulfilled' ? result.value : []))
     .filter((account) => account.at >= now - STALE_MS)
-    .sort((a, b) => b.at - a.at)
-  const recent = accounts.filter((account) => account.at >= now - RECENT_MS)
-  return (recent.length >= ENOUGH_RECENT ? recent : accounts).slice(0, MAX_ACCOUNTS)
+  const writeUps = accounts.filter((account) => account.source === 'leetcode')
+  const comments = accounts.filter((account) => account.source === 'hn')
+  const recentComments = comments.filter((account) => account.at >= now - RECENT_MS)
+  const chosen = [...writeUps, ...(writeUps.length + recentComments.length >= ENOUGH_RECENT ? recentComments : comments)]
+  return chosen
+    .sort((a, b) => (a.source === b.source ? b.at - a.at : a.source === 'leetcode' ? -1 : 1))
+    .slice(0, MAX_ACCOUNTS)
 }
 
 /**

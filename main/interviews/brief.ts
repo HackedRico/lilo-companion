@@ -16,7 +16,7 @@ export type Brief =
  */
 export function degenerate(text: string): boolean {
   const words = text.trim().split(/\s+/).filter(Boolean)
-  return words.length < 8 || /(.)\1{11,}/.test(text) || !/[a-z]{3}/i.test(text)
+  return words.length < 4 || /(.)\1{11,}/.test(text) || !/[a-z]{3}/i.test(text)
 }
 
 /** The chip reads as the account, so six citations are six different chips, and the source is the small print. */

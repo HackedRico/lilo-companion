@@ -191,7 +191,11 @@ export class ModelService implements LlmLike {
    */
   async text(ask: Ask): Promise<string> {
     return this.queue(async () => {
-      const raw = await this.withBackoff(() => this.provider.complete(this.turn(ask, false, 0.6, 300)))
+      const turn = this.turn(ask, false, 0.6, 300)
+      const raw = await this.withBackoff(() => this.provider.complete(turn))
+      if (process.env['LILO_DEBUG_LLM']) {
+        process.stderr.write(`\n--- ${turn.model} ---\n${raw}\n---\n`)
+      }
       return raw.trim()
     })
   }

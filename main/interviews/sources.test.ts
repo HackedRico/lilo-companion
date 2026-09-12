@@ -84,12 +84,14 @@ test('gathering skips a source that fails, and reads back further only when the 
   const accounts = await gather('Stripe', fetchFn, NOW)
   assert.deepEqual(accounts.map((account) => account.id), ['hn:1', 'hn:9'], 'one recent account is thin, so the two year old one is read too, and the four year old one is not')
 
-  const plenty: Fetch = async () => {
+  const plenty: Fetch = async (url) => {
+    if (url.includes('leetcode.com')) return new Response(JSON.stringify(leetcode), { status: 200 })
     const recent = [1, 2, 3, 4].map((n) => ({ objectID: `r${n}`, comment_text: `Stripe interview number ${n} was three rounds.`, created_at_i: Math.floor((NOW - n * day) / 1000) }))
     return new Response(JSON.stringify({ hits: [...recent, older] }), { status: 200 })
   }
   const enough = await gather('Stripe', plenty, NOW)
-  assert.ok(!enough.some((account) => account.id === 'hn:9'), 'with enough recent accounts, older ones stay out')
+  assert.ok(!enough.some((account) => account.id === 'hn:9'), 'with enough recent accounts, older comments stay out')
+  assert.equal(enough[0]!.id, 'leetcode:5984403', 'a write-up on the experience board comes first, whatever its date')
 })
 
 test('a date arrives as seconds, milliseconds or a string, and an account with none is not read', () => {
@@ -110,8 +112,12 @@ test('every board failing is an error, not an empty answer to be believed', asyn
   await assert.rejects(gather('Stripe', down, NOW), /none of the boards answered/)
 })
 
-test('the company has to be named near the word interview', () => {
+test('the company has to be the one interviewing, not the one being interviewed', () => {
   assert.ok(aboutInterviewingAt('My Stripe interview was four rounds.', 'Stripe'))
+  assert.ok(aboutInterviewingAt('I interviewed at Stripe last spring and got an offer.', 'Stripe'))
+  assert.ok(aboutInterviewingAt("Stripe's onsite is a full day.", 'Stripe'))
+  assert.ok(aboutInterviewingAt('The recruiter at Stripe sent the take-home the same day.', 'Stripe'))
+  assert.ok(!aboutInterviewingAt("A recent interview with the Flock CEO on Cheeky Pint, Stripe's podcast.", 'Stripe'))
   assert.ok(!aboutInterviewingAt(`Stripe dropped us. ${'x '.repeat(300)} My interview elsewhere.`, 'Stripe'))
   assert.ok(!aboutInterviewingAt('Stripe is a payments company.', 'Stripe'))
 })
