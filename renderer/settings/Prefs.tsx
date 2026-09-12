@@ -116,9 +116,14 @@ export function Prefs(): ReactElement {
     <div className="prefs">
       <nav className="rail" style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}>
         <div className="rail-title">Lilo</div>
-        <div style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
+        <div className="flex flex-col gap-0.5">
           {TABS.map((one) => (
-            <button key={one.value} data-on={tab === one.value} onClick={() => pick(one.value)}>
+            <button
+              key={one.value}
+              style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+              data-on={tab === one.value}
+              onClick={() => pick(one.value)}
+            >
               {one.icon}
               {one.label}
             </button>
@@ -127,6 +132,7 @@ export function Prefs(): ReactElement {
       </nav>
 
       <div className="pane">
+        <div className="pane-top" style={{ WebkitAppRegion: 'drag' } as React.CSSProperties} />
         <div className="pane-body scroller">
           <div className="pane-inner">
             {!settings || !profile ? (
@@ -152,7 +158,7 @@ export function Prefs(): ReactElement {
           </div>
         </div>
 
-        <footer className="pane-foot">
+        <footer className="pane-foot" style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}>
           <p className="m-0 text-[11px] leading-[1.6]" style={{ color: 'var(--faint)' }}>
             Lilo companion
           </p>

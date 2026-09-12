@@ -896,6 +896,7 @@ button {
   padding: 14px 11px;
   border-right: 1px solid var(--rule);
   background: var(--raised);
+  -webkit-app-region: drag;
 }
 
 /* Only macOS puts the traffic lights inside the window, so only macOS has to
@@ -923,6 +924,7 @@ button {
   font-size: var(--step-body);
   text-align: left;
   transition: background 150ms var(--ease), color 150ms var(--ease);
+  -webkit-app-region: no-drag;
 }
 
 .rail button:hover {
@@ -945,6 +947,17 @@ button {
   stroke-width: 1.5;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.pane-top {
+  display: none;
+}
+
+:root[data-platform='darwin'] .pane-top {
+  display: block;
+  height: 38px;
+  flex-shrink: 0;
+  -webkit-app-region: drag;
 }
 
 .pane {
@@ -999,6 +1012,7 @@ button {
   padding: 12px 32px;
   border-top: 1px solid var(--rule);
   background: var(--raised);
+  -webkit-app-region: drag;
 }
 
 /* A sub-section inside a pane, where a group genuinely stands apart. */
