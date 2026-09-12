@@ -8,7 +8,7 @@ import {
 } from '../../shared/settings.ts'
 import { ROLE_LABEL, type Profile, type RoleFamily } from '../../shared/types.ts'
 import { api } from '../api.ts'
-import { Action, Field, Group, KeyRow, Select, Tags, TextInput } from './fields.tsx'
+import { Action, Field, Group, KeyRow, Select, TextInput } from './fields.tsx'
 import { ModelField } from './ModelField.tsx'
 
 type Tab = 'profile' | 'model'
@@ -122,8 +122,8 @@ export function Prefs(): ReactElement {
             {settings?.encrypted === false
               ? 'No keychain here, so keys sit in plain text.'
               : 'Keys are in your keychain.'}{' '}
-            {/* One line: a path broken mid-word is worse than a path you hover. */}
-            <span className="input-mono truncate" title={storage}>
+            {/* One line, clipped: a path broken mid-word is worse than a path you hover. */}
+            <span className="input-mono block truncate" title={storage}>
               {storage}
             </span>
           </p>
@@ -183,16 +183,6 @@ function ProfileTab({
           }
         >
           <Aims profile={profile} save={save} />
-        </Field>
-        <Field label="Courses">
-          <Tags items={profile.courses} placeholder="Add one, press enter" onChange={(courses) => save({ courses })} />
-        </Field>
-        <Field label="Into" hint="Used to pick the setting a work scenario is written in.">
-          <Tags
-            items={profile.interests}
-            placeholder="Add one, press enter"
-            onChange={(interests) => save({ interests })}
-          />
         </Field>
       </div>
 
