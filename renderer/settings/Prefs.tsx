@@ -159,17 +159,26 @@ export function Prefs(): ReactElement {
         </div>
 
         <footer className="pane-foot" style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}>
-          <p className="m-0 text-[11px] leading-[1.6]" style={{ color: 'var(--faint)' }}>
+          <p className="m-0 text-[12px] leading-[1.6]" style={{ color: 'var(--dim)' }}>
             Lilo companion
           </p>
           <span
-            className="shrink-0 text-[11.5px] transition-opacity duration-300"
+            className="shrink-0 text-[12px] font-medium transition-opacity duration-300"
             style={{ color: 'var(--dim)', opacity: saved ? 1 : 0 }}
           >
             Saved
           </span>
         </footer>
       </div>
+    </div>
+  )
+}
+
+function TabHeader({ title, description }: { title: string; description: string }): ReactElement {
+  return (
+    <div className="tab-header">
+      <h1 className="tab-title">{title}</h1>
+      <p className="tab-desc">{description}</p>
     </div>
   )
 }
@@ -188,9 +197,10 @@ function ProfileTab({
 
   return (
     <>
-      <p className="lede">
-        What the companion tailors itself to: which engineering postings it shows you, and who the work comes from.
-      </p>
+      <TabHeader
+        title="Profile"
+        description="What the companion tailors itself to: which engineering postings it shows you, and who the work comes from."
+      />
       <div className="fields">
         <Field label="Studying">
           <TextInput value={profile.major} placeholder="Computer science" onCommit={(major) => save({ major })} />
@@ -213,7 +223,7 @@ function ProfileTab({
 
       <Group title="Heard so far" note="The recap will not offer these back to you as gaps.">
         {profile.heardTerms.length === 0 ? (
-          <p className="text-[12px]" style={{ color: 'var(--faint)' }}>
+          <p className="text-[13px]" style={{ color: 'var(--dim)' }}>
             Nothing yet. This fills in as concepts are read back to you.
           </p>
         ) : (
@@ -313,10 +323,10 @@ function ModelTab({
 
   return (
     <>
-      <p className="lede">
-        Any model you can reach: a hosted service, or one running on this machine. How the endpoint
-        speaks is worked out from its address.
-      </p>
+      <TabHeader
+        title="Model"
+        description="Any model you can reach: a hosted service, or one running on this machine. How the endpoint speaks is worked out from its address."
+      />
       <div className="fields">
         <Field
           wide
@@ -412,9 +422,10 @@ function LeetCodeTab({
 
   return (
     <>
-      <p className="lede">
-        How much help you get on a problem, and the one step that lets Lilo see the page.
-      </p>
+      <TabHeader
+        title="LeetCode"
+        description="How much help you get on a problem, and the one step that lets Lilo see the page."
+      />
       <Group title="How much help" note="A ceiling, not a personality. Cheering, and reading the state back, are the same at every level.">
         <div className="flex flex-col gap-2.5">
           {TIERS.map((tier) => (
@@ -426,7 +437,7 @@ function LeetCodeTab({
               >
                 {TIER_LABEL[tier]}
               </Action>
-              <p className="m-0 text-[12px] leading-[1.5]" style={{ color: 'var(--dim)' }}>
+              <p className="m-0 text-[13px] leading-[1.5]" style={{ color: 'var(--ink-soft)' }}>
                 {TIER_NOTE[tier]}
               </p>
             </div>
@@ -439,9 +450,9 @@ function LeetCodeTab({
         note="Lilo reads the editor on leetcode.com through a small extension you load once. What it sees goes to the model you configured and nowhere else."
       >
         <div className="flex items-center justify-between gap-3 mb-4 pb-3 border-b border-[var(--rule)]">
-          <span className="text-[12px] font-medium text-[var(--ink)]">Connection status</span>
+          <span className="text-[13px] font-medium text-[var(--ink)]">Connection status</span>
           <span
-            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11.5px] font-medium border transition-colors ${
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-medium border transition-colors ${
               status?.connected
                 ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
                 : 'bg-[var(--raised)] text-[var(--dim)] border-[var(--rule-strong)]'
@@ -461,7 +472,7 @@ function LeetCodeTab({
           <div className="flex gap-3 relative">
             <div className="flex flex-col items-center">
               <div
-                className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-semibold shrink-0 border ${
+                className={`w-5 h-5 rounded-full flex items-center justify-center text-[12px] font-semibold shrink-0 border ${
                   setup?.ok
                     ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-600 dark:text-emerald-400'
                     : 'bg-[var(--raised)] border-[var(--rule-strong)] text-[var(--ink)]'
@@ -472,10 +483,10 @@ function LeetCodeTab({
               <div className="w-px flex-1 bg-[var(--rule)] my-1.5" />
             </div>
             <div className="flex-1 pb-4">
-              <h3 className="text-[12.5px] font-medium text-[var(--ink)] m-0 leading-[20px]">
+              <h3 className="text-[13.5px] font-semibold text-[var(--ink)] m-0 leading-[20px]">
                 Register native messaging host
               </h3>
-              <p className="mt-1 mb-2 text-[12px] leading-[1.5] text-[var(--dim)]">
+              <p className="mt-1 mb-2 text-[13px] leading-[1.5] text-[var(--ink-soft)]">
                 Writes the native host manifest and launcher so Chrome can talk to Lilo.
               </p>
               <div className="flex items-center gap-2.5">
@@ -492,11 +503,11 @@ function LeetCodeTab({
                   {connecting ? 'Setting up…' : setup?.ok ? 'Re-run host setup' : 'Set up Chrome'}
                 </Action>
                 {setup?.ok && (
-                  <span className="text-[11.5px] text-[var(--dim)]">Host manifest installed</span>
+                  <span className="text-[12px] text-[var(--dim)]">Host manifest installed</span>
                 )}
               </div>
               {setup && !setup.ok && (
-                <p className="mt-2 text-[12px]" style={{ color: 'var(--live)' }}>
+                <p className="mt-2 text-[12.5px]" style={{ color: 'var(--live)' }}>
                   {setup.detail}
                 </p>
               )}
@@ -506,17 +517,17 @@ function LeetCodeTab({
           {/* Step 2 */}
           <div className="flex gap-3 relative">
             <div className="flex flex-col items-center">
-              <div className="w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-semibold bg-[var(--raised)] border border-[var(--rule-strong)] text-[var(--ink)] shrink-0">
+              <div className="w-5 h-5 rounded-full flex items-center justify-center text-[12px] font-semibold bg-[var(--raised)] border border-[var(--rule-strong)] text-[var(--ink)] shrink-0">
                 2
               </div>
               <div className="w-px flex-1 bg-[var(--rule)] my-1.5" />
             </div>
             <div className="flex-1 pb-4">
-              <h3 className="text-[12.5px] font-medium text-[var(--ink)] m-0 leading-[20px]">
+              <h3 className="text-[13.5px] font-semibold text-[var(--ink)] m-0 leading-[20px]">
                 Enable Developer mode in Chrome
               </h3>
-              <p className="mt-1 text-[12px] leading-[1.5] text-[var(--dim)]">
-                Open <span className="input-mono px-1.5 py-0.5 rounded bg-[var(--raised)] border border-[var(--rule)] text-[var(--ink)] select-all">chrome://extensions</span> in Chrome and toggle on <strong>Developer mode</strong> in the top-right corner.
+              <p className="mt-1 text-[13px] leading-[1.5] text-[var(--ink-soft)]">
+                Open <span className="input-mono px-1.5 py-0.5 rounded bg-[var(--raised)] border border-[var(--rule)] text-[var(--ink)] select-all text-[12px]">chrome://extensions</span> in Chrome and toggle on <strong>Developer mode</strong> in the top-right corner.
               </p>
             </div>
           </div>
@@ -524,31 +535,31 @@ function LeetCodeTab({
           {/* Step 3 */}
           <div className="flex gap-3 relative">
             <div className="flex flex-col items-center">
-              <div className="w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-semibold bg-[var(--raised)] border border-[var(--rule-strong)] text-[var(--ink)] shrink-0">
+              <div className="w-5 h-5 rounded-full flex items-center justify-center text-[12px] font-semibold bg-[var(--raised)] border border-[var(--rule-strong)] text-[var(--ink)] shrink-0">
                 3
               </div>
               <div className="w-px flex-1 bg-[var(--rule)] my-1.5" />
             </div>
             <div className="flex-1 pb-4">
-              <h3 className="text-[12.5px] font-medium text-[var(--ink)] m-0 leading-[20px]">
+              <h3 className="text-[13.5px] font-semibold text-[var(--ink)] m-0 leading-[20px]">
                 Load the unpacked extension
               </h3>
-              <p className="mt-1 text-[12px] leading-[1.5] text-[var(--dim)]">
+              <p className="mt-1 text-[13px] leading-[1.5] text-[var(--ink-soft)]">
                 Click <strong>Load unpacked</strong> and pick this folder:
               </p>
               <div className="mt-2 p-2.5 rounded-lg border border-[var(--rule-strong)] bg-[var(--well)] flex flex-col gap-1.5">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[11px] font-medium text-[var(--dim)]">Extension directory</span>
+                  <span className="text-[12px] font-medium text-[var(--dim)]">Extension directory</span>
                   <div className="flex items-center gap-1.5">
-                    <Action onClick={copyPath} className="!py-0.5 !px-2 !text-[11px]">
+                    <Action onClick={copyPath} className="!py-0.5 !px-2.5 !text-[12px]">
                       {copied ? 'Copied!' : 'Copy path'}
                     </Action>
-                    <Action onClick={() => api.revealExtension()} className="!py-0.5 !px-2 !text-[11px]">
+                    <Action onClick={() => api.revealExtension()} className="!py-0.5 !px-2.5 !text-[12px]">
                       Show folder
                     </Action>
                   </div>
                 </div>
-                <div className="input-mono text-[11.5px] text-[var(--ink-soft)] select-all break-all leading-normal bg-[var(--raised)] p-2 rounded border border-[var(--rule)]">
+                <div className="input-mono text-[12.5px] text-[var(--ink)] select-all break-all leading-normal bg-[var(--raised)] p-2 rounded border border-[var(--rule)]">
                   {extensionDir || 'Loading path…'}
                 </div>
               </div>
@@ -559,7 +570,7 @@ function LeetCodeTab({
           <div className="flex gap-3 relative">
             <div className="flex flex-col items-center">
               <div
-                className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-semibold shrink-0 border ${
+                className={`w-5 h-5 rounded-full flex items-center justify-center text-[12px] font-semibold shrink-0 border ${
                   status?.connected
                     ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-600 dark:text-emerald-400'
                     : 'bg-[var(--raised)] border-[var(--rule-strong)] text-[var(--ink)]'
@@ -569,13 +580,13 @@ function LeetCodeTab({
               </div>
             </div>
             <div className="flex-1 pb-1">
-              <h3 className="text-[12.5px] font-medium text-[var(--ink)] m-0 leading-[20px]">
+              <h3 className="text-[13.5px] font-semibold text-[var(--ink)] m-0 leading-[20px]">
                 Open a problem on LeetCode
               </h3>
-              <p className="mt-1 text-[12px] leading-[1.5] text-[var(--dim)]">
+              <p className="mt-1 text-[13px] leading-[1.5] text-[var(--ink-soft)]">
                 Navigate to any problem on <button type="button" onClick={() => api.openLink('https://leetcode.com/problemset/')} className="underline hover:text-[var(--ink)] cursor-pointer bg-transparent border-0 p-0 text-inherit font-inherit">leetcode.com</button>. The status above turns to <strong>Connected</strong> once the extension reaches the companion.
               </p>
-              <p className="mt-2 text-[11.5px] leading-[1.5] text-[var(--faint)]">
+              <p className="mt-2 text-[12.5px] leading-[1.5] text-[var(--dim)]">
                 Tip: Restart Chrome if it was already open before step 1.
               </p>
             </div>
@@ -615,25 +626,26 @@ function AdvancedTab({
 
   return (
     <>
-      <p className="lede">
-        Data storage location, keychain security, and machine-level reset.
-      </p>
+      <TabHeader
+        title="Advanced"
+        description="Data storage location, keychain security, and machine-level reset."
+      />
 
       <Group title="Storage & Security">
         <div className="flex flex-col gap-4">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <span className="text-[12.5px] font-medium text-[var(--ink)] block">
+              <span className="text-[13.5px] font-semibold text-[var(--ink)] block">
                 Keychain encryption
               </span>
-              <p className="m-0 mt-0.5 text-[12px] text-[var(--dim)] leading-[1.5]">
+              <p className="m-0 mt-0.5 text-[13px] text-[var(--ink-soft)] leading-[1.5]">
                 {settings.encrypted === false
                   ? 'No system keychain detected. Keys are saved in plain text on this device.'
                   : 'API keys are sealed with your operating system keychain (Keychain on macOS, DPAPI on Windows).'}
               </p>
             </div>
             <span
-              className={`shrink-0 text-[11px] font-medium px-2 py-0.5 rounded-full border ${
+              className={`shrink-0 text-[12px] font-medium px-2.5 py-0.5 rounded-full border ${
                 settings.encrypted === false
                   ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
                   : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
@@ -645,18 +657,18 @@ function AdvancedTab({
 
           <div>
             <div className="flex items-center justify-between gap-2 mb-1.5">
-              <span className="text-[12.5px] font-medium text-[var(--ink)]">
+              <span className="text-[13.5px] font-semibold text-[var(--ink)]">
                 Local configuration file
               </span>
-              <Action onClick={copyStorage} className="!py-0.5 !px-2 !text-[11px]">
+              <Action onClick={copyStorage} className="!py-0.5 !px-2.5 !text-[12px]">
                 {copied ? 'Copied full path!' : 'Copy path'}
               </Action>
             </div>
-            <div className="input-mono text-[11.5px] text-[var(--ink-soft)] select-all break-all leading-normal bg-[var(--well)] p-2.5 rounded-lg border border-[var(--rule-strong)]">
+            <div className="input-mono text-[12.5px] text-[var(--ink)] select-all break-all leading-normal bg-[var(--well)] p-2.5 rounded-lg border border-[var(--rule-strong)]">
               {displayPath || 'Loading path…'}
             </div>
-            <p className="m-0 mt-1.5 text-[11.5px] text-[var(--faint)]">
-              Usernames in file paths are abbreviated with <code className="input-mono text-[11px]">~</code> to avoid showing personal paths on screen.
+            <p className="m-0 mt-1.5 text-[12.5px] text-[var(--dim)]">
+              Usernames in file paths are abbreviated with <code className="input-mono text-[12px]">~</code> to avoid showing personal paths on screen.
             </p>
           </div>
         </div>
@@ -666,15 +678,16 @@ function AdvancedTab({
         <div className="flex flex-col gap-2">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
-              <span className="text-[12.5px] font-medium text-[var(--ink)] block">
+              <span className="text-[13.5px] font-semibold text-[var(--ink)] block">
                 Reset everything
               </span>
-              <p className="m-0 mt-0.5 text-[12px] text-[var(--dim)] leading-[1.5]">
+              <p className="m-0 mt-0.5 text-[13px] text-[var(--ink-soft)] leading-[1.5]">
                 Erases your saved profile, model configurations, stored API keys, and local session data from this machine.
               </p>
             </div>
             <Action
               tone="danger"
+              className="!text-[12.5px]"
               onClick={() => {
                 if (!window.confirm('Forget your profile, your keys and everything else on this machine?')) return
                 onForget()

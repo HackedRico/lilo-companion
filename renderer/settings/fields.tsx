@@ -43,7 +43,7 @@ export function Field({
       </label>
       {children}
       {hint && (
-        <p className="mt-1.5 text-[11.5px] leading-[1.55]" style={{ color: 'var(--faint)' }}>
+        <p className="mt-1.5 text-[12.5px] leading-[1.55]" style={{ color: 'var(--dim)' }}>
           {hint}
         </p>
       )}
