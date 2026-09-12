@@ -380,6 +380,7 @@ function LeetCodeTab({
   const [status, setStatus] = useState<ChromeStatus | null>(null)
   const [setup, setSetup] = useState<ChromeSetup | null>(null)
   const [connecting, setConnecting] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     const ask = (): void => void api.chromeStatus().then(setStatus)
@@ -387,6 +388,16 @@ function LeetCodeTab({
     const timer = setInterval(ask, 3000)
     return () => clearInterval(timer)
   }, [])
+
+  const extensionDir = setup?.extensionDir || status?.extensionDir || ''
+
+  const copyPath = (): void => {
+    if (extensionDir) {
+      void navigator.clipboard.writeText(extensionDir)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1600)
+    }
+  }
 
   return (
     <>
@@ -411,50 +422,154 @@ function LeetCodeTab({
           ))}
         </div>
       </Group>
+
       <Group
         title="Chrome"
         note="Lilo reads the editor on leetcode.com through a small extension you load once. What it sees goes to the model you configured and nowhere else."
       >
-        <div className="flex flex-wrap items-center gap-2.5">
-          <Action
-            disabled={connecting}
-            onClick={() => {
-              setConnecting(true)
-              void api
-                .connectChrome()
-                .then(setSetup)
-                .finally(() => setConnecting(false))
-            }}
-          >
-            {connecting ? 'Setting up…' : 'Set up Chrome'}
-          </Action>
-          <Action onClick={() => api.revealExtension()}>Show the extension folder</Action>
+        <div className="flex items-center justify-between gap-3 mb-4 pb-3 border-b border-[var(--rule)]">
+          <span className="text-[12px] font-medium text-[var(--ink)]">Connection status</span>
           <span
-            className="text-[12px] ml-1.5"
-            style={{ color: status?.connected ? 'var(--ink)' : 'var(--faint)' }}
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11.5px] font-medium border transition-colors ${
+              status?.connected
+                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+                : 'bg-[var(--raised)] text-[var(--dim)] border-[var(--rule-strong)]'
+            }`}
           >
-            {status === null ? 'Asking…' : status.connected ? '● Connected' : '○ Not connected'}
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                status?.connected ? 'bg-emerald-500' : 'bg-[var(--faint)]'
+              }`}
+            />
+            {status === null ? 'Checking…' : status.connected ? 'Connected' : 'Not connected'}
           </span>
         </div>
-        {setup && !setup.ok && (
-          <p className="mt-2.5 text-[12px]" style={{ color: 'var(--live)' }}>
-            {setup.detail}
-          </p>
-        )}
-        {setup?.ok && (
-          <ol className="mt-3 pl-4 text-[12px] leading-[1.7]" style={{ color: 'var(--dim)' }}>
-            <li>Open chrome://extensions and turn on Developer mode.</li>
-            <li>
-              Press Load unpacked and pick{' '}
-              <span className="input-mono" title={setup.extensionDir}>
-                {setup.extensionDir}
-              </span>
-              .
-            </li>
-            <li>Open a problem on leetcode.com. This page says Connected once the extension has reached the app.</li>
-            <li>Restart Chrome if it was open before the first step.</li>
-          </ol>
-        )}
+
+        <div className="flex flex-col">
+          {/* Step 1 */}
+          <div className="flex gap-3 relative">
+            <div className="flex flex-col items-center">
+              <div
+                className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-semibold shrink-0 border ${
+                  setup?.ok
+                    ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-600 dark:text-emerald-400'
+                    : 'bg-[var(--raised)] border-[var(--rule-strong)] text-[var(--ink)]'
+                }`}
+              >
+                {setup?.ok ? '✓' : '1'}
+              </div>
+              <div className="w-px flex-1 bg-[var(--rule)] my-1.5" />
+            </div>
+            <div className="flex-1 pb-4">
+              <h3 className="text-[12.5px] font-medium text-[var(--ink)] m-0 leading-[20px]">
+                Register native messaging host
+              </h3>
+              <p className="mt-1 mb-2 text-[12px] leading-[1.5] text-[var(--dim)]">
+                Writes the native host manifest and launcher so Chrome can talk to Lilo.
+              </p>
+              <div className="flex items-center gap-2.5">
+                <Action
+                  disabled={connecting}
+                  onClick={() => {
+                    setConnecting(true)
+                    void api
+                      .connectChrome()
+                      .then(setSetup)
+                      .finally(() => setConnecting(false))
+                  }}
+                >
+                  {connecting ? 'Setting up…' : setup?.ok ? 'Re-run host setup' : 'Set up Chrome'}
+                </Action>
+                {setup?.ok && (
+                  <span className="text-[11.5px] text-[var(--dim)]">Host manifest installed</span>
+                )}
+              </div>
+              {setup && !setup.ok && (
+                <p className="mt-2 text-[12px]" style={{ color: 'var(--live)' }}>
+                  {setup.detail}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Step 2 */}
+          <div className="flex gap-3 relative">
+            <div className="flex flex-col items-center">
+              <div className="w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-semibold bg-[var(--raised)] border border-[var(--rule-strong)] text-[var(--ink)] shrink-0">
+                2
+              </div>
+              <div className="w-px flex-1 bg-[var(--rule)] my-1.5" />
+            </div>
+            <div className="flex-1 pb-4">
+              <h3 className="text-[12.5px] font-medium text-[var(--ink)] m-0 leading-[20px]">
+                Enable Developer mode in Chrome
+              </h3>
+              <p className="mt-1 text-[12px] leading-[1.5] text-[var(--dim)]">
+                Open <span className="input-mono px-1.5 py-0.5 rounded bg-[var(--raised)] border border-[var(--rule)] text-[var(--ink)] select-all">chrome://extensions</span> in Chrome and toggle on <strong>Developer mode</strong> in the top-right corner.
+              </p>
+            </div>
+          </div>
+
+          {/* Step 3 */}
+          <div className="flex gap-3 relative">
+            <div className="flex flex-col items-center">
+              <div className="w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-semibold bg-[var(--raised)] border border-[var(--rule-strong)] text-[var(--ink)] shrink-0">
+                3
+              </div>
+              <div className="w-px flex-1 bg-[var(--rule)] my-1.5" />
+            </div>
+            <div className="flex-1 pb-4">
+              <h3 className="text-[12.5px] font-medium text-[var(--ink)] m-0 leading-[20px]">
+                Load the unpacked extension
+              </h3>
+              <p className="mt-1 text-[12px] leading-[1.5] text-[var(--dim)]">
+                Click <strong>Load unpacked</strong> and pick this folder:
+              </p>
+              <div className="mt-2 p-2.5 rounded-lg border border-[var(--rule-strong)] bg-[var(--well)] flex flex-col gap-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] font-medium text-[var(--dim)]">Extension directory</span>
+                  <div className="flex items-center gap-1.5">
+                    <Action onClick={copyPath} className="!py-0.5 !px-2 !text-[11px]">
+                      {copied ? 'Copied!' : 'Copy path'}
+                    </Action>
+                    <Action onClick={() => api.revealExtension()} className="!py-0.5 !px-2 !text-[11px]">
+                      Show folder
+                    </Action>
+                  </div>
+                </div>
+                <div className="input-mono text-[11.5px] text-[var(--ink-soft)] select-all break-all leading-normal bg-[var(--raised)] p-2 rounded border border-[var(--rule)]">
+                  {extensionDir || 'Loading path…'}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Step 4 */}
+          <div className="flex gap-3 relative">
+            <div className="flex flex-col items-center">
+              <div
+                className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-semibold shrink-0 border ${
+                  status?.connected
+                    ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-600 dark:text-emerald-400'
+                    : 'bg-[var(--raised)] border-[var(--rule-strong)] text-[var(--ink)]'
+                }`}
+              >
+                {status?.connected ? '✓' : '4'}
+              </div>
+            </div>
+            <div className="flex-1 pb-1">
+              <h3 className="text-[12.5px] font-medium text-[var(--ink)] m-0 leading-[20px]">
+                Open a problem on LeetCode
+              </h3>
+              <p className="mt-1 text-[12px] leading-[1.5] text-[var(--dim)]">
+                Navigate to any problem on <button type="button" onClick={() => api.openLink('https://leetcode.com/problemset/')} className="underline hover:text-[var(--ink)] cursor-pointer bg-transparent border-0 p-0 text-inherit font-inherit">leetcode.com</button>. The status above turns to <strong>Connected</strong> once the extension reaches the companion.
+              </p>
+              <p className="mt-2 text-[11.5px] leading-[1.5] text-[var(--faint)]">
+                Tip: Restart Chrome if it was already open before step 1.
+              </p>
+            </div>
+          </div>
+        </div>
       </Group>
     </>
   )
