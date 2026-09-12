@@ -27,8 +27,18 @@ function endsSentence(text: string, at: number): boolean {
 
 /** The chip reads as the account, so six citations are six different chips, and the source is the small print. */
 /** A marker pulled out of a sentence leaves a gap before the full stop; the prose closes over it. */
+/**
+ * A marker is lifted out and shown as a chip, so a reply that wrote "as seen
+ * in [S:a] and [S:b]" is left saying "as seen in and". The reference is
+ * dropped rather than the sentence carrying it.
+ */
+const POINTING_AT_NOTHING =
+  /\s*(?:,\s*)?\b(?:as\s+)?(?:seen|mentioned|described|noted|shown|stated|reported)\s+in\b(?:\s+and\b)?(?=\s*[.,;:]|\s*$)/gi
+
 export function tidy(text: string): string {
   const closed = text
+    .replace(POINTING_AT_NOTHING, '')
+    .replace(/\b(in|at|from|by|per)\s+and\s*([.,;:])/gi, '$2')
     .replace(/\s+([.,;:!?])/g, '$1')
     .replace(/,\s*([.;:!?])/g, '$1')
     .replace(/[ \t]{2,}/g, ' ')

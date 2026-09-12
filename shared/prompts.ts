@@ -22,7 +22,7 @@ const JSON_ONLY = 'Reply with one JSON object and nothing else. No prose, no cod
 
 /** The one rule every cited answer carries, in the words the citation filter enforces. */
 const CITE_RULE =
-  'Cite it as [S:id] right after the claim, one id per marker, copied exactly as it is listed. Never cite an id that is not listed. If nothing below supports a claim, do not make it.'
+  'Cite it as [S:id] right after the claim, one id per marker, copied exactly as it is listed. Never cite an id that is not listed. If nothing below supports a claim, do not make it. The reader never sees a marker, so a sentence has to read as a whole sentence without it: never write "as seen in", "as mentioned in" or "described in" in front of one.'
 
 /** Sentences in the only form the model may cite them. */
 function citable(sentences: Sentence[]): string {
