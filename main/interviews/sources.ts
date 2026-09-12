@@ -121,7 +121,10 @@ export function parseLeetCode(body: unknown, company: string): Account[] {
     if (!node || typeof node.id !== 'string' && typeof node.id !== 'number') continue
     const title = typeof node.title === 'string' ? node.title : ''
     const text = plain(typeof node.post?.content === 'string' ? node.post.content : '')
-    if (!mentions(`${title}\n${text.slice(0, 300)}`, company)) continue
+    // The board titles a write-up with the company it is about. A company named
+    // in the body is usually somewhere else the writer compares it to, and an
+    // Atlassian loop filed under Snowflake is a real account of the wrong thing.
+    if (!mentions(title, company)) continue
     const at = dateOf(node.post?.creationDate)
     if (at === null) continue
     out.push({
