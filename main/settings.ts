@@ -219,7 +219,7 @@ export async function testConnection(
 }
 
 /** Turns the endpoint's own wording into something worth reading. */
-function reasonFor(error: unknown): string {
+export function reasonFor(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error)
   if (/model_gated|gated/i.test(message)) return 'That model is gated to your account. Pick another.'
   if (/401|403|unauthor|invalid.*key/i.test(message)) return 'That key was refused.'

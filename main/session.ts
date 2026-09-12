@@ -27,6 +27,7 @@ import { ASKS, BETTER_QUESTION, LeetCodePractice, TRACE_QUESTION } from './leetc
 import { interviewAsk } from './interviews/ask.ts'
 import { briefInterview, firstSentences } from './interviews/brief.ts'
 import type { Account } from './interviews/sources.ts'
+import { reasonFor } from './settings.ts'
 
 /** How fast the companion talks, and how long it pauses between turns. */
 const WORD_MS = 26
@@ -95,7 +96,6 @@ export class Session {
   private readonly cards = new Map<string, Card>()
   private readonly seen: { concept: Concept; terms: string[] }[] = []
   private profile: Profile = EMPTY_PROFILE
-  private busy = false
   private readonly onboardingTurns: { role: string; text: string }[] = []
 
   private readonly pace: { word: number; turn: number }
@@ -110,7 +110,8 @@ export class Session {
     this.deps = deps
     this.pace = deps.pace ?? { word: WORD_MS, turn: TURN_PAUSE }
     this.profile = deps.loadProfile()
-    this.state.onboarded = this.profile.major.length > 0 || this.profile.targetRoles.length > 0
+    this.state.onboarded =
+      this.profile.onboarded === true || this.profile.major.length > 0 || this.profile.targetRoles.length > 0
     this.state.modelConfigured = deps.llm.available
     this.leetcode = new LeetCodePractice({
       llm: deps.llm,
@@ -221,11 +222,10 @@ export class Session {
   }
 
   private async apologise(what: string, error: unknown): Promise<void> {
-    const reason = error instanceof Error ? error.message : String(error)
     await this.say(
       this.deps.llm.available
-        ? `I could not ${what} just then. ${reason.slice(0, 120)}`
-        : `I cannot ${what} until a model is configured. The job postings still work without one.`
+        ? `I could not ${what} just then. ${reasonFor(error)}`
+        : `I cannot ${what} until a model is configured. Open Settings and point me at one.`
     )
   }
 
@@ -277,6 +277,9 @@ export class Session {
 
   private finishOnboarding(): void {
     this.onboardingTurns.length = 0
+    // Saved even when the model could not read the answers, so a student with
+    // no model configured is not asked the same two questions at every launch.
+    this.profile = { ...this.profile, onboarded: true }
     this.patch({
       onboarded: true,
       composer: { mode: 'chat', hint: 'Ask me anything' }
@@ -293,6 +296,13 @@ export class Session {
 
   /** A lecture arrives whole: uploaded from the tray, or pasted as notes. */
   async useNotes(text: string): Promise<void> {
+    // Scanned slides and an empty file both read as nothing. Saying so beats
+    // answering from the lecture before it, which is what happens if this falls
+    // through to a transcript that is not empty.
+    if (!text.trim()) {
+      await this.say('There were no words in that one. If it is scanned slides or an image, I cannot read it yet.')
+      return
+    }
     this.transcript.append(text)
     // The tap waits for the line where the lecturer says it, not for the words
     // scattered across a whole lecture.
@@ -322,11 +332,13 @@ export class Session {
     return profileRoles(this.profile)
   }
 
-  /** The student asked, so extract from the window and say what it is worth. */
+  /**
+   * The student asked, so extract from the window and say what it is worth.
+   * Queued rather than dropped: a second upload, or a second
+   * press of the chip, waits for the first to finish and is then answered.
+   */
   async why(): Promise<void> {
-    if (this.busy) return
     return this.hold(async () => {
-      this.busy = true
       try {
       this.patch({ orb: 'thinking', composing: true })
       if (this.transcript.empty) {
@@ -335,14 +347,13 @@ export class Session {
       }
       const [concept] = await extractConcepts(this.deps.llm, this.transcript.window())
       if (!concept) {
-        await this.say('Nothing much is being taught in that. Try another part of the lecture.')
+        await this.say('There is not enough in that for me to work with. Send me more of it and I will read it back.')
         return
       }
         await this.showCard(concept)
       } catch (error) {
         await this.apologise('read that back', error)
       } finally {
-        this.busy = false
         this.patch({ orb: 'idle', composing: false })
       }
     })
@@ -372,7 +383,7 @@ export class Session {
     const top = card.terms[0]!
     await this.say(card.oneLiner)
     await this.say(
-      `They do not call it ${concept.name} though. On a posting it reads as ${top.term}, and ${top.hits} of the postings I have say something about it.`,
+      `They do not call it ${concept.name} though. On a posting it reads as ${top.term}, and I have ${top.hits} ${top.hits === 1 ? 'posting' : 'postings'} that ask for it.`,
       evidence ? { evidence } : {}
     )
 
@@ -401,7 +412,17 @@ export class Session {
 
     if (this.seen.length > 0) {
       const names = this.seen.map((entry) => entry.concept.name).join(', ')
-      await this.say(`Today you heard ${names}. All of it is on postings, under other names.`)
+      // Not everything a lecture teaches is advertised for, and since a concept
+      // with no surviving term is now said to be one, claiming all of it lands
+      // on postings would be the one untrue line in the recap.
+      const landed = this.seen.filter((entry) => entry.terms.length > 0)
+      const verdict =
+        landed.length === this.seen.length
+          ? ' All of it is on postings, under other names.'
+          : landed.length > 0
+            ? ` ${landed.map((entry) => entry.concept.name).join(' and ')} is on postings, under other names.`
+            : ''
+      await this.say(`Today you heard ${names}.${verdict}`)
     }
     await this.say(
       `Here is what ${labelRoles(cohort.roles)} postings keep asking for that has not come up in your lectures.`
@@ -476,11 +497,6 @@ export class Session {
   }
 
   /**
-   * One turn of the student's: what they said goes in the thread, the orb
-   * thinks while the body runs, and a failure is apologised for in the words
-   * of what was being attempted. The busy flag lives here and nowhere else.
-   */
-  /**
    * One queue for everything that answers the student. Two answers writing into
    * the thread at once interleave their lines and fight over the orb, so the
    * second waits rather than racing, and nothing is dropped to avoid the race.
@@ -492,19 +508,22 @@ export class Session {
     return run
   }
 
+  /**
+   * One turn of the student's: what they said goes in the thread, the orb
+   * thinks while the body runs, and a failure is apologised for in the words
+   * of what was being attempted.
+   */
   private async turn(text: string, attempting: string, body: () => Promise<void>): Promise<void> {
     // Said first, before any waiting: the composer has already cleared what they
     // typed, so a line that is not put in the thread now is a line they lose.
     this.heardFromStudent(text)
     return this.hold(async () => {
-      this.busy = true
       try {
         this.patch({ orb: 'thinking', composing: true })
         await body()
       } catch (error) {
         await this.apologise(attempting, error)
       } finally {
-        this.busy = false
         this.patch({ orb: 'idle', composing: false })
       }
     })
@@ -526,6 +545,10 @@ export class Session {
       )
       return false
     }
+    // say() clears the dots when its line lands, and writing the brief is
+    // several more seconds after that. Without this the panel sits still and
+    // silent for the whole of it, which reads as the companion having stopped.
+    this.patch({ composing: true })
     // Without a model the accounts are still worth handing over.
     const brief = this.deps.llm.available
       ? await briefInterview(this.deps.llm, company, accounts)

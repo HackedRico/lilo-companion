@@ -20,6 +20,8 @@ import { Session, firstSentence } from './session.ts'
  * replies. Every prompt it is given is kept for inspection.
  */
 class ScriptedLlm implements LlmLike {
+  /** What the model names when the fixed vocabulary misses. Null echoes the quote. */
+  runtimeSkill: string | null = null
   available = true
   readonly asks: Ask[] = []
   /** How long a call sits in flight, so overlapping work can be tested. */
@@ -34,10 +36,19 @@ class ScriptedLlm implements LlmLike {
     if (ask.system.includes('did not resolve to the fixed skill vocabulary')) {
       const evidence = [...ask.user.matchAll(/\[S:([^\]]+)\] ([^\n]+)/g)]
       const ids = evidence.map((match) => match[1]!)
-      const dsa = evidence.find((match) => /data structures|algorithms/i.test(match[2]!))?.[1]
+      const first = evidence[0]
+      const echoed = first
+        ? first[2]!
+            .toLowerCase()
+            .replace(/[^a-z0-9 ]+/g, ' ')
+            .split(/\s+/)
+            .sort((a, b) => b.length - a.length)
+            .slice(0, 2)
+            .join(' ')
+        : 'nothing'
       return schema.parse({
-        skill: 'data structures and algorithms',
-        citations: [dsa ?? ids[0], 'not-a-real-id'].filter(Boolean),
+        skill: this.runtimeSkill ?? echoed,
+        citations: [ids[0], 'not-a-real-id'].filter(Boolean),
         oneLiner: 'This is the part interviews test because production code still needs clean fundamentals.'
       }) as T
     }
@@ -185,16 +196,37 @@ test('a vocabulary miss can still map to runtime evidence from postings', async 
   await teach(session)
 
   const said = thread.map((item) => item.text).join('\n')
-  assert.match(said, /data structures and algorithms/)
-  assert.doesNotMatch(said, /barely shows up/)
+  assert.doesNotMatch(said, /barely mention/)
 
   const withEvidence = thread.find((item) => item.evidence)
   assert.ok(withEvidence?.evidence)
   assert.ok(withEvidence.evidence.url.startsWith('http'))
-  assert.ok(
-    withEvidence.evidence.sentence.text.toLowerCase().includes('data structures') ||
-      withEvidence.evidence.sentence.text.toLowerCase().includes('algorithms')
-  )
+  // The term never passed through the vocabulary, so the quote beside it has to
+  // be a quote that says it.
+  const quote = withEvidence.evidence.sentence.text.toLowerCase()
+  const named = said.match(/it reads as ([^,]+), and I have/)
+  assert.ok(named)
+  assert.ok(named[1]!.split(' ').every((word) => quote.includes(word.toLowerCase())))
+})
+
+test('a term the postings never say is not said out loud either', async () => {
+  // Nothing checked the runtime skill against the quotes, so the model could
+  // name any phrase it liked and the companion read it out as what industry
+  // calls the concept.
+  const llm = new ScriptedLlm()
+  llm.concept = {
+    name: 'sliding window',
+    summary: 'A LeetCode array technique for keeping a moving range of values.',
+    confidence: 'high'
+  }
+  llm.terms = ['not a real term at all']
+  llm.runtimeSkill = 'Chief Happiness Officer'
+  const { session, thread } = harness(llm, ikb)
+  await teach(session)
+
+  const said = thread.map((item) => item.text).join('\n')
+  assert.doesNotMatch(said, /Chief Happiness Officer/)
+  assert.match(said, /barely mention/)
 })
 
 test('what the student types routes to onboarding, leetcode, or chat', async () => {
@@ -426,4 +458,46 @@ test('asking to be walked through it reaches the coach, and the dry run rides ou
   assert.equal(drawn.rung, 2)
   assert.equal(drawn.trace?.steps.length, 2, 'the picture is on the line the renderer draws')
   assert.deepEqual(drawn.trace?.items, ['1', '3', '5', '7'])
+})
+
+test('a lecture with no words in it says so rather than answering from the last one', async () => {
+  // A scanned deck reads as an empty string. Falling through left the previous
+  // lecture in the transcript, so the companion answered about that instead.
+  const llm = new ScriptedLlm()
+  const { session, thread } = harness(llm, ikb)
+  await teach(session)
+  const before = thread.length
+
+  await session.useNotes('   \n  ')
+  const said = thread.slice(before).map((item) => item.text).join('\n')
+  assert.match(said, /no words in that one/)
+  assert.equal(llm.asks.filter((ask) => ask.system.includes('name what is being taught')).length, 1)
+})
+
+test('two lectures in a row are both read, not one dropped for being busy', async () => {
+  // why() used to return early on the busy flag, so a second upload while the
+  // first was still being read went nowhere at all.
+  const llm = new ScriptedLlm()
+  llm.delayMs = 5
+  const { session } = harness(llm, ikb)
+
+  await Promise.all([teach(session), teach(session)])
+  const reads = llm.asks.filter((ask) => ask.system.includes('name what is being taught')).length
+  assert.equal(reads, 2)
+})
+
+test('the opening questions are not asked again after a launch with no model', async () => {
+  // onboarded was worked out from the answers, and the answers are empty when
+  // no model could read them, so the same two questions came back every launch.
+  const llm = new ScriptedLlm()
+  llm.available = false
+  let saved: Profile = { ...EMPTY_PROFILE }
+  const first = harness(llm, ikb, { loadProfile: () => saved, saveProfile: (next) => void (saved = next) })
+  await first.session.startOnboarding()
+  await first.session.typed('computer science, second year')
+  await first.session.typed('backend, and I like databases')
+
+  assert.equal(saved.onboarded, true)
+  const second = harness(llm, ikb, { loadProfile: () => saved, saveProfile: () => undefined })
+  assert.equal(second.session.state.onboarded, true)
 })

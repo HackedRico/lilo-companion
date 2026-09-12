@@ -99,6 +99,13 @@ export interface Profile {
   heardTerms: string[]
   /** How much help the companion may give on LeetCode. The student picks it. */
   tier: Tier
+  /**
+   * Whether the opening questions have been asked. Kept here rather than
+   * inferred from the answers, because the answers are empty when the model
+   * could not read them, and asking the same two questions at every launch is
+   * worse than not knowing.
+   */
+  onboarded?: boolean
 }
 
 export interface Recap {
