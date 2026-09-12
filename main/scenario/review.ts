@@ -1,7 +1,7 @@
 import type { Review } from '../../shared/types.ts'
 import { reviewOut } from '../../shared/schemas.ts'
 import { reviewSubmission } from '../../shared/prompts.ts'
-import type { LlmLike } from '../llm/provider.ts'
+import type { LlmLike } from '../llm/service.ts'
 import type { ScenarioRun } from './stakeholder.ts'
 
 /** Words that mark a course title rather than something a lecturer says. */

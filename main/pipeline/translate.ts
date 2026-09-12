@@ -1,7 +1,7 @@
 import type { Concept } from '../../shared/types.ts'
 import { termsOut } from '../../shared/schemas.ts'
 import { translateConcept } from '../../shared/prompts.ts'
-import type { LlmLike } from '../llm/provider.ts'
+import type { LlmLike } from '../llm/service.ts'
 import type { Ikb } from '../ikb/load.ts'
 import { nearbyTerms, resolveTerms, type TermHit } from '../ikb/search.ts'
 

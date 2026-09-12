@@ -111,52 +111,6 @@ export function Action({
   )
 }
 
-export function Tags({
-  items,
-  placeholder,
-  onChange
-}: {
-  items: string[]
-  placeholder: string
-  onChange: (next: string[]) => void
-}): ReactElement {
-  const [draft, setDraft] = useState('')
-  const add = (): void => {
-    const value = draft.trim()
-    if (value && !items.includes(value)) onChange([...items, value])
-    setDraft('')
-  }
-  return (
-    <>
-      {items.length > 0 && (
-        <div className="mb-2 flex flex-wrap gap-1.5">
-          {items.map((item) => (
-            <span key={item} className="tag">
-              {item}
-              <button aria-label={`Remove ${item}`} onClick={() => onChange(items.filter((one) => one !== item))}>
-                &times;
-              </button>
-            </span>
-          ))}
-        </div>
-      )}
-      <input
-        className="input"
-        value={draft}
-        placeholder={placeholder}
-        spellCheck={false}
-        onChange={(event) => setDraft(event.target.value)}
-        onBlur={add}
-        onKeyDown={(event) => {
-          if (event.key !== 'Enter') return
-          event.preventDefault()
-          add()
-        }}
-      />
-    </>
-  )
-}
-
 export function KeyRow({
   state,
   envName,

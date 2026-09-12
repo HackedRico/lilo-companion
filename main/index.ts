@@ -19,7 +19,8 @@ import type { SettingsPatch } from '../shared/settings.ts'
 import type { Intent, Profile } from '../shared/types.ts'
 import { loadIkb } from './ikb/load.ts'
 import { familiesOf, resolveAims } from './ikb/roles.ts'
-import { Llm } from './llm/provider.ts'
+import { providerFor } from './llm/providers.ts'
+import { ModelService } from './llm/service.ts'
 import { Panel } from './panel.ts'
 import { PrefsWindow } from './prefs-window.ts'
 import { asPoint, asSize, asText } from './guards.ts'
@@ -56,8 +57,8 @@ app.whenReady().then(async () => {
 
   const prefs = new Prefs()
   const settings = new SettingsStore(prefs, osKeychain(safeStorage))
-  const catalogue = new ModelCatalogue()
-  const llm = new Llm(settings.llmConfig())
+  const catalogue = new ModelCatalogue(providerFor)
+  const llm = new ModelService(settings.llmConfig(), providerFor)
   const ikb = await loadIkb(dataDir)
   const panel = new Panel(prefs.orb, prefs.panel)
   const prefsWindow = new PrefsWindow((contents) => {
@@ -291,7 +292,7 @@ app.whenReady().then(async () => {
   })
   ipcMain.handle(ASK.settingsTest, () =>
     testConnection(settings.llmConfig(), async (config) => {
-      const probe = new Llm(config)
+      const probe = new ModelService(config, providerFor)
       await probe.json(z.object({ ok: z.boolean() }), {
         lane: 'fast',
         maxTokens: 40,

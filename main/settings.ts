@@ -1,6 +1,6 @@
 import type { ConnectionResult, SettingsPatch, SettingsView } from '../shared/settings.ts'
 import { maskKey } from '../shared/settings.ts'
-import { FALLBACK, isLocal, normaliseBaseUrl, type LlmConfig } from './llm/provider.ts'
+import { isLocal, normaliseBaseUrl, protocolFor, type LlmConfig, type ProviderFactory } from './llm/service.ts'
 import type { SavedSettings } from './store.ts'
 
 /** All this needs of the preferences file, so a test can stand in for it. */
@@ -18,16 +18,16 @@ export interface Keychain {
 type Secret = 'apiKey' | 'deepgramKey'
 
 /**
- * Reads the address, the key and the two model names from .env. There is no
- * provider here either: an endpoint is a URL, and anything blank falls through
- * to the defaults.
+ * Reads the address, the key and the two model names from .env. Nothing is
+ * invented for a blank: an unset field stays unset, and the window says so
+ * rather than pointing at somebody's service by default.
  */
-function configFromEnv(env: NodeJS.ProcessEnv = process.env): LlmConfig {
+function configFromEnv(env: NodeJS.ProcessEnv): Omit<LlmConfig, 'protocol'> {
   return {
-    baseUrl: normaliseBaseUrl(env['LLM_BASE_URL'] || FALLBACK.baseUrl),
-    apiKey: env['LLM_API_KEY'] || '',
-    fast: env['MODEL_FAST'] || FALLBACK.fast,
-    strong: env['MODEL_STRONG'] || FALLBACK.strong
+    baseUrl: env['LLM_BASE_URL'] ?? '',
+    apiKey: env['LLM_API_KEY'] ?? '',
+    fast: env['MODEL_FAST'] ?? '',
+    strong: env['MODEL_STRONG'] ?? ''
   }
 }
 
@@ -65,9 +65,7 @@ export class SettingsStore {
   }
 
   private fromEnv(which: Secret): string {
-    return which === 'apiKey'
-      ? configFromEnv(this.env).apiKey
-      : (this.env['DEEPGRAM_API_KEY'] ?? '')
+    return which === 'apiKey' ? configFromEnv(this.env).apiKey : (this.env['DEEPGRAM_API_KEY'] ?? '')
   }
 
   private resolve(which: Secret): { value: string; fromEnv: boolean } {
@@ -86,8 +84,10 @@ export class SettingsStore {
 
   llmConfig(): LlmConfig {
     const env = configFromEnv(this.env)
+    const baseUrl = normaliseBaseUrl(this.saved.baseUrl || env.baseUrl)
     return {
-      baseUrl: normaliseBaseUrl(this.saved.baseUrl || env.baseUrl),
+      protocol: protocolFor(baseUrl),
+      baseUrl,
       apiKey: this.apiKey,
       fast: this.saved.modelFast || env.fast,
       strong: this.saved.modelStrong || env.strong
@@ -98,24 +98,23 @@ export class SettingsStore {
     const config = this.llmConfig()
     const key = this.resolve('apiKey')
     const deepgram = this.resolve('deepgramKey')
-    const env = configFromEnv(this.env)
     return {
+      protocol: config.protocol,
       baseUrl: config.baseUrl,
       modelFast: config.fast,
       modelStrong: config.strong,
       apiKey: { ...maskKey(key.value), fromEnv: key.fromEnv && key.value.length > 0 },
       deepgramKey: { ...maskKey(deepgram.value), fromEnv: deepgram.fromEnv && deepgram.value.length > 0 },
       encrypted: this.keychain.available,
-      local: isLocal(config.baseUrl),
-      defaults: { baseUrl: env.baseUrl, modelFast: env.fast, modelStrong: env.strong }
+      local: isLocal(config.baseUrl)
     }
   }
 
   apply(patch: SettingsPatch): void {
     const next: SavedSettings = { ...this.saved }
-    if (patch.baseUrl !== undefined) next.baseUrl = patch.baseUrl ? normaliseBaseUrl(patch.baseUrl) : ''
-    if (patch.modelFast !== undefined) next.modelFast = patch.modelFast
-    if (patch.modelStrong !== undefined) next.modelStrong = patch.modelStrong
+    if (patch.baseUrl !== undefined) next.baseUrl = patch.baseUrl.trim()
+    if (patch.modelFast !== undefined) next.modelFast = patch.modelFast.trim()
+    if (patch.modelStrong !== undefined) next.modelStrong = patch.modelStrong.trim()
     for (const which of ['apiKey', 'deepgramKey'] as const) {
       const value = patch[which]
       if (value === undefined) continue
@@ -157,6 +156,7 @@ export function osKeychain(safeStorage: {
   }
 }
 
+/** What is missing is said before the endpoint is asked anything. */
 export async function testConnection(
   config: LlmConfig,
   probe: (config: LlmConfig) => Promise<void>
@@ -166,6 +166,8 @@ export async function testConnection(
   if (!config.apiKey && !isLocal(config.baseUrl)) {
     return { ok: false, detail: 'That address is not on this machine, so it wants a key.', ms: 0 }
   }
+  if (!config.fast) return { ok: false, detail: 'No quick model set.', ms: 0 }
+  if (!config.strong) return { ok: false, detail: 'No careful model set.', ms: 0 }
   try {
     await probe(config)
     return { ok: true, detail: 'Answered.', ms: Date.now() - started }
@@ -191,14 +193,17 @@ function reasonFor(error: unknown): string {
  * thousands and nobody needs that twice.
  */
 export class ModelCatalogue {
+  private readonly make: ProviderFactory
   private cache = new Map<string, string[]>()
+
+  constructor(make: ProviderFactory) {
+    this.make = make
+  }
 
   async list(config: LlmConfig, query: string, limit = 40): Promise<string[]> {
     const all = await this.fetchOnce(config)
     const needle = query.trim().toLowerCase()
-    const matched = needle
-      ? all.filter((id) => id.toLowerCase().includes(needle))
-      : all
+    const matched = needle ? all.filter((id) => id.toLowerCase().includes(needle)) : all
     return matched.slice(0, limit)
   }
 
@@ -207,19 +212,12 @@ export class ModelCatalogue {
   }
 
   private async fetchOnce(config: LlmConfig): Promise<string[]> {
-    const held = this.cache.get(config.baseUrl)
+    // The same address speaks differently under each protocol, so both name the entry.
+    const key = `${config.protocol} ${config.baseUrl}`
+    const held = this.cache.get(key)
     if (held) return held
-    const response = await fetch(`${config.baseUrl}/models`, {
-      signal: AbortSignal.timeout(20000),
-      headers: config.apiKey ? { authorization: `Bearer ${config.apiKey}` } : {}
-    })
-    if (!response.ok) throw new Error(`${response.status} ${response.statusText}`)
-    const body = (await response.json()) as { data?: { id?: unknown }[] }
-    const ids = (body.data ?? [])
-      .map((entry) => (typeof entry.id === 'string' ? entry.id : ''))
-      .filter(Boolean)
-      .sort()
-    this.cache.set(config.baseUrl, ids)
+    const ids = await this.make(config).models()
+    this.cache.set(key, ids)
     return ids
   }
 }

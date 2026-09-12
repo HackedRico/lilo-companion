@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, type ReactElement } from 'react'
-import { CHECKED } from '../../shared/settings.ts'
 import { api } from '../api.ts'
 
 /** Long enough that typing a model name is not one request per letter. */
@@ -93,7 +92,6 @@ export function ModelField({
               onClick={() => choose(id)}
             >
               <span className="min-w-0 flex-1 truncate">{id}</span>
-              {CHECKED.has(id) && <span className="meta shrink-0">checked</span>}
             </button>
           ))}
         </div>

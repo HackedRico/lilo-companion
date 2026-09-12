@@ -12,7 +12,7 @@ import {
 } from '../shared/schemas.ts'
 import type { CompanionState, Profile, ThreadItem } from '../shared/types.ts'
 import { loadIkb, type Ikb } from './ikb/load.ts'
-import type { Ask, LlmLike } from './llm/provider.ts'
+import type { Ask, LlmLike } from './llm/service.ts'
 import { EMPTY_PROFILE } from './profile.ts'
 import { Session } from './session.ts'
 

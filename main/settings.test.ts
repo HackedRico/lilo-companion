@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { SettingsStore, type Keychain, type SettingsHome } from './settings.ts'
+import type { Provider } from './llm/provider.ts'
+import type { LlmConfig } from './llm/service.ts'
+import {
+  ModelCatalogue,
+  SettingsStore,
+  testConnection,
+  type Keychain,
+  type SettingsHome
+} from './settings.ts'
 import type { SavedSettings } from './store.ts'
 
 /** A keychain that is present and reversible, without being a keychain. */
@@ -22,11 +30,13 @@ function home(settings: SavedSettings = {}): SettingsHome {
 
 const ENV = {
   LLM_API_KEY: 'env-key-1111',
-  LLM_BASE_URL: 'https://env.example/v1',
+  LLM_BASE_URL: 'https://env.example',
   MODEL_FAST: 'env/fast',
   MODEL_STRONG: 'env/strong',
   DEEPGRAM_API_KEY: 'env-deepgram-2222'
 } as NodeJS.ProcessEnv
+
+const NOTHING = {} as NodeJS.ProcessEnv
 
 test('what the window sets wins over what .env says', () => {
   const store = new SettingsStore(home(), vault, ENV)
@@ -43,17 +53,26 @@ test('an empty setting falls back to .env rather than to nothing', () => {
   assert.equal(store.llmConfig().fast, 'env/fast')
 })
 
-test('with neither, the checked defaults are used', () => {
-  const store = new SettingsStore(home(), vault, {} as NodeJS.ProcessEnv)
+test('with neither, nothing is configured and nothing is invented', () => {
+  const store = new SettingsStore(home(), vault, NOTHING)
   const config = store.llmConfig()
-  assert.match(config.fast, /Llama-3\.1-8B/)
-  assert.match(config.strong, /Qwen2\.5-14B/)
-  assert.equal(config.apiKey, '', 'and no key is invented')
+  assert.deepEqual(config, { protocol: 'openai', baseUrl: '', apiKey: '', fast: '', strong: '' })
+})
+
+test('the protocol is decided from the address and shown, never chosen', () => {
+  const store = new SettingsStore(home(), vault, ENV)
+  assert.equal(store.view().protocol, 'openai')
+  store.apply({ baseUrl: 'https://api.anthropic.com/v1/' })
+  assert.equal(store.llmConfig().protocol, 'anthropic')
+  assert.equal(store.llmConfig().baseUrl, 'https://api.anthropic.com', 'shaped the way that SDK wants it')
+  store.apply({ baseUrl: 'https://api.featherless.ai' })
+  assert.equal(store.llmConfig().protocol, 'openai')
+  assert.equal(store.llmConfig().baseUrl, 'https://api.featherless.ai/v1')
 })
 
 test('a key is sealed at rest and never comes back through the window', () => {
   const prefs = home()
-  const store = new SettingsStore(prefs, vault, {} as NodeJS.ProcessEnv)
+  const store = new SettingsStore(prefs, vault, NOTHING)
   store.apply({ apiKey: 'sk-secret-value-9999' })
 
   assert.equal(store.apiKey, 'sk-secret-value-9999', 'main can still read it')
@@ -82,7 +101,7 @@ test('clearing your own key falls back to the one in .env', () => {
 
 test('without a keychain the key still works, and the window says so', () => {
   const prefs = home()
-  const store = new SettingsStore(prefs, noVault, {} as NodeJS.ProcessEnv)
+  const store = new SettingsStore(prefs, noVault, NOTHING)
   store.apply({ apiKey: 'sk-plain-4444' })
   assert.equal(store.apiKey, 'sk-plain-4444')
   assert.equal(store.view().encrypted, false)
@@ -90,7 +109,7 @@ test('without a keychain the key still works, and the window says so', () => {
 
 test('a key sealed by a keychain that is gone reads as absent, not as rubbish', () => {
   const prefs = home()
-  new SettingsStore(prefs, vault, {} as NodeJS.ProcessEnv).apply({ apiKey: 'sk-lost-5555' })
+  new SettingsStore(prefs, vault, NOTHING).apply({ apiKey: 'sk-lost-5555' })
 
   const broken: Keychain = {
     available: true,
@@ -99,26 +118,13 @@ test('a key sealed by a keychain that is gone reads as absent, not as rubbish', 
       throw new Error('keychain refused')
     }
   }
-  const after = new SettingsStore(prefs, broken, {} as NodeJS.ProcessEnv)
+  const after = new SettingsStore(prefs, broken, NOTHING)
   assert.equal(after.apiKey, '')
   assert.equal(after.view().apiKey.set, false)
 })
 
-test('an address gets exactly one /v1, however it was typed', () => {
-  const store = new SettingsStore(home(), vault, {} as NodeJS.ProcessEnv)
-  for (const typed of [
-    'http://localhost:11434',
-    'http://localhost:11434/',
-    'http://localhost:11434/v1',
-    'http://localhost:11434/v1/'
-  ]) {
-    store.apply({ baseUrl: typed })
-    assert.equal(store.llmConfig().baseUrl, 'http://localhost:11434/v1', `from ${typed}`)
-  }
-})
-
 test('a model on this machine is usable with no key at all', () => {
-  const store = new SettingsStore(home(), vault, {} as NodeJS.ProcessEnv)
+  const store = new SettingsStore(home(), vault, NOTHING)
   store.apply({ baseUrl: 'http://localhost:11434' })
   assert.equal(store.view().local, true)
   assert.equal(store.view().apiKey.set, false)
@@ -133,4 +139,41 @@ test('forgetting clears the window settings and leaves .env alone', () => {
   store.forget()
   assert.equal(store.apiKey, 'env-key-1111')
   assert.equal(store.llmConfig().fast, 'env/fast')
+})
+
+const REACHABLE: LlmConfig = {
+  protocol: 'openai',
+  baseUrl: 'https://host/v1',
+  apiKey: 'k',
+  fast: 'quick',
+  strong: 'careful'
+}
+
+test('a test says what is missing before it says what the endpoint said', async () => {
+  const never = async (): Promise<void> => {
+    throw new Error('should not have been asked')
+  }
+  assert.match((await testConnection({ ...REACHABLE, baseUrl: '' }, never)).detail, /address/i)
+  assert.match((await testConnection({ ...REACHABLE, apiKey: '' }, never)).detail, /key/i)
+  assert.match((await testConnection({ ...REACHABLE, fast: '' }, never)).detail, /quick model/i)
+  const answered = await testConnection(REACHABLE, async () => undefined)
+  assert.equal(answered.ok, true)
+})
+
+test('the model list is fetched once per endpoint and filtered by what was typed', async () => {
+  let fetched = 0
+  const provider: Provider = {
+    complete: async () => '',
+    stream: async () => '',
+    models: async () => {
+      fetched += 1
+      return ['alpha', 'beta', 'gamma']
+    }
+  }
+  const catalogue = new ModelCatalogue(() => provider)
+  assert.deepEqual(await catalogue.list(REACHABLE, ''), ['alpha', 'beta', 'gamma'])
+  assert.deepEqual(await catalogue.list(REACHABLE, 'ET'), ['beta'])
+  assert.equal(fetched, 1)
+  await catalogue.list({ ...REACHABLE, baseUrl: 'https://other/v1' }, '')
+  assert.equal(fetched, 2, 'a different address is a different endpoint')
 })

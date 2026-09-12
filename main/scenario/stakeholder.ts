@@ -1,7 +1,7 @@
 import type { HiddenFact, Scenario } from '../../shared/types.ts'
 import { revealOut } from '../../shared/schemas.ts'
 import { personaReply, revealFacts } from '../../shared/prompts.ts'
-import type { LlmLike } from '../llm/provider.ts'
+import type { LlmLike } from '../llm/service.ts'
 
 export interface Turn {
   role: string

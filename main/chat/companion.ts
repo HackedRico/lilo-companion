@@ -1,6 +1,6 @@
 import type { Card, Profile, Sentence } from '../../shared/types.ts'
 import { companionChat } from '../../shared/prompts.ts'
-import type { LlmLike } from '../llm/provider.ts'
+import type { LlmLike } from '../llm/service.ts'
 import type { Ikb } from '../ikb/load.ts'
 import { freeSearch } from '../ikb/search.ts'
 import { CitationFilter } from './citations.ts'

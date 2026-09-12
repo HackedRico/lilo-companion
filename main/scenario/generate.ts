@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import type { Card, Profile, Scenario } from '../../shared/types.ts'
 import { scenarioOut } from '../../shared/schemas.ts'
 import { generateScenario as prompt } from '../../shared/prompts.ts'
-import type { LlmLike } from '../llm/provider.ts'
+import type { LlmLike } from '../llm/service.ts'
 import type { Ikb } from '../ikb/load.ts'
 
 export async function generateScenario(

@@ -1,16 +1,14 @@
 import { useEffect, useRef, useState, type ReactElement } from 'react'
 import type { Aim } from '../../shared/types.ts'
 import {
-  CHECKED,
-  PRESETS,
-  presetFor,
+  PROTOCOL_LABEL,
   type ConnectionResult,
   type SettingsPatch,
   type SettingsView
 } from '../../shared/settings.ts'
 import { ROLE_LABEL, type Profile, type RoleFamily } from '../../shared/types.ts'
 import { api } from '../api.ts'
-import { Action, Field, Group, KeyRow, Tags, TextInput } from './fields.tsx'
+import { Action, Field, Group, KeyRow, TextInput } from './fields.tsx'
 import { ModelField } from './ModelField.tsx'
 
 type Tab = 'profile' | 'model'
@@ -124,8 +122,8 @@ export function Prefs(): ReactElement {
             {settings?.encrypted === false
               ? 'No keychain here, so keys sit in plain text.'
               : 'Keys are in your keychain.'}{' '}
-            {/* One line: a path broken mid-word is worse than a path you hover. */}
-            <span className="input-mono truncate" title={storage}>
+            {/* One line, clipped: a path broken mid-word is worse than a path you hover. */}
+            <span className="input-mono block truncate" title={storage}>
               {storage}
             </span>
           </p>
@@ -185,16 +183,6 @@ function ProfileTab({
           }
         >
           <Aims profile={profile} save={save} />
-        </Field>
-        <Field label="Courses">
-          <Tags items={profile.courses} placeholder="Add one, press enter" onChange={(courses) => save({ courses })} />
-        </Field>
-        <Field label="Into" hint="Used to pick the setting a work scenario is written in.">
-          <Tags
-            items={profile.interests}
-            placeholder="Add one, press enter"
-            onChange={(interests) => save({ interests })}
-          />
         </Field>
       </div>
 
@@ -292,9 +280,6 @@ function ModelTab({
 }): ReactElement {
   const [tested, setTested] = useState<ConnectionResult | null>(null)
   const [testing, setTesting] = useState(false)
-  // A preset is a shortcut for filling in an address, so the one that matches
-  // the address is the one that reads as chosen. Typing a URL chooses nothing.
-  const chosen = presetFor(settings.baseUrl)
 
   const change = (patch: SettingsPatch): void => {
     setTested(null)
@@ -304,33 +289,30 @@ function ModelTab({
   return (
     <>
       <p className="lede">
-        Anywhere that speaks the OpenAI chat API: a service, or a model running on this machine.
+        Any model you can reach: a hosted service, or one running on this machine. How the endpoint
+        speaks is worked out from its address.
       </p>
-      <div className="mb-4 flex flex-wrap gap-1.5">
-        {PRESETS.map((preset) => (
-          <Action
-            key={preset.id}
-            title={preset.note}
-            on={chosen?.id === preset.id}
-            onClick={() => change({ baseUrl: preset.baseUrl, ...(preset.models ? { modelFast: preset.models.fast, modelStrong: preset.models.strong } : {}) })}
-          >
-            {preset.label}
-          </Action>
-        ))}
-      </div>
       <div className="fields">
         <Field
-          label="Address"
-          hint={chosen?.note ?? (settings.local ? 'On this machine, so no key is wanted.' : undefined)}
+          wide
+          label="Endpoint URL"
+          badge={settings.baseUrl ? PROTOCOL_LABEL[settings.protocol] : undefined}
+          hint={
+            settings.local
+              ? 'On this machine, so no key is wanted.'
+              : 'Featherless, OpenRouter, Groq, Ollama, LM Studio, vLLM, or api.anthropic.com.'
+          }
         >
+          {/* Keyed on the value, so an address tidied by main shows tidied. */}
           <TextInput
+            key={settings.baseUrl}
             mono
             value={settings.baseUrl}
-            placeholder="https://api.featherless.ai/v1"
+            placeholder="https://host/v1"
             onCommit={(baseUrl) => change({ baseUrl })}
           />
         </Field>
-        <Field label="Key">
+        <Field wide label="API key">
           <KeyRow
             state={settings.apiKey}
             envName="LLM_API_KEY"
@@ -338,18 +320,10 @@ function ModelTab({
             onSet={(apiKey) => change({ apiKey })}
           />
         </Field>
-        <Field
-          label="Quick model"
-          hint="Reads the lecture and plays the coworker."
-          badge={CHECKED.has(settings.modelFast) ? 'checked' : undefined}
-        >
+        <Field label="Quick model" hint="Reads the lecture and plays the coworker.">
           <ModelField value={settings.modelFast} onPick={(modelFast) => change({ modelFast })} />
         </Field>
-        <Field
-          label="Careful model"
-          hint="Writes the work and reviews your answer."
-          badge={CHECKED.has(settings.modelStrong) ? 'checked' : undefined}
-        >
+        <Field label="Careful model" hint="Writes the work and reviews your answer.">
           <ModelField value={settings.modelStrong} onPick={(modelStrong) => change({ modelStrong })} />
         </Field>
       </div>

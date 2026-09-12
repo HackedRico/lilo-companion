@@ -1,7 +1,7 @@
 import type { Profile, RoleFamily } from '../shared/types.ts'
 import { profileOut } from '../shared/schemas.ts'
 import { extractProfile } from '../shared/prompts.ts'
-import type { LlmLike } from './llm/provider.ts'
+import type { LlmLike } from './llm/service.ts'
 
 export const EMPTY_PROFILE: Profile = {
   major: '',

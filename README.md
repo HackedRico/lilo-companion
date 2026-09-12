@@ -32,18 +32,16 @@ pick models. Nothing needs to be configured before the app starts.
 
 ## Settings and profile
 
-**You** is the profile: what you study, what you are aiming at, your courses
-and interests, and what the companion has already read back to you. That last
-list is what stops the recap offering something as a gap when you have already
-met it.
+**You** is the profile: what you study, what you are aiming at, and what the
+companion has already read back to you. That last list is what stops the recap
+offering something as a gap when you have already met it.
 
-**The model** is an address, a key and two model names. There is no provider
-setting anywhere in the code: Featherless, Ollama, LM Studio, OpenAI,
-OpenRouter, Groq and your own vLLM differ only in those values, so the buttons
-above the address are shortcuts that fill it in, not modes. The model list is
-read from whatever endpoint you point at, and the handful known to hold up
-across the whole loop are marked. "Test it" makes one real call and says what
-came back.
+**The model** is an endpoint URL, a key and two model names, all yours to
+type. The URL is wherever the model is: Featherless, OpenRouter, Groq, Ollama,
+LM Studio, your own vLLM, or api.anthropic.com. How it speaks is worked out
+from the address, so there is no vendor setting and no protocol setting
+anywhere in the code. The model list is read from whatever endpoint you point at, and
+"Test it" makes one real call and says what came back.
 
 Keys are held in the OS keychain, Keychain on macOS and DPAPI on Windows, and
 never reach the renderer, which only ever learns whether a key is set and its
@@ -105,6 +103,7 @@ reply.
 | `main/pipeline/` | transcript to concept to posting terms to evidence |
 | `main/panel.ts` | the window: placement, dragging, click-through |
 | `main/settings.ts` | what you chose, layered over .env, keys sealed |
+| `main/llm/` | the service layer: one queue and one schema check over a provider per protocol |
 | `main/guards.ts` | nothing from a renderer reaches a window unchecked |
 | `preload/index.ts` | the one door between main and a renderer |
 | `renderer/bubble/` | the orb, its face, and the whisper |
