@@ -77,14 +77,19 @@ export class LeetCodePractice {
   }
 
   /** How long the page is given to report what is already in the editor. */
-  private static readonly SETTLE_MS = 2000
+  private static readonly SETTLE_MS = 4000
 
-  /** The state once the code that was already there has had time to arrive. */
+  /**
+   * The state once the page has said what is in the editor. What is waited for
+   * is the report, not code in it, because an empty editor is an answer too and
+   * waiting for code would hold the greeting the full four seconds every time a
+   * student opens a problem they have not started.
+   */
   private async settle(): Promise<string> {
     const problem = this.work.problem
-    for (let waited = 0; waited < LeetCodePractice.SETTLE_MS; waited += 250) {
-      if (this.work.code) break
-      await new Promise((resolve) => setTimeout(resolve, 250))
+    for (let waited = 0; waited < LeetCodePractice.SETTLE_MS; waited += 200) {
+      if (this.work.changedAt !== null) break
+      await new Promise((resolve) => setTimeout(resolve, 200))
       // They moved on while we waited, so the line would be about the wrong thing.
       if (this.work.problem !== problem) break
     }

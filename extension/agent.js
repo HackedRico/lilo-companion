@@ -138,7 +138,17 @@
     if (slug && live) {
       const code = live.getValue()
       const language = languageOf(live)
-      if (code === state.code && language === state.language) {
+      if (state.code === null) {
+        // The first look at a problem has nothing to debounce against: the wait
+        // is for a student to stop typing, and nobody has typed yet. Monaco is
+        // slow enough to restore what was saved that adding the wait on top put
+        // the first report four seconds after the tab opened, by which time the
+        // companion had already said there was nothing written.
+        state.code = code
+        state.language = language
+        state.draft = null
+        post({ kind: 'changed', code: code.slice(0, 20000), language })
+      } else if (code === state.code && language === state.language) {
         state.draft = null
       } else if (!state.draft || state.draft.code !== code || state.draft.language !== language) {
         // Still typing. Remember what it looks like and wait for it to settle.

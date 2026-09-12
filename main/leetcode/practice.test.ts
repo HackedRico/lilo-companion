@@ -70,10 +70,15 @@ function harness(tier: Tier = 'coach') {
     }
   })
   const at = (ms: number) => (clock = ms)
+  // The bridge hands every event straight to observe without waiting for the
+  // one before it, so a recording that awaits each in turn is not what the
+  // practice sees: the greeting would always time out waiting for code that
+  // was already on its way.
   const start = async () => {
-    await practice.observe({ kind: 'opened', at: clock, problem: PROBLEM })
+    const greeting = practice.observe({ kind: 'opened', at: clock, problem: PROBLEM })
     await practice.observe({ kind: 'attention', at: clock, inFront: true })
     await practice.observe({ kind: 'changed', at: clock, code: CODE, language: 'python' })
+    await greeting
   }
   return { llm, practice, said, marks, orbs, recorded, at, start, suggestions: () => suggestions, focus: () => focus }
 }
@@ -81,7 +86,7 @@ function harness(tier: Tier = 'coach') {
 test('the state is said first, and hands off never volunteers past it', async () => {
   const h = harness('hands_off')
   await h.start()
-  assert.equal(h.said[0]!.text, 'Two Sum, easy. Nothing written yet. You have me on Hands off.')
+  assert.equal(h.said[0]!.text, 'Two Sum, easy. 5 lines of python, last changed just now. You have me on Hands off.')
   assert.equal(h.focus(), 'Two Sum')
   h.at(CLIMB_EVERY * 5)
   await h.practice.tick()
@@ -309,4 +314,27 @@ test('hands off is offered no walk-through, and a dry run that does not hold tog
   assert.match(h.llm.asks[1]!.system, /did not hold together/, 'the second try is told what was wrong with the picture')
   assert.equal(h.said.at(-1)!.text, 'I have nothing specific enough to say about that yet.')
   assert.equal(h.said.at(-1)!.trace, undefined, 'and nothing broken is drawn')
+})
+
+test('the greeting waits for the page to report, not for there to be code', async () => {
+  // The bridge does not wait for one event to be handled before delivering the
+  // next, so this is how they really arrive. Waiting for code rather than for
+  // the report held the greeting the full settle every time a student opened a
+  // problem they had not started, and cut off the code of one they had.
+  const h = harness('coach')
+  const greeting = h.practice.observe({ kind: 'opened', at: 0, problem: PROBLEM })
+  await h.practice.observe({ kind: 'changed', at: 0, code: '', language: 'python' })
+  const started = Date.now()
+  await greeting
+  assert.ok(Date.now() - started < 1000, 'the greeting did not sit out the settle')
+  assert.equal(h.said[0]!.text, 'Two Sum, easy. Nothing written yet. You have me on Coach.')
+})
+
+test('code that arrives late is still what the greeting says', async () => {
+  const h = harness('coach')
+  const greeting = h.practice.observe({ kind: 'opened', at: 0, problem: PROBLEM })
+  await new Promise((resolve) => setTimeout(resolve, 600))
+  await h.practice.observe({ kind: 'changed', at: 0, code: CODE, language: 'python' })
+  await greeting
+  assert.match(h.said[0]!.text, /lines of python/)
 })
