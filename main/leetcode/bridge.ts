@@ -62,6 +62,16 @@ export class Bridge {
     for (const client of this.clients) write(client, message)
   }
 
+  /**
+   * Ask the page to say again what is on it. Sent down a fresh line already,
+   * and needed again whenever the app has stopped listening and started: while
+   * the practice is switched off the events are dropped, so switching it back
+   * on leaves the app knowing nothing about a problem that is still open.
+   */
+  askAgain(): void {
+    for (const client of this.clients) write(client, { resync: true })
+  }
+
   close(): void {
     for (const client of this.clients) client.destroy()
     this.clients.clear()

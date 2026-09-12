@@ -300,6 +300,9 @@ app.whenReady().then(async () => {
   ipcMain.on(IN.practice, (_event, on: unknown) => {
     prefs.practice = on === true
     session.updatePractice(prefs.practice)
+    // Everything the page said while this was off went nowhere, so the app has
+    // no problem in hand however long one has been open. Ask the page again.
+    if (prefs.practice) bridge.askAgain()
   })
   ipcMain.on(IN.voice, (_event, on: unknown) => {
     prefs.voice = on === true
