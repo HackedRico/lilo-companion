@@ -312,9 +312,15 @@ function Composer({
 
 function Gear(): ReactElement {
   return (
-    <svg viewBox="0 0 16 16" className="h-[13px] w-[13px] fill-none stroke-current" strokeWidth={1.35}>
-      <circle cx="8" cy="8" r="2.3" />
-      <path d="M8 1.6v1.5M8 12.9v1.5M14.4 8h-1.5M3.1 8H1.6M12.5 3.5l-1.1 1.1M4.6 11.4l-1.1 1.1M12.5 12.5l-1.1-1.1M4.6 4.6 3.5 3.5" />
+    <svg
+      viewBox="0 0 16 16"
+      className="h-[13px] w-[13px] fill-none stroke-current"
+      strokeWidth={1.35}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="8" cy="8" r="2.5" />
+      <path d="M6.8 1.5h2.4l.4 1.7a4.9 4.9 0 0 1 1.1.7l1.7-.6 1.7 1.7-.6 1.7c.3.3.5.7.7 1.1l1.7.4v2.4l-1.7.4a4.9 4.9 0 0 1-.7 1.1l.6 1.7-1.7 1.7-1.7-.6a4.9 4.9 0 0 1-1.1.7l-.4 1.7H6.8l-.4-1.7a4.9 4.9 0 0 1-1.1-.7l-1.7.6-1.7-1.7.6-1.7a4.9 4.9 0 0 1-.7-1.1L1.5 9.2V6.8l1.7-.4a4.9 4.9 0 0 1 .7-1.1l-.6-1.7 1.7-1.7 1.7.6c.3-.3.7-.5 1.1-.7l.4-1.7z" />
     </svg>
   )
 }
