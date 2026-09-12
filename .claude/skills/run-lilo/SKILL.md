@@ -29,7 +29,7 @@ REPLAY_FILE=<absolute path to lecture.txt, in the form this OS writes paths>
 
 Or pick it at runtime from the tray under "Play a saved lecture". The main process also reads `--replay <file>` from argv, and electron-vite forwards what follows a second `--`: `npm run dev -- -- --replay <file>`.
 
-A model has to be configured for anything past hearing: an address, a key and two model names, in `.env` or the preferences window. A local Ollama or LM Studio at its default address needs no key and nothing leaves the machine.
+A model has to be configured for anything past hearing: a protocol, an address, a key and two model names, in `.env` or the preferences window. A local Ollama or LM Studio at its default address needs no key and nothing leaves the machine.
 
 ## Read what it is doing
 

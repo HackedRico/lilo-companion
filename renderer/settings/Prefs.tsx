@@ -1,16 +1,14 @@
 import { useEffect, useRef, useState, type ReactElement } from 'react'
 import type { Aim } from '../../shared/types.ts'
 import {
-  CHECKED,
-  PRESETS,
-  presetFor,
+  PROTOCOLS,
   type ConnectionResult,
   type SettingsPatch,
   type SettingsView
 } from '../../shared/settings.ts'
 import { ROLE_LABEL, type Profile, type RoleFamily } from '../../shared/types.ts'
 import { api } from '../api.ts'
-import { Action, Field, Group, KeyRow, Tags, TextInput } from './fields.tsx'
+import { Action, Field, Group, KeyRow, Select, Tags, TextInput } from './fields.tsx'
 import { ModelField } from './ModelField.tsx'
 
 type Tab = 'profile' | 'model'
@@ -292,9 +290,7 @@ function ModelTab({
 }): ReactElement {
   const [tested, setTested] = useState<ConnectionResult | null>(null)
   const [testing, setTesting] = useState(false)
-  // A preset is a shortcut for filling in an address, so the one that matches
-  // the address is the one that reads as chosen. Typing a URL chooses nothing.
-  const chosen = presetFor(settings.baseUrl)
+  const protocol = PROTOCOLS.find((one) => one.id === settings.protocol)
 
   const change = (patch: SettingsPatch): void => {
     setTested(null)
@@ -304,33 +300,28 @@ function ModelTab({
   return (
     <>
       <p className="lede">
-        Anywhere that speaks the OpenAI chat API: a service, or a model running on this machine.
+        Any model you can reach: a service, or one running on this machine. Say how it speaks, where it
+        is, and which two models to use.
       </p>
-      <div className="mb-4 flex flex-wrap gap-1.5">
-        {PRESETS.map((preset) => (
-          <Action
-            key={preset.id}
-            title={preset.note}
-            on={chosen?.id === preset.id}
-            onClick={() => change({ baseUrl: preset.baseUrl, ...(preset.models ? { modelFast: preset.models.fast, modelStrong: preset.models.strong } : {}) })}
-          >
-            {preset.label}
-          </Action>
-        ))}
-      </div>
       <div className="fields">
-        <Field
-          label="Address"
-          hint={chosen?.note ?? (settings.local ? 'On this machine, so no key is wanted.' : undefined)}
-        >
+        <Field label="Speaks" hint={protocol?.note}>
+          <Select
+            value={settings.protocol}
+            options={PROTOCOLS.map((one) => ({ value: one.id, label: one.label }))}
+            onChange={(next) => change({ protocol: next })}
+          />
+        </Field>
+        <Field label="Address" hint={settings.local ? 'On this machine, so no key is wanted.' : undefined}>
+          {/* Keyed on the value, so an address reshaped by a protocol switch shows reshaped. */}
           <TextInput
+            key={settings.baseUrl}
             mono
             value={settings.baseUrl}
-            placeholder="https://api.featherless.ai/v1"
+            placeholder={protocol?.placeholder}
             onCommit={(baseUrl) => change({ baseUrl })}
           />
         </Field>
-        <Field label="Key">
+        <Field wide label="Key">
           <KeyRow
             state={settings.apiKey}
             envName="LLM_API_KEY"
@@ -338,18 +329,10 @@ function ModelTab({
             onSet={(apiKey) => change({ apiKey })}
           />
         </Field>
-        <Field
-          label="Quick model"
-          hint="Reads the lecture and plays the coworker."
-          badge={CHECKED.has(settings.modelFast) ? 'checked' : undefined}
-        >
+        <Field label="Quick model" hint="Reads the lecture and plays the coworker.">
           <ModelField value={settings.modelFast} onPick={(modelFast) => change({ modelFast })} />
         </Field>
-        <Field
-          label="Careful model"
-          hint="Writes the work and reviews your answer."
-          badge={CHECKED.has(settings.modelStrong) ? 'checked' : undefined}
-        >
+        <Field label="Careful model" hint="Writes the work and reviews your answer.">
           <ModelField value={settings.modelStrong} onPick={(modelStrong) => change({ modelStrong })} />
         </Field>
       </div>

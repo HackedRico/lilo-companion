@@ -87,11 +87,21 @@ process down with it. Points and text pass through `guards.ts` first.
 
 ## Settings
 
-There is no provider setting. Everything that speaks the OpenAI chat API differs
-only in an address, a key and two model names, so that is all there is. The
-preset buttons fill in an address and nothing more, the model list is read from
-the endpoint's own `/models`, and `isLocal` is what decides whether to ask for a
-key. Adding another provider is adding a row of data.
+There is no vendor setting. A model is a protocol, an address, a key and two
+model names, and the student types all of them: nothing is filled in, and
+nothing points at anybody's service by default.
+
+`main/llm/service.ts` is the service layer. It owns what every protocol needs
+alike: one queue, because some endpoints answer concurrency with a 429; a
+backoff when an endpoint pushes back; and the schema check, since no protocol
+enforces one. Under it a `Provider` speaks one protocol to one address and
+nothing else, a file each for OpenAI chat completions and Anthropic messages,
+both on the official SDKs. `providers.ts` is the only place a protocol name
+meets a class, so a new protocol is a provider file and a line there. The model
+list is read from the endpoint's own listing, and `isLocal` is what decides
+whether to ask for a key. Each protocol shapes the address its own way,
+OpenAI-style with `/v1` and Anthropic without, so the address is re-shaped on
+every read and survives a switch.
 
 Keys are sealed with Electron's `safeStorage`, which is the OS keychain. The
 preferences window only ever receives whether a key is set and its last four

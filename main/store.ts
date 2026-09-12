@@ -1,4 +1,5 @@
 import ElectronStore from 'electron-store'
+import type { Protocol } from '../shared/settings.ts'
 import type { Point, Profile, Size } from '../shared/types.ts'
 import { EMPTY_PROFILE } from './profile.ts'
 
@@ -11,6 +12,7 @@ const Store = ((ElectronStore as unknown as { default?: typeof ElectronStore }).
 
 /** What the preferences window has set. Anything absent falls through to .env. */
 export interface SavedSettings {
+  protocol?: Protocol
   baseUrl?: string
   modelFast?: string
   modelStrong?: string

@@ -11,7 +11,7 @@ import type {
   Suggestion,
   ThreadItem
 } from '../shared/types.ts'
-import type { LlmLike } from './llm/provider.ts'
+import type { LlmLike } from './llm/service.ts'
 import type { Ikb } from './ikb/load.ts'
 import { evidenceOf, profileRoles } from './ikb/search.ts'
 import { computeGaps } from './ikb/gaps.ts'

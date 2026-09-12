@@ -1,7 +1,7 @@
 import type { Concept } from '../../shared/types.ts'
 import { conceptsOut } from '../../shared/schemas.ts'
 import { extractConcepts as prompt } from '../../shared/prompts.ts'
-import type { LlmLike } from '../llm/provider.ts'
+import type { LlmLike } from '../llm/service.ts'
 
 /** A concept mentioned in passing is not worth interrupting a student over. */
 const KEEP: Concept['confidence'][] = ['medium', 'high']

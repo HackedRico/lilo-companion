@@ -37,13 +37,12 @@ and interests, and what the companion has already read back to you. That last
 list is what stops the recap offering something as a gap when you have already
 met it.
 
-**The model** is an address, a key and two model names. There is no provider
-setting anywhere in the code: Featherless, Ollama, LM Studio, OpenAI,
-OpenRouter, Groq and your own vLLM differ only in those values, so the buttons
-above the address are shortcuts that fill it in, not modes. The model list is
-read from whatever endpoint you point at, and the handful known to hold up
-across the whole loop are marked. "Test it" makes one real call and says what
-came back.
+**The model** is a protocol, an address, a key and two model names, all yours
+to type. The protocol is how the endpoint speaks, OpenAI chat completions or
+Anthropic messages, and the address is where it is: a hosted service, a
+gateway, or a server on this machine. There is no vendor setting anywhere in
+the code. The model list is read from whatever endpoint you point at, and
+"Test it" makes one real call and says what came back.
 
 Keys are held in the OS keychain, Keychain on macOS and DPAPI on Windows, and
 never reach the renderer, which only ever learns whether a key is set and its
@@ -105,6 +104,7 @@ reply.
 | `main/pipeline/` | transcript to concept to posting terms to evidence |
 | `main/panel.ts` | the window: placement, dragging, click-through |
 | `main/settings.ts` | what you chose, layered over .env, keys sealed |
+| `main/llm/` | the service layer: one queue and one schema check over a provider per protocol |
 | `main/guards.ts` | nothing from a renderer reaches a window unchecked |
 | `preload/index.ts` | the one door between main and a renderer |
 | `renderer/bubble/` | the orb, its face, and the whisper |

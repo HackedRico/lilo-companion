@@ -1,5 +1,5 @@
 import type { Card, Concept, RoleFamily } from '../../shared/types.ts'
-import type { LlmLike } from '../llm/provider.ts'
+import type { LlmLike } from '../llm/service.ts'
 import type { Ikb } from '../ikb/load.ts'
 import { cardFrom, evidenceFor } from '../ikb/search.ts'
 import { translate } from './translate.ts'

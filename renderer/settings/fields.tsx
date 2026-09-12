@@ -209,3 +209,26 @@ export function KeyRow({
     </div>
   )
 }
+
+/** A native select in the dress of an input. It only ever holds the options it was given. */
+export function Select<T extends string>({
+  value,
+  options,
+  onChange
+}: {
+  value: T
+  options: { value: T; label: string }[]
+  onChange: (next: T) => void
+}): ReactElement {
+  return (
+    <div className="select">
+      <select className="input" value={value} onChange={(event) => onChange(event.target.value as T)}>
+        {options.map((one) => (
+          <option key={one.value} value={one.value}>
+            {one.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  )
+}
