@@ -1,5 +1,6 @@
 import { wantsFamily, type Card, type Evidence, type Profile, type RoleFamily, type Sentence } from '../../shared/types.ts'
 import type { Ikb } from './load.ts'
+import { mapConceptTerms } from './map.ts'
 
 /** How many sentences a card carries. */
 const EVIDENCE = 3
@@ -105,12 +106,30 @@ export function evidenceOf(ikb: Ikb, sentence: Sentence): Evidence | undefined {
 
 /** Free text retrieval, for companion chat rather than for cards. */
 export function freeSearch(ikb: Ikb, query: string, limit = 5): Sentence[] {
-  const results = ikb.search.search(query, { combineWith: 'OR' }).slice(0, limit * 3)
+  // A question is mostly ordinary words, and matching on any of them is how
+  // "tell me more about databases at work" came back with "learn more about
+  // what it is like to work at MongoDB" and a company mission statement. The
+  // companion then wrote about the mission statement, cited it correctly, and
+  // said nothing about databases. What a question is about is the terms in it,
+  // so those are asked for first and the word soup is only the fallback.
+  const named = mapConceptTerms(ikb, { name: query, summary: '', confidence: 'high' })
+  const onTerm = named.flatMap((term) => ikb.byTag.get(term.term) ?? [])
+  const headline = named[0]?.term
+  const ranked = [...new Map(onTerm.map((sentence) => [sentence.id, sentence])).values()]
+    .map((sentence) => ({ sentence, score: scoreFor(sentence, [], ikb, headline) }))
+    .filter((entry) => entry.score >= 0)
+    .sort((a, b) => b.score - a.score)
+    .map((entry) => entry.sentence)
+
+  const loose = ikb.search
+    .search(query, { combineWith: 'OR' })
+    .slice(0, limit * 3)
+    .map((result) => ikb.sentences.find((candidate) => candidate.id === result.id))
+    .filter((sentence): sentence is Sentence => sentence !== undefined)
+
   const picked: Sentence[] = []
   const companies = new Set<string>()
-  for (const result of results) {
-    const sentence = ikb.sentences.find((candidate) => candidate.id === result.id)
-    if (!sentence) continue
+  for (const sentence of [...ranked, ...loose]) {
     const company = ikb.postings.get(sentence.postingId)?.company
     if (!company || companies.has(company)) continue
     companies.add(company)
