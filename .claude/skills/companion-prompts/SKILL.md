@@ -22,6 +22,10 @@ Every prompt is a function in `shared/prompts.ts` returning `{ system, user }`. 
 
 Done when the session test passes, a raw reply from the `fast` lane parses, and the commit says which model it was tried on.
 
+## The coach
+
+`coachHint` is the one prompt whose reply is gated on more than its shape. `hintOut` gives the rung, the lines and the names; `gate` in `main/leetcode/ladder.ts` refuses a rung above the ceiling, a line or a name not in the code, or a hint from rung 3 up that points at nothing. Changing the prompt never moves that gate, and a prompt that reads well but reports the wrong rung gets withheld. `main/leetcode/practice.test.ts` scripts the coach; a change to the prompt gets a case there.
+
 ## Adding a call
 
 - One function in `prompts.ts`, one schema in `schemas.ts`, one branch in `ScriptedLlm.reply`, so the loop test still runs without a network.

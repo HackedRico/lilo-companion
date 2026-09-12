@@ -2,10 +2,12 @@
 
 Hear it in class. See it in real jobs. Do it like work.
 
-A floating desktop companion for software engineering students. Hand it a
-lecture and it tells you where the concept turns up at work with evidence from
-real software engineering postings, then hands you a vague request from a
-coworker so you can try it the way an engineer would.
+A floating desktop companion for software engineering students, there to keep
+you going toward the job. Hand it a lecture and it tells you where the concept
+turns up at work, with evidence from real software engineering postings, then
+hands you a vague request from a coworker so you can try it the way an
+engineer would. Open a problem on LeetCode and it sits beside you, with help
+at a level you set, so the effort stays yours.
 
 It runs on macOS and Windows. The two differ in how a floating window behaves,
 how the menu bar mark is drawn and where keys are kept, and
@@ -63,6 +65,27 @@ bring.
 To start with a lecture already read, put `LECTURE_FILE=path/to/lecture.txt`
 in `.env`, or pass `--lecture path/to/lecture.txt` to a packaged build.
 
+## On LeetCode
+
+Lilo reads the editor on leetcode.com through a small Chrome extension you
+load once. Open Settings, the LeetCode tab, and press "Set up Chrome": it
+writes the file Chrome needs, then you open chrome://extensions, turn on
+Developer mode, press Load unpacked and pick the folder the tab shows. The
+tab says Connected once a problem is open.
+
+How much help you get is a ceiling you pick on the same tab. Hands off says
+what it sees and cheers, and gives you one question to think about when asked.
+Coach names the idea and shows where your own code goes wrong. Tutor walks you
+through the steps, and hands over code only when you ask for it outright.
+Whatever the level, the companion says what it sees first, in plain words, and
+a hint it volunteers is earned: one rung higher a minute at a time, and only
+after your code changed. Every hint says which rung it reached.
+
+Every session is written to a file under the app's data folder, one event per
+line, and played back with `--work-recording path/to/session.jsonl` or
+`WORK_RECORDING=` in `.env`, so the companion's manners can be tuned with no
+browser open.
+
 ## The evidence base
 
 `data/ikb.json` is what the companion proves claims against: software
@@ -84,7 +107,7 @@ missing the app still starts, with nothing to prove anything with.
 
 | | |
 |---|---|
-| `npm test` | tagging, search, gaps, the watcher, citations, the tray mark, the whole loop against a scripted model |
+| `npm test` | tagging, search, gaps, the watcher, citations, the tray mark, the ladder, the bridge, the whole loop against a scripted model |
 | `npm run typecheck` | main, preload, renderer and the tests |
 | `npm run build` | the three bundles under `out/` |
 | `npm run package:mac`, `npm run package:win` | installers, which CI also builds on both platforms |
@@ -104,6 +127,9 @@ reply.
 |---|---|
 | `main/session.ts` | the loop: hear, see, do, review, lock in, recap |
 | `main/scenario/stakeholder.ts` | the coworker, and why they cannot leak |
+| `main/leetcode/` | the LeetCode practice: state, ladder, coach, bridge, recordings |
+| `main/host.ts` | the native messaging host Chrome runs |
+| `extension/` | the Chrome extension, loaded unpacked |
 | `main/ikb/` | job postings: tagging, search, gap statistics |
 | `main/pipeline/` | transcript to concept to posting terms to evidence |
 | `main/panel.ts` | the window: placement, dragging, click-through |
@@ -117,10 +143,12 @@ reply.
 | `shared/prompts.ts` | every prompt, and the companion's voice |
 | `scripts/ingest-ikb.ts` | the job board ingest |
 
-## Two rules the code keeps
+## Three rules the code keeps
 
-The model translates, role-plays and explains; real postings prove. And the
-coworker is only ever told what the student has already uncovered.
+The model translates, role-plays and explains; real postings prove. The
+coworker is only ever told what the student has already uncovered. And a
+LeetCode hint is checked against the level you set and against your own code
+before it is said.
 [docs/architecture.md](docs/architecture.md) says how each is enforced and why
 the rest of the app is shaped the way it is.
 

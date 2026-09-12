@@ -76,6 +76,30 @@ Remote Desktop, the window can come back black instead of clear.
 reaching the renderer while clicks pass through to the app underneath. When it
 fails it fails quietly, by the orb going dead rather than by throwing.
 
+## Chrome and the native host
+
+Chrome launches a native messaging host by the path in a manifest, and the
+manifest lives somewhere different per platform. On macOS it is a file under
+`~/Library/Application Support/Google/Chrome/NativeMessagingHosts/`. On
+Windows it can live anywhere, and a key under
+`HKCU\Software\Google\Chrome\NativeMessagingHosts` names the file, written
+with `reg add`. On Linux it is `~/.config/google-chrome/NativeMessagingHosts/`.
+`manifestPlace` in `main/leetcode/connect.ts` holds all three and builds each
+path with that platform's own `node:path`, so the Windows half is tested from
+a Mac.
+
+The host has to be an executable, so the launcher is a shell script on macOS
+and Linux and a batch file on Windows, each running the app's own binary with
+`ELECTRON_RUN_AS_NODE=1` on `host.js` and the socket path. A shell script
+Chrome cannot execute fails silently, which is why the installer sets the mode
+bit. The socket is a named pipe on Windows and a file in the temp directory
+elsewhere: a Unix socket path is capped near a hundred characters, and a user
+data directory can be longer than that on its own.
+
+Untried on Windows: the registry write, the batch launcher under Chrome, and
+the named pipe. Each is guarded on `process.platform` and written beside its
+macOS branch.
+
 ## Shipping
 
 Installers are unsigned, because nothing configures signing. On Windows that

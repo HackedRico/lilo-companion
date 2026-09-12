@@ -62,6 +62,48 @@ so the companion can say so.
 A tagger rule reads `data scien\w*` rather than `data scien\b`, because a word
 boundary after a prefix can never match the letter that follows it.
 
+## The LeetCode practice
+
+A second practice beside the lecture, in the same thread. A Chrome extension
+reads the editor on leetcode.com and reports what it sees as events: a problem
+opened or closed, the code changed, a run is pending, an outcome arrived,
+attention changed, and what the student asked of the companion. Every event is
+validated in `shared/leetcode.ts` on the way in, folded into one state in
+`main/leetcode/state.ts`, and written to a daily recording that
+`--work-recording` plays back with no browser present. Everything above the
+extension is platform-free and tuned from recordings, never from live sessions.
+
+**State before advice.** `describe` reads the state back in words that need no
+model: the problem, how many lines, when they last changed, what the last run
+said. That is the floor, the same at every tier, and it is what the companion
+says on opening and after every run.
+
+**The ladder is enforced by code.** A hint carries a rung, 0 to 5, by how much
+of the answer it gives away. The tier the student picks is a ceiling on that
+ladder, two of them: what may be volunteered, and what may be answered when
+asked. `coach` asks the model once; `gate` checks the rung against the ceiling
+and every line number and name against the code; a reply that fails is asked
+once more under a stricter instruction and then withheld with an honest line,
+or dropped. The model is told the ceiling and never trusted with it.
+
+**Climb on effort.** `nextRung` lets a volunteered hint rise one rung at a
+time, no oftener than a minute, and only after the code changed since the last
+one. Nothing is volunteered into a run, on top of an accepted answer, during
+quiet, or while the tab is not in front.
+
+**One channel back.** A hint that names lines marks them in the editor, marked
+as the companion's and cleared on the next edit. Nothing else is ever written
+to the page.
+
+The extension is three files under `extension/`: an agent in the page's own
+world that reads the editor's model rather than the screen and watches the
+site's own network calls for verdicts, a relay in the isolated world that can
+reach `chrome.runtime`, and a service worker that speaks to the native host.
+The host is the app's own binary run as plain Node on `main/host.ts`, relaying
+Chrome's framed messages to the running app over a local socket in
+`main/leetcode/bridge.ts`. [platforms.md](platforms.md) says where each
+platform keeps the manifest.
+
 ## The window
 
 The panel is transparent, frameless and always on top, and it must not take the

@@ -29,6 +29,16 @@ LECTURE_FILE=<absolute path to lecture.txt, in the form this OS writes paths>
 
 Or pick it at runtime from the tray under "Upload a lecture", or the button at the top of the panel. The main process also reads `--lecture <file>` from argv, and electron-vite forwards what follows a second `--`: `npm run dev -- -- --lecture <file>`.
 
+## Feed it a LeetCode session
+
+With no Chrome to hand, a recording stands in for the page. Write a `.jsonl` in the scratchpad, one event per line in the shape `shared/leetcode.ts` accepts, and point the app at it:
+
+```
+WORK_RECORDING=<absolute path to session.jsonl>
+```
+
+or `npm run dev -- -- --work-recording <file>`. An `opened`, an `attention` with `inFront` true, a `changed` with some code, and an `outcome` are enough to see the state said, the composer switch to the problem, and the verdict read back. A volunteered hint needs a minute of clock and a configured model. The app writes its own recordings under `leetcode/` in the folder "Show saved data" opens, so a real session can be replayed later.
+
 A model has to be configured for anything past hearing: an address, a key and two model names, in `.env` or the preferences window. A local Ollama or LM Studio at its default address needs no key and nothing leaves the machine.
 
 ## Read what it is doing
