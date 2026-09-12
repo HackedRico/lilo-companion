@@ -84,6 +84,13 @@ function readsAsALecture(text: string): boolean {
   return text.length >= PASTED_LECTURE.chars && lines >= PASTED_LECTURE.lines
 }
 
+/**
+ * A line about the problem they are working rather than about the lecture.
+ * Asked with nothing in view, it was answered from whatever the last lecture
+ * was: "I'm failing test cases" came back as a checklist for debugging SQL.
+ */
+const ABOUT_THE_PROBLEM = /\bleetcode\b|\btest ?cases?\b|\bmy (code|solution|submission)\b|\bthis problem\b/i
+
 /** Names said the way a person says them: "A, B and C". */
 export function listed(names: string[]): string {
   if (names.length <= 1) return names[0] ?? ''
@@ -545,6 +552,19 @@ export class Session {
     if (readsAsALecture(text)) {
       this.heardFromStudent(text)
       return this.useNotes(text)
+    }
+    // Plainly about a problem, and there is no problem. Ordinary chat knows the
+    // lecture and nothing else, so it answered a question about failing test
+    // cases with a checklist for debugging SQL. Saying what it cannot see is
+    // the whole of the answer here.
+    if (ABOUT_THE_PROBLEM.test(text) && !this.leetcode.open) {
+      this.heardFromStudent(text)
+      await this.say(
+        this.state.practice
+          ? 'I cannot see a problem on LeetCode from here. Open one and I will read it, then ask me again.'
+          : 'LeetCode coaching is switched off, so I am not reading the problem. Turn it on at the top and I will.'
+      )
+      return
     }
     return this.chat(text)
   }

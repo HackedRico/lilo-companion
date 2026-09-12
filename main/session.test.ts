@@ -724,3 +724,32 @@ test('switching it on with nothing open leaves the composer alone', async () => 
   session.updatePractice(true)
   assert.equal(session.state.composer.mode, 'chat')
 })
+
+test('a question about the problem is not answered from the lecture', async () => {
+  // "I'm failing test cases" was answered with a checklist for debugging SQL,
+  // because ordinary chat knows the lecture and nothing else.
+  const llm = new ScriptedLlm()
+  const { session, thread } = harness(llm, ikb)
+  await teach(session)
+  await session.typed('so with this leetcode, stir me in the right direction, I am failing test cases')
+
+  const said = thread.filter((item) => item.speaker === 'companion').map((item) => item.text).join('\n')
+  assert.match(said, /cannot see a problem on LeetCode/)
+  assert.ok(!llm.lastAsk("never do a student's homework"), 'and the lecture was not asked about it')
+})
+
+test('with the practice off it says so rather than guessing', async () => {
+  const llm = new ScriptedLlm()
+  const { session, thread } = harness(llm, ikb)
+  session.updatePractice(false)
+  await session.typed('my code is failing test cases')
+  assert.ok(thread.some((item) => /switched off/.test(item.text)))
+})
+
+test('with a problem in view the coach still gets it', async () => {
+  const llm = new ScriptedLlm()
+  const { session } = harness(llm, ikb)
+  await session.observe({ kind: 'opened', at: Date.now(), problem: { slug: 'two-sum', title: 'Two Sum', difficulty: 'Easy', statement: 'add up to target' } })
+  await session.typed('my code is failing test cases')
+  assert.ok(llm.lastAsk('you are beside them'), 'the coach answered it')
+})
