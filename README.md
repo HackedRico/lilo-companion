@@ -6,53 +6,61 @@ A floating desktop companion that listens to a lecture, tells you where the
 concept turns up at work with evidence from real job postings, then hands you a
 vague request from a coworker so you can try it.
 
+It runs on macOS and Windows. The two differ in how a floating window behaves,
+how the menu bar mark is drawn and where keys are kept, and
+[docs/platforms.md](docs/platforms.md) says exactly where. Everything else is
+one codebase with no platform switch in it.
+
 ## Running it
 
 ```bash
 npm install
-node node_modules/electron/install.js   # npm 11 blocks install scripts
+node node_modules/electron/install.js
 npm run dev
 ```
 
-An orb appears bottom right with a menu bar item next to the clock. There is no
-Dock tile. Cmd/Ctrl+Shift+Y opens and closes the panel, Escape closes it.
+The second line fetches the Electron binary, because npm 11 skips install
+scripts. On Windows, run the same three lines in PowerShell or cmd.
 
-Open the panel and press the gear, or use the menu bar item, to set a key and
+An orb appears bottom right, and a mark appears in the menu bar (macOS) or the
+notification area (Windows). There is no Dock tile or taskbar button.
+Cmd+Shift+Y on macOS, Ctrl+Shift+Y on Windows, opens and closes the panel;
+Escape closes it.
+
+Open the panel and press the gear, or use the menu bar mark, to set a key and
 pick models. Nothing needs to be configured before the app starts.
 
 ## Settings and profile
 
-One window, one page.
-
-**You** is the profile: what you study, what you are aiming at, your courses and
-interests, and what the companion has already read back to you. That last list
-is what stops the recap offering something as a gap when you have already met it.
+**You** is the profile: what you study, what you are aiming at, your courses
+and interests, and what the companion has already read back to you. That last
+list is what stops the recap offering something as a gap when you have already
+met it.
 
 **The model** is an address, a key and two model names. There is no provider
-setting anywhere in the code: Featherless, Ollama, LM Studio, OpenAI, OpenRouter,
-Groq and your own vLLM differ only in those four values, so the buttons along the
-top are shortcuts that fill in an address, not modes. The model list is read from
-whatever endpoint you point at, and the handful confirmed to work end to end are
-marked. "Test it" makes one real call and says what came back.
+setting anywhere in the code: Featherless, Ollama, LM Studio, OpenAI,
+OpenRouter, Groq and your own vLLM differ only in those values, so the buttons
+above the address are shortcuts that fill it in, not modes. The model list is
+read from whatever endpoint you point at, and the handful known to hold up
+across the whole loop are marked. "Test it" makes one real call and says what
+came back.
 
-Keys are held in the OS keychain and never reach the renderer, which only ever
-learns whether a key is set and its last four characters. An address on this
-machine is recognised as local and stops asking for one. Anything left blank
-falls through to `.env`, so a developer checkout needs no clicking.
-`LILO_OPEN_PREFS=1 npm run dev` opens the window on launch while working on it.
+Keys are held in the OS keychain, Keychain on macOS and DPAPI on Windows, and
+never reach the renderer, which only ever learns whether a key is set and its
+last four characters. An address on this machine is recognised as local and
+stops asking for one. Anything left blank falls through to `.env`, so a
+developer checkout needs no clicking.
 
 ## Listening without a microphone
 
-A saved lecture is fed back in as if it were being spoken, so the loop runs with
-no room and no network in it. Pick one from the menu bar item under "Play a
-saved lecture", or start with a file already chosen:
+A saved lecture is fed back in as if it were being spoken, so the loop runs
+with no room and no network in it. Pick one from the menu bar mark under "Play a
+saved lecture". Any transcript works: one line per thing said, and a line
+arrives every few seconds. Nothing is bundled, so the first one is yours to
+bring.
 
-```bash
-REPLAY_FILE=path/to/lecture.txt npm run dev
-```
-
-Any transcript works. One line per thing said, and a line arrives every few
-seconds. Nothing is bundled, so the first one is yours to bring.
+To start with a lecture already playing, put `REPLAY_FILE=path/to/lecture.txt`
+in `.env`, or pass `--replay path/to/lecture.txt` to a packaged build.
 
 ## The evidence base
 
@@ -62,22 +70,30 @@ and `data/practices.json`. It ships built, from the 30 public ATS boards listed
 in `data/boards.json`.
 
 ```bash
-npm run ingest   # rebuild it from those boards
+npm run ingest
 ```
 
 These are the same endpoints the companies' own job pages call. No auth, no
-scraping. Add a company by adding a row to `boards.json`. If the file is missing
-the app still starts, with nothing to prove anything with.
+scraping. Add a company by adding a row to `boards.json`. If the file is
+missing the app still starts, with nothing to prove anything with.
 
 ## Checks
 
 | | |
 |---|---|
-| `npm test` | tagging, search, gaps, the watcher, citations, the whole loop against a scripted model |
-| `npm run typecheck` | all three projects |
-| `npm run package:mac` / `package:win` | installers, also built by CI on both platforms |
+| `npm test` | tagging, search, gaps, the watcher, citations, the tray mark, the whole loop against a scripted model |
+| `npm run typecheck` | main, preload, renderer and the tests |
+| `npm run build` | the three bundles under `out/` |
+| `npm run package:mac`, `npm run package:win` | installers, which CI also builds on both platforms |
 
-`LILO_DEBUG_LLM=1` prints every raw model reply.
+All four run on either OS. What a Mac cannot show you is the tray mark on a
+light Windows taskbar, the panel taking focus when clicked, and transparency
+with hardware acceleration off; those want a Windows machine, or the installer
+CI builds.
+
+Two `.env` switches help while working: `LILO_OPEN_PREFS=1` opens the
+preferences window on launch, and `LILO_DEBUG_LLM=1` prints every raw model
+reply.
 
 ## Where things are
 
@@ -88,23 +104,22 @@ the app still starts, with nothing to prove anything with.
 | `main/ikb/` | job postings: tagging, search, gap statistics |
 | `main/pipeline/` | transcript to concept to posting terms to evidence |
 | `main/panel.ts` | the window: placement, dragging, click-through |
-| `renderer/bubble/` | the orb and the whisper |
-| `renderer/thread/` | the one conversation everything lands in |
-| `renderer/settings/` | the preferences window |
 | `main/settings.ts` | what you chose, layered over .env, keys sealed |
 | `main/guards.ts` | nothing from a renderer reaches a window unchecked |
+| `preload/index.ts` | the one door between main and a renderer |
+| `renderer/bubble/` | the orb, its face, and the whisper |
+| `renderer/thread/` | the one conversation everything lands in |
+| `renderer/settings/` | the preferences window |
 | `shared/prompts.ts` | every prompt, and the companion's voice |
 | `scripts/ingest-ikb.ts` | the job board ingest |
 
 ## Two rules the code keeps
 
-**The LLM translates, role-plays and explains. Real postings prove.** A term the
-model invents is dropped before it reaches a card. A citation the retriever did
-not return is stripped from the answer.
+The model translates, role-plays and explains; real postings prove. And the
+coworker is only ever told what the student has already uncovered.
+[docs/architecture.md](docs/architecture.md) says how each is enforced and why
+the rest of the app is shaped the way it is.
 
-**The coworker is only ever told what the student has already uncovered.** Each
-question is gated by a separate call that decides which hidden facts it reaches;
-the persona is then written with only those. It cannot leak what it never had.
-
-[docs/architecture.md](docs/architecture.md) is how the pieces fit and why.
-[docs/platforms.md](docs/platforms.md) is what differs between macOS and Windows.
+[AGENTS.md](AGENTS.md) is the working agreement for anyone changing the code,
+person or agent: the layout, the conventions, and what has to be true on both
+platforms before a commit.
