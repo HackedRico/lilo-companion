@@ -15,6 +15,15 @@ export const PANEL: Size = { width: 380, height: 520 }
 /** Under this the thread stops being a conversation and starts being a slot. */
 export const PANEL_MIN: Size = { width: 300, height: 320 }
 
+/**
+ * Under these widths the panel's head gives up words rather than wrapping:
+ * first Settings keeps only its gear, then voice mode says only on or off,
+ * then only its mic. The default panel sits in the middle step. Each step
+ * carries thirty pixels over what the row measured on macOS, because Segoe UI
+ * sets the same labels at its own width and nobody has measured it.
+ */
+export const HEAD_STEPS = { snug: 510, tight: 430, bare: 370 } as const
+
 /** A whisper is one short line, so it gets a fixed strip beside the orb. */
 export const WHISPER: Size = { width: 232, height: 56 }
 

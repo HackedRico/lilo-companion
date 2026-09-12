@@ -79,12 +79,16 @@ fails it fails quietly, by the orb going dead rather than by throwing.
 ## The microphone
 
 Voice mode asks for the microphone from the renderer, through `getUserMedia`,
-and `index.ts` grants exactly that: audio, for the panel's own page, and no
-other permission for any page. The prompt the student sees is the OS's own.
+and `index.ts` grants exactly that: audio, for the panel's own page at its own
+origin, only while voice mode is on, and no other permission for any page.
+The prompt the student sees is the OS's own.
 
-On macOS the prompt comes from TCC the first time, and only if the bundle
-carries `NSMicrophoneUsageDescription`, which `electron-builder.yml` puts in
-the Info.plist; a signed build also needs `com.apple.security.device.audio-input`
+On macOS `index.ts` asks through `systemPreferences.askForMediaAccess`, which
+prompts the first time and afterwards answers from what the student chose, so
+a refusal comes back to the renderer as a clean `NotAllowedError` rather than
+a capture that never starts. The prompt appears only if the bundle carries
+`NSMicrophoneUsageDescription`, which `electron-builder.yml` puts in the
+Info.plist; a signed build also needs `com.apple.security.device.audio-input`
 in the entitlements, which is there too. In dev the prompt names Electron,
 because it is Electron's own plist. A refusal is remembered under System
 Settings, Privacy & Security, Microphone, and the composer says so.

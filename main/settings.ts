@@ -1,5 +1,6 @@
 import type { ConnectionResult, SettingsPatch, SettingsView } from '../shared/settings.ts'
 import { maskKey } from '../shared/settings.ts'
+import { reasonFor } from './llm/provider.ts'
 import { isLocal, normaliseBaseUrl, protocolFor, type LlmConfig, type ProviderFactory } from './llm/service.ts'
 import type { SavedSettings } from './store.ts'
 import type { VoiceConfig } from './voice.ts'
@@ -158,16 +159,21 @@ export class SettingsStore {
   }
 
   /**
-   * Where speech goes. Left blank it goes where the model is, since OpenAI's
-   * and Groq's addresses transcribe beside chat. A whisper server on this
-   * machine is an address typed here, and wants no key; a hosted one wants its
-   * own, or the model's where the two are one service.
+   * Where speech goes. Left blank it goes where the model is, where that
+   * address speaks the OpenAI API: OpenAI's and Groq's transcribe beside
+   * chat, and Anthropic's does not. An address typed here is sent its own key,
+   * or the model's only where it is the model's own service, so a whisper
+   * server on a spare machine is never handed a secret meant for somebody
+   * else. Whether an address wants a key at all is the address's to say.
    */
-  voiceConfig(): VoiceConfig {
-    const llm = this.llmConfig()
+  voiceConfig(llm: LlmConfig = this.llmConfig()): VoiceConfig {
     const own = this.ownVoiceUrl()
-    const baseUrl = own || llm.baseUrl
-    const apiKey = !own ? llm.apiKey : isLocal(own) ? '' : this.resolve('voiceKey').value || llm.apiKey
+    const baseUrl = own || (llm.protocol === 'openai' ? llm.baseUrl : '')
+    const apiKey = !baseUrl
+      ? ''
+      : !own
+        ? llm.apiKey
+        : this.resolve('voiceKey').value || (sameHost(own, llm.baseUrl) ? llm.apiKey : '')
     return {
       baseUrl,
       apiKey,
@@ -178,7 +184,8 @@ export class SettingsStore {
   view(): SettingsView {
     const config = this.llmConfig()
     const key = this.resolve('apiKey')
-    const voice = this.voiceConfig()
+    const own = this.ownVoiceUrl()
+    const voice = this.voiceConfig(config)
     const voiceKey = this.resolve('voiceKey')
     return {
       protocol: config.protocol,
@@ -188,10 +195,11 @@ export class SettingsStore {
       apiKey: { ...maskKey(key.value), fromEnv: key.fromEnv && key.value.length > 0 },
       encrypted: this.keychain.available,
       local: isLocal(config.baseUrl),
-      voiceUrl: this.ownVoiceUrl(),
+      voiceUrl: own,
       voiceModel: voice.model,
       voiceKey: { ...maskKey(voiceKey.value), fromEnv: voiceKey.fromEnv && voiceKey.value.length > 0 },
-      voiceShared: this.ownVoiceUrl().length === 0,
+      // True only when speech really goes to the model's address, not merely when none was typed.
+      voiceShared: own.length === 0 && voice.baseUrl.length > 0,
       voiceLocal: isLocal(voice.baseUrl)
     }
   }
@@ -229,6 +237,15 @@ export class SettingsStore {
   }
 }
 
+/** One service under two addresses, which is the only time a key may follow. */
+function sameHost(a: string, b: string): boolean {
+  try {
+    return new URL(a).host === new URL(b).host
+  } catch {
+    return false
+  }
+}
+
 /** The real thing: the OS keychain, by way of Electron. */
 export function osKeychain(safeStorage: {
   isEncryptionAvailable(): boolean
@@ -262,17 +279,6 @@ export async function testConnection(
   } catch (error) {
     return { ok: false, detail: reasonFor(error), ms: Date.now() - started }
   }
-}
-
-/** Turns the endpoint's own wording into something worth reading. */
-function reasonFor(error: unknown): string {
-  const message = error instanceof Error ? error.message : String(error)
-  if (/model_gated|gated/i.test(message)) return 'That model is gated to your account. Pick another.'
-  if (/401|403|unauthor|invalid.*key/i.test(message)) return 'That key was refused.'
-  if (/404|not found|does not exist/i.test(message)) return 'No model by that name at that address.'
-  if (/timeout|ETIMEDOUT|aborted/i.test(message)) return 'It did not answer in time.'
-  if (/ECONNREFUSED|fetch failed|ENOTFOUND/i.test(message)) return 'Nothing answered at that address.'
-  return message.slice(0, 200)
 }
 
 /**

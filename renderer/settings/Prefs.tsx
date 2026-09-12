@@ -396,7 +396,9 @@ function ModelTab({
             hint={
               settings.voiceLocal
                 ? 'On this machine, so no key is wanted.'
-                : 'speaches or whisper.cpp on this machine, or any address that answers /v1/audio/transcriptions.'
+                : !settings.voiceUrl && !settings.voiceShared
+                  ? "The model's address does not transcribe. Type a whisper server, or an OpenAI or Groq address."
+                  : 'speaches or whisper.cpp on this machine, or any address that answers /v1/audio/transcriptions.'
             }
           >
             <TextInput
@@ -407,8 +409,8 @@ function ModelTab({
               onCommit={(voiceUrl) => change({ voiceUrl })}
             />
           </Field>
-          {!settings.voiceShared && (
-            <Field wide label="Voice API key" hint="Left blank, the model's key is sent.">
+          {settings.voiceUrl && (
+            <Field wide label="Voice API key" hint="Left blank, the model's key is sent only where this is the model's own service.">
               <KeyRow
                 state={settings.voiceKey}
                 envName="VOICE_API_KEY"

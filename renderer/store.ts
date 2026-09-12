@@ -12,7 +12,8 @@ const EMPTY_COMPANION: CompanionState = {
   watching: [],
   composer: { mode: 'chat', hint: 'Ask me anything' },
   onboarded: true,
-  modelConfigured: false
+  modelConfigured: false,
+  voice: false
 }
 
 const EMPTY_PROFILE: Profile = {
@@ -27,24 +28,11 @@ const EMPTY_PROFILE: Profile = {
   tier: 'coach'
 }
 
-/**
- * Voice mode is remembered where the panel's tab would be: in the window's own
- * storage, on this machine. Off, the app never asks for the microphone.
- */
-function savedVoice(): boolean {
-  try {
-    return localStorage.getItem('voice') === 'on'
-  } catch {
-    return false
-  }
-}
-
 interface AppStore {
   companion: CompanionState
   layout: Layout
   profile: Profile
   recap: Recap | null
-  voice: boolean
   setCompanion(state: CompanionState): void
   patch(patch: Partial<CompanionState>): void
   setLayout(layout: Layout): void
@@ -53,7 +41,6 @@ interface AppStore {
   endItem(id: string, patch?: Partial<ThreadItem>): void
   setProfile(profile: Profile): void
   setRecap(recap: Recap): void
-  setVoice(on: boolean): void
 }
 
 export const useApp = create<AppStore>((set) => ({
@@ -61,7 +48,6 @@ export const useApp = create<AppStore>((set) => ({
   layout: collapsedLayout(),
   profile: EMPTY_PROFILE,
   recap: null,
-  voice: savedVoice(),
 
   setCompanion: (companion) => set({ companion }),
   patch: (patch) => set((state) => ({ companion: { ...state.companion, ...patch } })),
@@ -92,13 +78,5 @@ export const useApp = create<AppStore>((set) => ({
     })),
 
   setProfile: (profile) => set({ profile }),
-  setRecap: (recap) => set({ recap }),
-  setVoice: (voice) => {
-    try {
-      localStorage.setItem('voice', voice ? 'on' : 'off')
-    } catch {
-      // Forgetting the switch by next launch is not worth an error.
-    }
-    set({ voice })
-  }
+  setRecap: (recap) => set({ recap })
 }))

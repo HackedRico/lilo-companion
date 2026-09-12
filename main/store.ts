@@ -28,6 +28,8 @@ interface Saved {
   panel: Size | null
   profile: Profile
   settings: SavedSettings
+  /** Voice mode. Off, nothing in the app may open the microphone. */
+  voice: boolean
 }
 
 /**
@@ -38,7 +40,7 @@ interface Saved {
 export class Prefs {
   private readonly store = new Store<Saved>({
     name: 'lilo',
-    defaults: { orb: null, panel: null, profile: EMPTY_PROFILE, settings: {} }
+    defaults: { orb: null, panel: null, profile: EMPTY_PROFILE, settings: {}, voice: false }
   })
 
   get orb(): Point | null {
@@ -71,6 +73,14 @@ export class Prefs {
 
   set settings(value: SavedSettings) {
     this.store.set('settings', value)
+  }
+
+  get voice(): boolean {
+    return this.store.get('voice') === true
+  }
+
+  set voice(value: boolean) {
+    this.store.set('voice', value)
   }
 
   /** Everything the student ever told us, gone. */

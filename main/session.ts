@@ -88,7 +88,8 @@ export class Session {
     watching: [],
     composer: { mode: 'chat', hint: 'Ask me anything' },
     onboarded: false,
-    modelConfigured: false
+    modelConfigured: false,
+    voice: false
   }
 
   private readonly deps: SessionDeps
@@ -160,6 +161,11 @@ export class Session {
 
   updateModelAvailable(available: boolean): void {
     this.patch({ modelConfigured: available })
+  }
+
+  /** Voice mode, as main remembers it. */
+  updateVoice(on: boolean): void {
+    this.patch({ voice: on })
   }
 
   // Speaking -------------------------------------------------------------

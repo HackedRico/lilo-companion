@@ -65,6 +65,7 @@ const api: LiloApi = {
   connectChrome: () => ipcRenderer.invoke(ASK.connectChrome),
   chromeStatus: () => ipcRenderer.invoke(ASK.chromeStatus),
   revealExtension: () => ipcRenderer.send(IN.revealExtension),
+  setVoice: (on: boolean) => ipcRenderer.send(IN.voice, on),
   transcribe: (wav: ArrayBuffer) => ipcRenderer.invoke(ASK.transcribe, wav)
 }
 

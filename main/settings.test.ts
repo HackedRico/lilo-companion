@@ -192,7 +192,7 @@ test('the model list is fetched once per endpoint and filtered by what was typed
   assert.equal(fetched, 2, 'a different address is a different endpoint')
 })
 
-test('speech goes where the model is until a voice address is typed', () => {
+test('speech goes where the model is, where that address speaks the OpenAI API', () => {
   const store = new SettingsStore(home(), vault, ENV)
   assert.deepEqual(store.voiceConfig(), {
     baseUrl: 'https://env.example/v1',
@@ -201,18 +201,34 @@ test('speech goes where the model is until a voice address is typed', () => {
   })
   assert.equal(store.view().voiceShared, true)
 
+  store.apply({ baseUrl: 'https://api.anthropic.com' })
+  assert.equal(store.voiceConfig().baseUrl, '', "Anthropic's address does not transcribe, so nothing is sent there")
+  assert.equal(store.voiceConfig().apiKey, '', 'and the Anthropic key goes nowhere')
+  assert.equal(store.view().voiceShared, false)
+})
+
+test("a typed voice address is handed the model's key only where it is the model's own service", () => {
+  const store = new SettingsStore(home(), vault, ENV)
+
   store.apply({ voiceUrl: 'http://localhost:8000' })
   const local = store.voiceConfig()
   assert.equal(local.baseUrl, 'http://localhost:8000/v1', 'shaped the OpenAI way, like the model address')
-  assert.equal(local.apiKey, '', "a server on this machine is not handed the model's key")
+  assert.equal(local.apiKey, '', 'a server on this machine is not handed the key')
   assert.equal(store.view().voiceShared, false)
   assert.equal(store.view().voiceLocal, true)
 
+  store.apply({ voiceUrl: 'http://192.168.1.50:8000' })
+  assert.equal(store.voiceConfig().apiKey, '', 'nor is one on the next desk')
+
   store.apply({ voiceUrl: 'https://api.groq.com/openai/v1' })
-  const hosted = store.voiceConfig()
-  assert.equal(hosted.apiKey, 'env-key-1111', "a hosted address with no key of its own borrows the model's")
-  assert.equal(hosted.model, 'whisper-large-v3-turbo')
-  store.apply({ voiceKey: 'gsk-2222' })
+  const elsewhere = store.voiceConfig()
+  assert.equal(elsewhere.apiKey, '', 'another service does not get the model key either')
+  assert.equal(elsewhere.model, 'whisper-large-v3-turbo')
+
+  store.apply({ voiceUrl: 'https://env.example/other/v1' })
+  assert.equal(store.voiceConfig().apiKey, 'env-key-1111', 'the same host under another path is the same service')
+
+  store.apply({ voiceKey: 'gsk-2222', voiceUrl: 'https://api.groq.com/openai/v1' })
   assert.equal(store.voiceConfig().apiKey, 'gsk-2222')
   assert.deepEqual(store.view().voiceKey, { set: true, hint: '…2222', fromEnv: false })
 
@@ -244,4 +260,5 @@ test('with no model either, speech has nowhere to go', () => {
   const store = new SettingsStore(home(), vault, NOTHING)
   assert.equal(store.voiceConfig().baseUrl, '')
   assert.equal(store.voiceConfig().apiKey, '')
+  assert.equal(store.view().voiceShared, false)
 })

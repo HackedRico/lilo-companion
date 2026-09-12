@@ -185,6 +185,8 @@ export interface CompanionState {
   composer: ComposerMode
   onboarded: boolean
   modelConfigured: boolean
+  /** Voice mode, kept by main, so the microphone grant can read it too. */
+  voice: boolean
 }
 
 // The window -------------------------------------------------------------

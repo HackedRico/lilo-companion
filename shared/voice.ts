@@ -16,6 +16,12 @@ export const LOUDEST_BYTES = 25 * 1024 * 1024
 /** Below this peak the recording is the room, and sending it invents words. */
 const QUIET = 0.01
 
+/** The RIFF format tag for plain PCM, and the one channel and 16 bits it carries. */
+const PCM = 1
+const CHANNELS = 1
+const BITS = 16
+const BYTES_PER_SAMPLE = BITS / 8
+
 /** What came back from the transcriber. A refusal is a line, never a throw. */
 export type Heard = { ok: true; text: string } | { ok: false; detail: string }
 
@@ -42,14 +48,14 @@ export function wavOf(samples: Float32Array, rate = SPEECH_RATE): ArrayBuffer {
   ascii(8, 'WAVE')
   ascii(12, 'fmt ')
   view.setUint32(16, 16, true)
-  view.setUint16(20, 1, true) // PCM
-  view.setUint16(22, 1, true) // one channel
+  view.setUint16(20, PCM, true)
+  view.setUint16(22, CHANNELS, true)
   view.setUint32(24, rate, true)
-  view.setUint32(28, rate * 2, true) // bytes a second
-  view.setUint16(32, 2, true) // bytes a frame
-  view.setUint16(34, 16, true) // bits a sample
+  view.setUint32(28, rate * CHANNELS * BYTES_PER_SAMPLE, true)
+  view.setUint16(32, CHANNELS * BYTES_PER_SAMPLE, true)
+  view.setUint16(34, BITS, true)
   ascii(36, 'data')
-  view.setUint32(40, samples.length * 2, true)
+  view.setUint32(40, samples.length * BYTES_PER_SAMPLE, true)
   for (let i = 0; i < samples.length; i++) {
     const clipped = Math.max(-1, Math.min(1, samples[i] ?? 0))
     view.setInt16(44 + i * 2, clipped < 0 ? clipped * 0x8000 : clipped * 0x7fff, true)

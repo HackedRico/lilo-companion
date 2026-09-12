@@ -10,9 +10,8 @@ import {
 } from 'react'
 import type { CompanionState, Placement, Rect, Suggestion } from '../../shared/types.ts'
 import { api } from '../api.ts'
-import { PANEL_MIN } from '../../shared/layout.ts'
+import { HEAD_STEPS, PANEL_MIN } from '../../shared/layout.ts'
 import { trackPointer } from '../drag.ts'
-import { useApp } from '../store.ts'
 import { Dictation, micTrouble } from './dictation.ts'
 import { Line } from './Line.tsx'
 
@@ -38,14 +37,13 @@ const AT_BOTTOM = 4
  */
 type Ear = 'off' | 'opening' | 'listening' | 'writing'
 
-/**
- * Under these widths the head gives up words rather than wrapping: first
- * Settings keeps only its gear, then voice mode says only on or off, then only
- * its mic. The default panel is 380 wide, which is the middle step.
- */
-const SNUG = 490
-const TIGHT = 420
-const BARE = 360
+/** What the field says while the microphone has it. */
+const EAR_HINT: Record<Ear, string | null> = {
+  off: null,
+  opening: 'Opening the microphone…',
+  listening: 'Listening…',
+  writing: 'Writing that down…'
+}
 
 export function Panel({
   rect,
@@ -96,7 +94,13 @@ export function Panel({
       data-corner-side={corner.side}
       data-corner-edge={corner.edge}
       data-room={
-        rect.width < BARE ? 'bare' : rect.width < TIGHT ? 'tight' : rect.width < SNUG ? 'snug' : undefined
+        rect.width < HEAD_STEPS.bare
+          ? 'bare'
+          : rect.width < HEAD_STEPS.tight
+            ? 'tight'
+            : rect.width < HEAD_STEPS.snug
+              ? 'snug'
+              : undefined
       }
       style={{ left: rect.x, top: rect.y, width: rect.width, height: rect.height }}
     >
@@ -105,7 +109,7 @@ export function Panel({
           <button className="lecture-button" title="Upload a lecture" onClick={() => api.openLecture()}>
             <span className="meta">Upload a lecture</span>
           </button>
-          <VoiceToggle />
+          <VoiceToggle on={state.voice} />
         </span>
         <span className="flex items-center gap-3">
           <button
@@ -165,22 +169,20 @@ export function Panel({
  * asks for the microphone. On, the mic sits beside the field and what it hears
  * lands there, to be read before it is sent.
  */
-function VoiceToggle(): ReactElement {
-  const voice = useApp((store) => store.voice)
-  const setVoice = useApp((store) => store.setVoice)
+function VoiceToggle({ on }: { on: boolean }): ReactElement {
   return (
     <button
       className="lecture-button flex items-center gap-1.5"
-      data-on={voice ? 'true' : undefined}
+      data-on={on ? 'true' : undefined}
       aria-label="Voice mode"
-      aria-pressed={voice}
-      title={voice ? 'Voice mode is on. Click to turn it off.' : 'Voice mode is off. Click to speak instead of typing.'}
-      onClick={() => setVoice(!voice)}
+      aria-pressed={on}
+      title={on ? 'Voice mode is on. Click to turn it off.' : 'Voice mode is off. Click to speak instead of typing.'}
+      onClick={() => api.setVoice(!on)}
     >
       <Mic />
       <span className="meta" data-below="bare">
         <span data-below="tight">Voice </span>
-        {voice ? 'on' : 'off'}
+        {on ? 'on' : 'off'}
       </span>
     </button>
   )
@@ -288,80 +290,98 @@ function Composer({
     return api.onFocusComposer(() => field.current?.focus())
   }, [])
 
-  const voice = useApp((store) => store.voice)
+  const voice = state.voice
   const [ear, setEar] = useState<Ear>('off')
   const [note, setNote] = useState<string | null>(null)
   // Read by a press that may have been queued before the last render landed.
   const earNow = useRef<Ear>('off')
   const dictation = useRef<Dictation | null>(null)
   const mic = (): Dictation => (dictation.current ??= new Dictation())
+  /** Counts presses, so a transcription outlived by a drop lands nowhere. */
+  const turn = useRef(0)
 
   const hear = useCallback((next: Ear): void => {
     earNow.current = next
     setEar(next)
   }, [])
 
-  /**
-   * One press opens the microphone and the next closes it, and what was said
-   * lands in the field rather than going straight to the model: a misheard
-   * word is read and fixed here, not answered.
-   */
-  const press = useCallback(async (): Promise<void> => {
-    if (earNow.current === 'writing' || earNow.current === 'opening') return
+  /** Opens the microphone, which is the OS's prompt the first time. */
+  const open = useCallback(async (): Promise<void> => {
     setNote(null)
-    if (earNow.current === 'off') {
-      hear('opening')
-      try {
-        hear((await mic().start()) ? 'listening' : 'off')
-      } catch (error) {
-        setNote(micTrouble(error, api.platform))
-        hear('off')
-      }
-      return
+    hear('opening')
+    try {
+      hear((await mic().start()) ? 'listening' : 'off')
+    } catch (error) {
+      setNote(micTrouble(error, api.platform))
+      hear('off')
     }
+  }, [hear])
+
+  /**
+   * Closes it and writes down what was said, into the field rather than to
+   * the model: a misheard word is read and fixed here, not answered. A drop
+   * in the meantime, voice mode off or the panel closing, moves the turn on,
+   * and whatever comes back after that lands nowhere.
+   */
+  const writeDown = useCallback(async (): Promise<void> => {
+    const mine = ++turn.current
+    setNote(null)
     hear('writing')
     try {
       const wav = await mic().stop()
+      if (mine !== turn.current) return
       if (!wav) {
         setNote('I heard nothing.')
         return
       }
       const heard = await api.transcribe(wav)
+      if (mine !== turn.current) return
       if (!heard.ok) {
         setNote(heard.detail)
         return
       }
       setDraft((current) => (current.trim() ? `${current.trimEnd()} ${heard.text}` : heard.text))
       field.current?.focus()
-    } catch {
+    } catch (error) {
+      if (mine !== turn.current) return
+      console.warn('[voice] could not read the recording', error)
       setNote('I could not hear that.')
     } finally {
-      hear('off')
+      if (mine === turn.current) hear('off')
     }
   }, [hear])
 
-  // The mic runs out on its own. Voice mode going off mid sentence, or the
-  // panel closing, throws away what was being said rather than sending it.
-  useEffect(() => {
-    const held = mic()
-    held.onTimeout = () => void press()
-    if (voice) return
-    held.cancel()
+  /** One press opens the microphone and the next writes it down. In between, nothing. */
+  const press = useCallback((): void => {
+    if (earNow.current === 'off') void open()
+    else if (earNow.current === 'listening') void writeDown()
+  }, [open, writeDown])
+
+  /** Stops whatever is going on and forgets it: voice mode off, or the panel closing. */
+  const drop = useCallback((): void => {
+    turn.current++
+    mic().cancel()
     hear('off')
     setNote(null)
-  }, [voice, press, hear])
+  }, [hear])
+
+  // The mic runs out on its own. Voice mode going off, or the panel closing,
+  // throws away what was being said rather than sending it: `voice` is listed
+  // so the cleanup runs on the way off.
   useEffect(() => {
-    const held = mic()
-    return () => held.cancel()
-  }, [])
+    mic().onTimeout = press
+    return drop
+  }, [voice, press, drop])
 
   // Hands on the keyboard: the same press, without reaching for the mouse.
   useEffect(() => {
     if (!voice) return
     const onKey = (event: KeyboardEvent): void => {
-      if (!(event.metaKey || event.ctrlKey) || !event.shiftKey || event.key.toLowerCase() !== 'm') return
+      // Matched on the physical key, like the editing bridge in main, so a
+      // Cyrillic or Greek layout still has it.
+      if (!(event.metaKey || event.ctrlKey) || !event.shiftKey || event.code !== 'KeyM') return
       event.preventDefault()
-      void press()
+      press()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -405,7 +425,7 @@ function Composer({
    */
   useLayoutEffect(() => {
     setLift((current) => (current === null ? null : Math.min(current, ceiling())))
-  }, [panelHeight, lift])
+  }, [panelHeight, lift, note])
 
   /** Drag the grip to set the height yourself. Click it to hand it back. */
   const resize = (event: ReactPointerEvent): void => {
@@ -457,15 +477,7 @@ function Composer({
             style={lift === null ? undefined : { height: lift }}
             spellCheck={false}
             placeholder={
-              ear === 'opening'
-                ? 'Opening the microphone…'
-                : ear === 'listening'
-                  ? 'Listening…'
-                  : ear === 'writing'
-                    ? 'Writing that down…'
-                    : state.composer.mode === 'chat'
-                      ? 'Ask me anything'
-                      : state.composer.hint
+              EAR_HINT[ear] ?? (state.composer.mode === 'chat' ? 'Ask me anything' : state.composer.hint)
             }
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={(event) => {
@@ -487,7 +499,7 @@ function Composer({
                 : `Speak, or press ${api.platform === 'darwin' ? 'Cmd' : 'Ctrl'}+Shift+M`
             }
             disabled={ear === 'writing' || ear === 'opening'}
-            onClick={() => void press()}
+            onClick={press}
           >
             <Mic className="h-3.5 w-3.5" />
           </button>

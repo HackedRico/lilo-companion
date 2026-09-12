@@ -235,10 +235,13 @@ decodes what was heard and resamples it to 16 kHz mono WAV, the one format
 every server reads with no ffmpeg beside it, and silence is dropped before it
 is sent, because whisper hears words in it. What comes back lands in the
 composer and not in the loop: a misheard word is read and fixed before it is
-sent, rather than answered. Voice mode is the master switch, remembered by the
-renderer alone, and off, the app never asks for the microphone. The
-transcriber does not wait in the model's queue: the student is standing there
-with a sentence in the air.
+sent, rather than answered. Voice mode is the master switch, kept in main's
+preferences beside the rest, and the microphone grant reads it: off, no page
+in the panel can open the microphone, whatever it asks for. A voice address
+typed by the student is sent its own key, or the model's only where it is the
+model's own service, so a whisper server on a spare machine is never handed a
+secret meant for somebody else. The transcriber does not wait in the model's
+queue: the student is standing there with a sentence in the air.
 
 Preferences are a second window rather than part of the thread. The companion is
 one conversation, and typing an API key into a conversation would be absurd. It

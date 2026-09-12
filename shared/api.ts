@@ -42,7 +42,8 @@ export const IN = {
   typed: 'ui:typed',
   openPrefs: 'prefs:open',
   closePrefs: 'prefs:close',
-  revealExtension: 'chrome:reveal'
+  revealExtension: 'chrome:reveal',
+  voice: 'ui:voice'
 } as const
 
 export interface TokenPayload {
@@ -120,6 +121,8 @@ export interface LiloApi {
   connectChrome(): Promise<ChromeSetup>
   chromeStatus(): Promise<ChromeStatus>
   revealExtension(): void
+  /** Voice mode on or off. Main remembers it and says it back in the state. */
+  setVoice(on: boolean): void
   /** One WAV from the microphone, and the words in it or the reason there are none. */
   transcribe(wav: ArrayBuffer): Promise<Heard>
 }

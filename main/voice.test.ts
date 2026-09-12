@@ -1,47 +1,26 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { wavOf } from '../shared/voice.ts'
-import { json } from './llm/fake-fetch.ts'
+import { fakeFetch, formOf, json } from './llm/fake-fetch.ts'
 import { Transcriber } from './voice.ts'
-
-/** Keeps the multipart form each request carried, which the JSON fake cannot read. */
-function wire(answer: () => Response | Promise<Response>): {
-  forms: FormData[]
-  urls: string[]
-  headers: Headers[]
-  fetch: typeof globalThis.fetch
-} {
-  const forms: FormData[] = []
-  const urls: string[] = []
-  const headers: Headers[] = []
-  const fetch = async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
-    const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url
-    // The client probes a fetch it was handed with a data URL once, to learn
-    // whether it can carry a form. That is not a request anyone made.
-    if (url.startsWith('data:')) return new Response('')
-    urls.push(url)
-    headers.push(new Headers(init?.headers))
-    const body = init?.body
-    forms.push(
-      body instanceof FormData
-        ? body
-        : await new Response(body as ConstructorParameters<typeof Response>[0], { headers: init?.headers }).formData()
-    )
-    return answer()
-  }
-  return { forms, urls, headers, fetch: fetch as typeof globalThis.fetch }
-}
 
 const HOSTED = { baseUrl: 'https://host/v1', apiKey: 'sk-test', model: 'whisper-1' }
 const LOCAL = { baseUrl: 'http://localhost:8000/v1', apiKey: '', model: 'small.en' }
 const speech = new Uint8Array(wavOf(new Float32Array([0.2, -0.2, 0.1])))
 
+/** One reply, and what the transcriber made of it. */
+async function heard(config: typeof HOSTED, answer: () => Response | Promise<Response>) {
+  const wire = fakeFetch(answer)
+  return { said: await new Transcriber(config, wire.fetch).hear(speech), wire }
+}
+
 test('speech goes to audio/transcriptions as a wav, with the key and the model', async () => {
-  const w = wire(() => json({ text: '  two sum  ' }))
-  assert.deepEqual(await new Transcriber(HOSTED, w.fetch).hear(speech), { ok: true, text: 'two sum' })
-  assert.equal(w.urls[0], 'https://host/v1/audio/transcriptions')
-  assert.equal(w.headers[0]?.get('authorization'), 'Bearer sk-test')
-  const form = w.forms[0]
+  const { said, wire } = await heard(HOSTED, () => json({ text: '  two sum  ' }))
+  assert.deepEqual(said, { ok: true, text: 'two sum' })
+  const call = wire.calls[0]
+  assert.equal(call?.url, 'https://host/v1/audio/transcriptions')
+  assert.equal(call?.headers.get('authorization'), 'Bearer sk-test')
+  const form = call ? await formOf(call) : null
   assert.equal(form?.get('model'), 'whisper-1')
   assert.equal(form?.get('response_format'), 'json')
   const file = form?.get('file')
@@ -52,51 +31,52 @@ test('speech goes to audio/transcriptions as a wav, with the key and the model',
 })
 
 test('a server on this machine needs no key, and gets the placeholder the client insists on', async () => {
-  const w = wire(() => json({ text: 'hi' }))
-  assert.deepEqual(await new Transcriber(LOCAL, w.fetch).hear(speech), { ok: true, text: 'hi' })
-  assert.equal(w.headers[0]?.get('authorization'), 'Bearer local')
-  assert.equal(w.forms[0]?.get('model'), 'small.en')
+  const { said, wire } = await heard(LOCAL, () => json({ text: 'hi' }))
+  assert.deepEqual(said, { ok: true, text: 'hi' })
+  assert.equal(wire.calls[0]?.headers.get('authorization'), 'Bearer local')
+  const form = wire.calls[0] ? await formOf(wire.calls[0]) : null
+  assert.equal(form?.get('model'), 'small.en')
 })
 
-test('what is missing is said before the wire is tried', async () => {
-  const w = wire(() => json({ text: 'never' }))
-  const nowhere = await new Transcriber({ ...HOSTED, baseUrl: '' }, w.fetch).hear(speech)
-  assert.equal(nowhere.ok, false)
-  const keyless = await new Transcriber({ ...HOSTED, apiKey: '' }, w.fetch).hear(speech)
-  assert.equal(keyless.ok, false)
-  assert.equal(w.urls.length, 0)
+test('with no address, nothing is tried', async () => {
+  const { said, wire } = await heard({ ...HOSTED, baseUrl: '' }, () => json({ text: 'never' }))
+  assert.equal(said.ok, false)
+  assert.equal(wire.calls.length, 0)
 })
 
-test('a refusal, a wrong address and nothing listening each come back as a line', async () => {
-  const refused = await new Transcriber(HOSTED, wire(() => json({ error: { message: 'bad key' } }, 401)).fetch).hear(speech)
-  assert.deepEqual(refused, { ok: false, detail: 'That key was refused.' })
+test('a refusal says whether there was a key to refuse', async () => {
+  const refused = await heard(HOSTED, () => json({ error: { message: 'bad key' } }, 401))
+  assert.deepEqual(refused.said, { ok: false, detail: 'That key was refused.' })
+  const keyless = await heard({ ...HOSTED, apiKey: '' }, () => json({ error: { message: 'no key' } }, 401))
+  assert.deepEqual(keyless.said, { ok: false, detail: 'That address wants a key. Add one under Settings, Model, Voice.' })
+})
 
-  const missing = await new Transcriber(HOSTED, wire(() => json({ error: { message: 'Not Found' } }, 404)).fetch).hear(speech)
-  assert.equal(missing.ok, false)
-  assert.match(missing.ok ? '' : missing.detail, /Nothing at that address transcribes/)
+test('a wrong address, a wrong model, a pause and nothing listening each come back as a line', async () => {
+  const missing = await heard(HOSTED, () => json({ error: { message: 'Not Found' } }, 404))
+  assert.match(missing.said.ok ? '' : missing.said.detail, /Nothing at that address transcribes/)
 
-  const noModel = await new Transcriber(
-    HOSTED,
-    wire(() => json({ error: { message: 'The model `x` does not exist' } }, 404)).fetch
-  ).hear(speech)
-  assert.deepEqual(noModel, { ok: false, detail: 'No model by that name at that address.' })
+  const noModel = await heard(HOSTED, () => json({ error: { message: 'The model `x` does not exist' } }, 404))
+  assert.deepEqual(noModel.said, { ok: false, detail: 'No model by that name at that address.' })
 
-  const down = await new Transcriber(HOSTED, wire(() => Promise.reject(new Error('fetch failed'))).fetch).hear(speech)
-  assert.deepEqual(down, { ok: false, detail: 'Nothing answered at the voice address.' })
+  const busy = await heard(HOSTED, () => json({ error: { message: 'slow down' } }, 429))
+  assert.deepEqual(busy.said, { ok: false, detail: 'The transcriber asked for a pause. Try again in a moment.' })
+
+  const down = await heard(HOSTED, () => Promise.reject(new Error('fetch failed')))
+  assert.deepEqual(down.said, { ok: false, detail: 'Nothing answered at that address.' })
 })
 
 test('silence and a reply with no text in it are said, not sent on', async () => {
-  const silent = await new Transcriber(HOSTED, wire(() => json({ text: '   ' })).fetch).hear(speech)
-  assert.deepEqual(silent, { ok: false, detail: 'I heard nothing in that.' })
-  const wordless = await new Transcriber(HOSTED, wire(() => json({ segments: [] })).fetch).hear(speech)
-  assert.equal(wordless.ok, false)
+  const silent = await heard(HOSTED, () => json({ text: '   ' }))
+  assert.deepEqual(silent.said, { ok: false, detail: 'I heard nothing in that.' })
+  const wordless = await heard(HOSTED, () => json({ segments: [] }))
+  assert.equal(wordless.said.ok, false)
 })
 
 test('settings changed under it are what the next press uses', async () => {
-  const w = wire(() => json({ text: 'ok' }))
-  const transcriber = new Transcriber(HOSTED, w.fetch)
+  const wire = fakeFetch(() => json({ text: 'ok' }))
+  const transcriber = new Transcriber(HOSTED, wire.fetch)
   transcriber.reconfigure(LOCAL)
   assert.equal(transcriber.available, true)
   await transcriber.hear(speech)
-  assert.equal(w.urls[0], 'http://localhost:8000/v1/audio/transcriptions')
+  assert.equal(wire.calls[0]?.url, 'http://localhost:8000/v1/audio/transcriptions')
 })

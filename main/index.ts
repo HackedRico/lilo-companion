@@ -47,6 +47,15 @@ if (!app.requestSingleInstanceLock()) app.quit()
  */
 const TICK = 2000
 
+/** True when both are pages of one origin. Two files are one origin, which is the packaged case. */
+function sameOrigin(a: string, b: string): boolean {
+  try {
+    return new URL(a).origin === new URL(b).origin
+  } catch {
+    return false
+  }
+}
+
 /** A file named on the command line or in .env, so a change can be tried without clicking. */
 function fileArgument(flag: string, variable: string): string | null {
   const at = process.argv.indexOf(flag)
@@ -132,24 +141,35 @@ app.whenReady().then(async () => {
   await bridge.listen().catch((error: unknown) => console.warn(`[lilo] no bridge for chrome: ${String(error)}`))
 
   panel.onExpandedChange = (expanded) => session.setExpanded(expanded)
+  session.updateVoice(prefs.voice)
 
   // The microphone, for the panel, and nothing else: voice mode records there,
   // and only once the student presses the mic. Every other request a page
   // could make, a camera, the screen, a location, is still refused.
   electronSession.defaultSession.setPermissionRequestHandler((contents, permission, decide, details) => {
     const types = 'mediaTypes' in details ? (details.mediaTypes ?? []) : []
-    const granted =
+    const wanted =
       permission === 'media' &&
+      prefs.voice &&
       contents === panel.win.webContents &&
+      details.isMainFrame &&
+      sameOrigin(details.requestingUrl, contents.getURL()) &&
       types.length > 0 &&
       types.every((type) => type === 'audio')
-    // What the OS thinks is the other half of "the mic does nothing", and
-    // Electron can read it on the two platforms that have a switch for it.
-    if (dev && permission === 'media') {
-      const os = process.platform === 'linux' ? 'unknown' : systemPreferences.getMediaAccessStatus('microphone')
-      console.log(`[lilo] microphone ${granted ? 'granted to' : 'refused for'} ${details.requestingUrl}; the OS says ${os}`)
-    }
-    decide(granted)
+    // macOS keeps its own answer, asked once and remembered under System
+    // Settings. Asking here turns a refusal into a clean NotAllowedError in the
+    // renderer rather than a capture that never starts. Windows has one switch
+    // for desktop apps, and Chromium reads it itself.
+    const answer =
+      wanted && process.platform === 'darwin'
+        ? systemPreferences.askForMediaAccess('microphone')
+        : Promise.resolve(wanted)
+    void answer.then((granted) => {
+      if (dev && permission === 'media') {
+        console.log(`[lilo] microphone ${granted ? 'granted to' : 'refused for'} ${details.requestingUrl}`)
+      }
+      decide(granted)
+    })
   })
 
   /** Reads a lecture whole and hands it to the loop. */
@@ -243,6 +263,10 @@ app.whenReady().then(async () => {
     tray.refresh()
   })
   ipcMain.on(IN.dismissWhisper, () => session.dismissWhisper())
+  ipcMain.on(IN.voice, (_event, on: unknown) => {
+    prefs.voice = on === true
+    session.updateVoice(prefs.voice)
+  })
 
   ipcMain.on(IN.dragStart, (_event, at: unknown) => {
     const point = asPoint(at)
