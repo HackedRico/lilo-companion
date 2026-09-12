@@ -179,6 +179,13 @@ app.whenReady().then(async () => {
     console.log(`[lilo] ${ikb.postingCount} postings, model ${llm.available ? llm.config.fast : 'not configured'}`)
   }
 
+  // The first call to a cold endpoint is the slow one: measured against
+  // Featherless, 16s where every call after it was 2.4s. That first call is
+  // the student's first question, so it is spent here instead, on a token
+  // nobody reads. Unasked, so it takes no retries and no backoff, and a
+  // failure means only that the first real call pays what it would have paid.
+  void llm.text({ lane: 'fast', system: 'Reply with one word.', user: 'Ready?', maxTokens: 1, unasked: true }).catch(() => undefined)
+
   ipcMain.on(IN.ready, () => {
     panel.emit(OUT.state, session.state)
     panel.emit(OUT.profile, session.getProfile())
