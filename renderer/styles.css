@@ -845,12 +845,11 @@ button {
 .prefs {
   display: grid;
   grid-template-columns: 190px minmax(0, 1fr);
-  /* Without a bounded row the pane grows to its content and pushes the footer
-     off the window instead of scrolling inside it. */
-  grid-template-rows: minmax(0, 100%);
+  grid-template-rows: 100%;
   height: 100%;
   background: var(--ground);
   color: var(--ink);
+  overflow: hidden;
 }
 
 .rail {
@@ -915,16 +914,18 @@ button {
   display: flex;
   min-width: 0;
   min-height: 0;
+  height: 100%;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .pane-body {
   /* The form answers to the width it is given, not to the window. */
   container-type: inline-size;
-  flex: 1;
+  flex: 1 1 0;
   min-height: 0;
   overflow-y: auto;
-  padding: 34px 32px 30px;
+  padding: 30px 32px 24px;
 }
 
 .pane-inner {
@@ -953,11 +954,12 @@ button {
 }
 
 .pane-foot {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  padding: 13px 32px;
+  padding: 12px 32px;
   border-top: 1px solid var(--rule);
   background: var(--raised);
 }
@@ -1067,12 +1069,16 @@ button {
 }
 
 .action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 5px 12px;
   border: 1px solid var(--rule-strong);
   border-radius: 8px;
   background: var(--well);
   font-size: var(--step-small);
   color: var(--ink);
+  white-space: nowrap;
   transition: all 140ms var(--ease);
 }
 

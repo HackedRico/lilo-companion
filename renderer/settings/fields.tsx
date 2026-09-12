@@ -87,7 +87,8 @@ export function Action({
   tone,
   title,
   on,
-  disabled
+  disabled,
+  className
 }: {
   children: ReactNode
   onClick: () => void
@@ -96,10 +97,11 @@ export function Action({
   /** Marks the one already chosen, where the buttons stand for a choice. */
   on?: boolean
   disabled?: boolean
+  className?: string
 }): ReactElement {
   return (
     <button
-      className="action"
+      className={`action${className ? ` ${className}` : ''}`}
       data-tone={tone}
       data-on={on ? 'true' : undefined}
       title={title}

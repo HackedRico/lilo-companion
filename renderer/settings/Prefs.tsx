@@ -394,13 +394,17 @@ function LeetCodeTab({
         How much help you get on a problem, and the one step that lets Lilo see the page.
       </p>
       <Group title="How much help" note="A ceiling, not a personality. Cheering, and reading the state back, are the same at every level.">
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2.5">
           {TIERS.map((tier) => (
-            <div key={tier} className="flex items-start gap-3">
-              <Action on={profile.tier === tier} onClick={() => save({ tier })}>
+            <div key={tier} className="flex items-center gap-3">
+              <Action
+                className="w-[92px] shrink-0"
+                on={profile.tier === tier}
+                onClick={() => save({ tier })}
+              >
                 {TIER_LABEL[tier]}
               </Action>
-              <p className="m-0 text-[12px] leading-[1.6]" style={{ color: 'var(--dim)' }}>
+              <p className="m-0 text-[12px] leading-[1.5]" style={{ color: 'var(--dim)' }}>
                 {TIER_NOTE[tier]}
               </p>
             </div>
@@ -411,10 +415,7 @@ function LeetCodeTab({
         title="Chrome"
         note="Lilo reads the editor on leetcode.com through a small extension you load once. What it sees goes to the model you configured and nowhere else."
       >
-        <p className="mb-3 text-[12px]" style={{ color: status?.connected ? 'var(--ink)' : 'var(--faint)' }}>
-          {status === null ? 'Asking…' : status.connected ? 'Chrome is connected.' : 'Not connected.'}
-        </p>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2.5">
           <Action
             disabled={connecting}
             onClick={() => {
@@ -428,9 +429,15 @@ function LeetCodeTab({
             {connecting ? 'Setting up…' : 'Set up Chrome'}
           </Action>
           <Action onClick={() => api.revealExtension()}>Show the extension folder</Action>
+          <span
+            className="text-[12px] ml-1.5"
+            style={{ color: status?.connected ? 'var(--ink)' : 'var(--faint)' }}
+          >
+            {status === null ? 'Asking…' : status.connected ? '● Connected' : '○ Not connected'}
+          </span>
         </div>
         {setup && !setup.ok && (
-          <p className="mt-3 text-[12px]" style={{ color: 'var(--live)' }}>
+          <p className="mt-2.5 text-[12px]" style={{ color: 'var(--live)' }}>
             {setup.detail}
           </p>
         )}

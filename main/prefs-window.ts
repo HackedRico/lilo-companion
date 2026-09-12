@@ -21,7 +21,7 @@ export class PrefsWindow {
 
     const win = new BrowserWindow({
       width: 780,
-      height: 600,
+      height: 640,
       minWidth: 620,
       minHeight: 460,
       show: false,
