@@ -1,13 +1,16 @@
 # Lilo
 
-Hear it in class. See it in real jobs. Do it like work.
+A companion for the computer science student who wants the job.
 
-A floating desktop companion for software engineering students, there to keep
-you going toward the job. Hand it a lecture and it tells you where the concept
-turns up at work, with evidence from real software engineering postings, then
-hands you a vague request from a coworker so you can try it the way an
-engineer would. Open a problem on LeetCode and it sits beside you, with help
-at a level you set, so the effort stays yours.
+Lilo sits in the corner of your screen while you do the hard parts of getting
+there, and it stays on your side. Hand it a lecture and it shows you where that
+idea turns up in real software engineering postings, so "I will never use
+this" stops being true. Ask it for work and a coworker sends you a vague
+request, the way one lands on the engineer on a team, and a senior reviews
+what you send back. Open a problem on LeetCode and it sits beside you, says
+what it sees, and helps only as much as you let it, so the effort stays yours.
+
+It cheers when you get there. It does not do the work for you.
 
 It runs on macOS and Windows. The two differ in how a floating window behaves,
 how the menu bar mark is drawn and where keys are kept, and

@@ -5,7 +5,7 @@
   "engines": {
     "node": ">=22.18"
   },
-  "description": "Hear it in class. See it in real jobs. Do it like work.",
+  "description": "A companion for the computer science student who wants the job.",
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
