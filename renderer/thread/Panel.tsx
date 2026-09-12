@@ -75,6 +75,8 @@ export function Panel({
     <section
       className="panel"
       data-solid=""
+      data-corner-side={corner.side}
+      data-corner-edge={corner.edge}
       style={{ left: rect.x, top: rect.y, width: rect.width, height: rect.height }}
     >
       <header className="panel-head">

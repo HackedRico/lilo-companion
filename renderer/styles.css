@@ -302,6 +302,24 @@ button {
   background: var(--raised);
 }
 
+/* Leave breathing room for the free drag handle in whichever corner it occupies,
+   so the handle never collides with or overlaps header buttons or composer controls. */
+.panel[data-corner-edge='up'][data-corner-side='right'] .panel-head {
+  padding-right: 39px;
+}
+
+.panel[data-corner-edge='up'][data-corner-side='left'] .panel-head {
+  padding-left: 39px;
+}
+
+.panel[data-corner-edge='down'][data-corner-side='right'] .composer {
+  padding-right: 39px;
+}
+
+.panel[data-corner-edge='down'][data-corner-side='left'] .composer {
+  padding-left: 39px;
+}
+
 .icon-button {
   display: grid;
   place-items: center;
