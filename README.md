@@ -32,10 +32,9 @@ pick models. Nothing needs to be configured before the app starts.
 
 ## Settings and profile
 
-**You** is the profile: what you study, what you are aiming at, your courses
-and interests, and what the companion has already read back to you. That last
-list is what stops the recap offering something as a gap when you have already
-met it.
+**You** is the profile: what you study, what you are aiming at, and what the
+companion has already read back to you. That last list is what stops the recap
+offering something as a gap when you have already met it.
 
 **The model** is a protocol, an address, a key and two model names, all yours
 to type. The protocol is how the endpoint speaks, OpenAI chat completions or
