@@ -85,6 +85,20 @@ test('a promise with nothing after it is refused rather than said', () => {
   assert.deepEqual(gate(promise, 5, working), { ok: false, reason: 'promise' })
   const kept: Hint = { rung: 5, say: "Here's the working code:\nseen = {}\nfor i, n in enumerate(nums): ...", lines: [], names: [] }
   assert.deepEqual(gate(kept, 5, working), { ok: true })
-  const question: Hint = { rung: 1, say: 'What do you need to have seen before n:', lines: [], names: [] }
-  assert.deepEqual(gate(question, 3, working), { ok: true }, 'a low rung is not a promise of anything')
+  const naming: Hint = { rung: 2, say: 'The idea here has a name: the one pass with a map.', lines: [], names: [] }
+  assert.deepEqual(gate(naming, 3, working), { ok: true }, 'a low rung promises nothing, colon or not')
+})
+
+test('a statement about their code cannot arrive labelled as a question', () => {
+  const mislabelled: Hint = {
+    rung: 1,
+    say: "Your code counts brackets but never checks that they match in order.",
+    lines: [],
+    names: []
+  }
+  assert.deepEqual(gate(mislabelled, 2, working), { ok: false, reason: 'not_a_question' })
+  const asked: Hint = { ...mislabelled, say: 'What would tell you the brackets closed in the right order?' }
+  assert.deepEqual(gate(asked, 2, working), { ok: true })
+  const owned: Hint = { ...mislabelled, rung: 3, names: ['seen'] }
+  assert.deepEqual(gate(owned, 2, working), { ok: false, reason: 'too_high' }, 'reported honestly, the ceiling catches it')
 })

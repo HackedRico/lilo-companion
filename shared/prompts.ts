@@ -146,7 +146,7 @@ export interface CoachInput {
   /** What the student asked, or null when the companion is volunteering. */
   question: string | null
   /** Why the last reply was refused, when this is the second try. */
-  retry: 'too_high' | 'unverified' | 'promise' | null
+  retry: 'too_high' | 'unverified' | 'promise' | 'not_a_question' | null
 }
 
 /** The student's code with the line numbers the hint has to use. */
@@ -170,14 +170,17 @@ export function coachHint(input: CoachInput): Prompt {
         ? 'Your last reply pointed at a line or a name that is not in their code. Point only at what is there, or return an empty say.'
         : input.retry === 'promise'
           ? 'Your last reply announced help and then gave none. Put the whole of it in say this time, the code included.'
-          : ''
+          : input.retry === 'not_a_question'
+            ? 'Your last reply called itself rung 1 and was not a question. Ask a real question this time, or report the rung it actually is.'
+            : ''
   return {
     system: `${VOICE}
 
 A software engineering student is working a LeetCode problem and you are beside them. You help at a level they set, so the effort stays theirs.
 
 The ladder, by how much of the answer a line gives away:
-0 say what you see. 1 a question to think about. 2 name the idea. 3 where their own code goes wrong, and why. 4 the steps. 5 the answer.
+0 say what you see. 1 a question to think about, which ends in a question mark. 2 name the idea. 3 where their own code goes wrong, and why. 4 the steps. 5 the answer.
+Telling them what their code gets wrong is rung 3 however gently it is put, and calling it rung 1 does not make it one.
 Their ceiling right now is rung ${input.ceiling}. Reply at the lowest rung that moves them, never above the ceiling. The rung you report is checked in code, and a reply above the ceiling is thrown away unsaid.
 
 Rules:

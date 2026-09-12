@@ -37,7 +37,7 @@ export function nextRung(ceiling: Rung, last: Climb | null, work: Work, now: num
 
 export type Gate =
   | { ok: true }
-  | { ok: false; reason: 'too_high' | 'unverified' | 'generic' | 'empty' | 'promise' }
+  | { ok: false; reason: 'too_high' | 'unverified' | 'generic' | 'empty' | 'promise' | 'not_a_question' }
 
 /**
  * Whether a hint may be said. Above the ceiling is never said. A line number
@@ -56,6 +56,11 @@ export function gate(hint: Hint, ceiling: Rung, work: Work): Gate {
   // "Here is the working code:" with nothing after it is worse than refusing,
   // because the student is told help is coming and then handed nothing.
   if (hint.rung >= 4 && /:\s*$/.test(hint.say)) return { ok: false, reason: 'promise' }
+  // The ceiling is checked against a rung the model chose, so the one rung with
+  // a shape worth checking is checked: rung 1 is a question or it is not rung 1.
+  // Without this, "your code never matches the brackets" arrives labelled as
+  // something to think about, and the lowest tiers quietly give more than they say.
+  if (hint.rung === 1 && !hint.say.includes('?')) return { ok: false, reason: 'not_a_question' }
   return { ok: true }
 }
 
