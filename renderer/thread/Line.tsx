@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react'
 import type { ThreadItem } from '../../shared/types.ts'
+import { RUNG_LABEL } from '../../shared/leetcode.ts'
 import { api } from '../api.ts'
 
 /**
@@ -17,6 +18,8 @@ export function Line({ item }: { item: ThreadItem }): ReactElement {
   return (
     <div className="arriving">
       <p className={`said${item.streaming ? ' caret' : ''}`}>{item.text}</p>
+      {/* Every hint carries its rung, so the student can see what it cost them. */}
+      {item.rung !== undefined && <span className="meta">{RUNG_LABEL[item.rung]}</span>}
       <Evidence item={item} />
       <Sources item={item} />
     </div>

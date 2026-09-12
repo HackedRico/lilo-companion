@@ -27,15 +27,19 @@ import { asPoint, asSize, asText } from './guards.ts'
 import { ModelCatalogue, SettingsStore, osKeychain, testConnection } from './settings.ts'
 import { Prefs } from './store.ts'
 import { readLecture } from './lecture.ts'
+import { Recorder, readRecording, replay } from './leetcode/recording.ts'
 import { Session } from './session.ts'
 import { installTray } from './tray.ts'
 
 if (!app.requestSingleInstanceLock()) app.quit()
 
-/** A lecture to read on launch, so a change can be tried without clicking. */
-function lectureArgument(): string | null {
-  const flag = process.argv.indexOf('--lecture')
-  const given = flag >= 0 ? process.argv[flag + 1] : process.env['LECTURE_FILE']
+/** How often the LeetCode practice is asked whether a hint is earned. */
+const TICK = 15000
+
+/** A file named on the command line or in .env, so a change can be tried without clicking. */
+function fileArgument(flag: string, variable: string): string | null {
+  const at = process.argv.indexOf(flag)
+  const given = at >= 0 ? process.argv[at + 1] : process.env[variable]
   return given ?? null
 }
 
@@ -53,6 +57,10 @@ app.whenReady().then(async () => {
     : join(app.getAppPath(), 'data')
 
   const prefs = new Prefs()
+  // One file per day. Nothing in it but what the page reported and what was asked.
+  const recorder = new Recorder(
+    join(app.getPath('userData'), 'leetcode', `${new Date().toISOString().slice(0, 10)}.jsonl`)
+  )
   const settings = new SettingsStore(prefs, osKeychain(safeStorage))
   const catalogue = new ModelCatalogue(providerFor)
   const llm = new ModelService(settings.llmConfig(), providerFor)
@@ -90,7 +98,8 @@ app.whenReady().then(async () => {
     loadProfile: () => prefs.profile,
     saveProfile: (profile) => {
       prefs.profile = profile
-    }
+    },
+    record: (event) => recorder.write(event)
   })
 
   panel.onExpandedChange = (expanded) => session.setExpanded(expanded)
@@ -152,9 +161,18 @@ app.whenReady().then(async () => {
     // Lets the preferences window be worked on against the real keychain and
     // the real settings file, without hunting for the menu bar every reload.
     if (dev && process.env['LILO_OPEN_PREFS']) prefsWindow.open()
-    const file = lectureArgument()
+    const file = fileArgument('--lecture', 'LECTURE_FILE')
     if (file) openLecture(file)
+    // A recorded LeetCode session, played through the practice with no browser.
+    const recording = fileArgument('--work-recording', 'WORK_RECORDING')
+    if (recording) {
+      void readRecording(recording)
+        .then((events) => replay(events, (event) => session.observe(event)))
+        .catch(() => void session.trouble(`I could not read ${recording}.`))
+    }
   })
+
+  const tick = setInterval(() => void session.leetcode.tick(), TICK)
 
   ipcMain.on(IN.lectureOpen, () => void pickLecture())
   ipcMain.on(IN.notes, (_event, text: unknown) => void session.useNotes(asText(text)))
@@ -259,6 +277,7 @@ app.whenReady().then(async () => {
   })
 
   app.on('before-quit', () => {
+    clearInterval(tick)
     globalShortcut.unregisterAll()
   })
 

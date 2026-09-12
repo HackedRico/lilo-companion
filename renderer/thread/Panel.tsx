@@ -166,7 +166,7 @@ function Aim({ state }: { state: CompanionState }): ReactElement | null {
     <div className="aim arriving">
       <Arrow />
       <span className="meta">
-        {mode === 'reply' ? 'Answering' : mode === 'ask' ? 'Asking' : 'About you'}
+        {mode === 'reply' ? 'Answering' : mode === 'ask' ? 'Asking' : mode === 'leetcode' ? 'On the problem' : 'About you'}
       </span>
       {who && <span className="aim-who">{who}</span>}
     </div>

@@ -23,7 +23,8 @@ const EMPTY_PROFILE: Profile = {
   targetRoles: [],
   interests: [],
   roleAffinity: {},
-  heardTerms: []
+  heardTerms: [],
+  tier: 'coach'
 }
 
 interface AppStore {

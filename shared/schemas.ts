@@ -69,9 +69,22 @@ export const profileOut = z.object({
   interests: z.array(z.string().max(60)).max(8)
 })
 
+/**
+ * A hint from the coach. The rung is the model's own claim about how much it
+ * gave away; the gate in main/leetcode/ladder.ts is what decides whether the
+ * hint is said, so the bounds here only keep the shape honest.
+ */
+export const hintOut = z.object({
+  rung: z.number().int().min(0).max(5),
+  say: z.string().max(400),
+  lines: z.array(z.number().int()).max(6),
+  names: z.array(z.string().max(40)).max(6)
+})
+
 export type ConceptsOut = z.infer<typeof conceptsOut>
 export type TermsOut = z.infer<typeof termsOut>
 export type ScenarioOut = z.infer<typeof scenarioOut>
 export type RevealOut = z.infer<typeof revealOut>
 export type ReviewOut = z.infer<typeof reviewOut>
 export type ProfileOut = z.infer<typeof profileOut>
+export type HintOut = z.infer<typeof hintOut>

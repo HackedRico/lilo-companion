@@ -4,6 +4,7 @@ import { resolve } from 'node:path'
 import type { ZodType } from 'zod'
 import {
   conceptsOut,
+  hintOut,
   profileOut,
   revealOut,
   reviewOut,
@@ -99,6 +100,9 @@ class ScriptedLlm implements LlmLike {
     }
     if (schema === profileOut) {
       return { major: 'Computer Science', year: 'junior', courses: [], targetRoles: ['swe'], interests: [] }
+    }
+    if (schema === hintOut) {
+      return { rung: 1, say: 'What do you need to have seen before n to answer at n?', lines: [], names: [] }
     }
     throw new Error('no scripted reply for that schema')
   }
@@ -267,4 +271,26 @@ test('a citation the retriever never returned is stripped from the answer', asyn
   const answer = thread.at(-1)!
   assert.doesNotMatch(answer.text, /\[S:/, 'the markers never reach the student')
   assert.deepEqual(answer.citations, [], 'and an invented id is not credited')
+})
+
+test('a problem in view takes the composer, and what is typed reaches the coach', async () => {
+  const llm = new ScriptedLlm()
+  const { session, thread } = harness(llm, ikb)
+  await session.observe({
+    kind: 'opened',
+    at: Date.now(),
+    problem: { slug: 'two-sum', title: 'Two Sum', difficulty: 'Easy', statement: 'Find two numbers.' }
+  })
+  assert.equal(session.state.composer.mode, 'leetcode')
+  assert.match(thread.at(-1)!.text, /^Two Sum, easy\./, 'the state is said first, in plain words')
+
+  await session.observe({ kind: 'changed', at: Date.now(), code: 'def twoSum(nums, target):\n    pass', language: 'python' })
+  await session.typed('is a loop the right shape here')
+  const asked = llm.lastAsk('LeetCode problem')
+  assert.ok(asked, 'the coach was asked, not the companion chat')
+  assert.match(asked.system, /ceiling right now is rung 3/, 'at the tier the student picked, coach')
+  assert.equal(thread.at(-1)!.rung, 1, 'and the hint carries its rung')
+
+  await session.observe({ kind: 'closed', at: Date.now() })
+  assert.equal(session.state.composer.mode, 'chat')
 })

@@ -1,3 +1,5 @@
+import type { Rung, Tier } from './leetcode.ts'
+
 // Domain -----------------------------------------------------------------
 
 /**
@@ -128,6 +130,8 @@ export interface Profile {
   interests: string[]
   roleAffinity: Record<string, number>
   heardTerms: string[]
+  /** How much help the companion may give on LeetCode. The student picks it. */
+  tier: Tier
 }
 
 export interface Recap {
@@ -164,6 +168,8 @@ export interface ThreadItem {
   sources?: Evidence[]
   /** An earlier answer shown beside a new one, after a lock-in. */
   priorAnswer?: { text: string; at: number }
+  /** Set on a LeetCode hint, so the thread can say how much it gave away. */
+  rung?: Rung
 }
 
 export type Intent =
@@ -180,6 +186,10 @@ export type Intent =
   | { kind: 'onboarded' }
   | { kind: 'reonboard' }
   | { kind: 'profile' }
+  | { kind: 'hint' }
+  | { kind: 'quiet' }
+  | { kind: 'state' }
+  | { kind: 'better' }
 
 /** Phrased the way the student would say it, never as a feature name. */
 export interface Suggestion {
@@ -202,7 +212,7 @@ export type OrbState = 'idle' | 'thinking' | 'alert' | 'cheering'
  * the coworker; the answer itself only goes in once they say they are ready.
  */
 export interface ComposerMode {
-  mode: 'chat' | 'ask' | 'reply' | 'onboarding'
+  mode: 'chat' | 'ask' | 'reply' | 'onboarding' | 'leetcode'
   hint: string
   /** Who is being written to, named rather than parsed back out of the hint. */
   who: string | null

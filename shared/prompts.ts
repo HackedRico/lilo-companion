@@ -1,5 +1,6 @@
 import { labelRoles, ROLE_LABEL } from './types.ts'
 import type { Card, HiddenFact, Posting, Profile, Scenario, Sentence } from './types.ts'
+import type { Problem, Rung } from './leetcode.ts'
 
 export interface Prompt {
   system: string
@@ -221,5 +222,70 @@ swe is for software engineering with no track named.
 ${JSON_ONLY}
 Schema: {"major":string,"year":string,"courses":[string],"targetRoles":[string],"interests":[string]}`,
     user: history.map((turn) => `${turn.role}: ${turn.text}`).join('\n')
+  }
+}
+
+// LeetCode ---------------------------------------------------------------
+
+export interface CoachInput {
+  problem: Problem
+  /** The state read back in plain words, said to the student before this. */
+  state: string
+  code: string
+  language: string
+  ceiling: Rung
+  /** What the student asked, or null when the companion is volunteering. */
+  question: string | null
+  /** Why the last reply was refused, when this is the second try. */
+  retry: 'too_high' | 'unverified' | null
+}
+
+/** The student's code with the line numbers the hint has to use. */
+function numbered(code: string): string {
+  return code
+    .split('\n')
+    .map((line, index) => `${String(index + 1).padStart(3)}  ${line}`)
+    .join('\n')
+}
+
+/**
+ * The coach beside a LeetCode problem. The ceiling is stated and the rung is
+ * asked for, but neither is trusted: the gate checks the rung, the line
+ * numbers and the names against the code before anything is said.
+ */
+export function coachHint(input: CoachInput): Prompt {
+  const again =
+    input.retry === 'too_high'
+      ? `Your last reply was above the ceiling. Stay at or below rung ${input.ceiling} this time, or return an empty say.`
+      : input.retry === 'unverified'
+        ? 'Your last reply pointed at a line or a name that is not in their code. Point only at what is there, or return an empty say.'
+        : ''
+  return {
+    system: `${VOICE}
+
+A software engineering student is working a LeetCode problem and you are beside them. You help at a level they set, so the effort stays theirs.
+
+The ladder, by how much of the answer a line gives away:
+0 say what you see. 1 a question to think about. 2 name the idea. 3 where their own code goes wrong, and why. 4 the steps. 5 the answer.
+Their ceiling right now is rung ${input.ceiling}. Reply at the lowest rung that moves them, never above the ceiling. The rung you report is checked in code, and a reply above the ceiling is thrown away unsaid.
+
+Rules:
+- Finish their idea first. Until their own approach works, help that approach. A better approach waits until theirs works.
+- Specific or silent. If a line could be said about anyone's code, do not say it. Point at the line numbers and names in their code, and every one you name is checked against it.
+- Never write code unless the rung is 5 and they asked for the answer outright. Never paste their code back at them.
+- Encouragement is not a hint, so do not pad with it. One or two sentences.
+- lines holds the line numbers you are talking about, names the identifiers, both taken only from their code. Both stay empty at rungs 0 to 2 unless one line is the point.
+${again}
+${JSON_ONLY}
+Schema: {"rung":0|1|2|3|4|5,"say":string,"lines":[number],"names":[string]}`,
+    user: `Problem: ${input.problem.title} (${input.problem.difficulty})
+${input.problem.statement.slice(0, 3000)}
+
+What you see: ${input.state}
+
+Their code, ${input.language || 'language unknown'}, with line numbers:
+${numbered(input.code) || '(nothing written yet)'}
+
+${input.question ? `They asked: "${input.question}"` : 'Nobody asked. You are volunteering, so the lowest rung that moves them is the right one.'}`
   }
 }

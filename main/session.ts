@@ -24,6 +24,8 @@ import { askCompanion } from './chat/companion.ts'
 import { EMPTY_PROFILE, profileFromChat, summarise, withHeardTerms, withSignal } from './profile.ts'
 import { Transcript } from './transcript.ts'
 import { firstMatch } from './watch.ts'
+import type { Mark, WorkEvent } from '../shared/leetcode.ts'
+import { BETTER_QUESTION, LeetCodePractice } from './leetcode/practice.ts'
 
 /** How fast the companion talks, and how long it pauses between turns. */
 const WORD_MS = 26
@@ -49,6 +51,10 @@ export interface SessionDeps {
   saveProfile(profile: Profile): void
   /** How fast the companion talks. Tests set both to zero. */
   pace?: { word: number; turn: number }
+  /** A mark on the student's LeetCode editor, when a page is connected. */
+  mark?(mark: Mark): void
+  /** Every LeetCode event, written down so a session can be replayed. */
+  record?(event: WorkEvent): Promise<void> | void
 }
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
@@ -90,11 +96,43 @@ export class Session {
 
   private readonly pace: { word: number; turn: number }
 
+  /** The second practice, beside the lecture. It speaks through the same thread. */
+  readonly leetcode: LeetCodePractice
+
   constructor(deps: SessionDeps) {
     this.deps = deps
     this.pace = deps.pace ?? { word: WORD_MS, turn: TURN_PAUSE }
     this.profile = deps.loadProfile()
     this.state.onboarded = this.profile.major.length > 0 || this.profile.targetRoles.length > 0
+    this.leetcode = new LeetCodePractice({
+      llm: deps.llm,
+      tier: () => this.profile.tier,
+      record: deps.record,
+      nextId,
+      voice: {
+        say: (text, extra) => this.say(text, extra),
+        suggest: (suggestions) => this.suggest(suggestions),
+        orb: (orb) => this.patch({ orb }),
+        mark: (mark) => deps.mark?.(mark),
+        focus: (problem) => this.focusProblem(problem)
+      }
+    })
+  }
+
+  /** A LeetCode problem in view takes the composer; leaving it hands it back. */
+  private focusProblem(problem: string | null): void {
+    if (problem) {
+      this.patch({ composer: { mode: 'leetcode', hint: `Ask about ${problem}`, who: null, scenarioId: null } })
+      return
+    }
+    if (this.state.composer.mode === 'leetcode') {
+      this.patch({ composer: { mode: 'chat', hint: 'Ask me anything', who: null, scenarioId: null } })
+    }
+  }
+
+  /** What the page reported, or what the student asked of the practice. */
+  observe(event: WorkEvent): Promise<void> {
+    return this.leetcode.observe(event)
   }
 
   // Speaking -------------------------------------------------------------
@@ -548,6 +586,10 @@ export class Session {
   async typed(text: string): Promise<void> {
     const { mode, scenarioId } = this.state.composer
     if (mode === 'onboarding') return this.onboardingTurn(text)
+    if (mode === 'leetcode') {
+      this.heardFromStudent(text)
+      return this.observe({ kind: 'asked', at: Date.now(), text })
+    }
     if (mode === 'ask' && scenarioId) return this.askStakeholder(scenarioId, text)
     if (mode === 'reply' && scenarioId) return this.submitScenario(scenarioId, text)
     return this.chat(text)
@@ -669,6 +711,19 @@ export class Session {
         ])
         return
       }
+      case 'hint':
+        this.suggest([])
+        return this.observe({ kind: 'help', at: Date.now() })
+      case 'quiet':
+        this.suggest([])
+        return this.observe({ kind: 'quiet', at: Date.now() })
+      case 'state':
+        await this.say(this.leetcode.state())
+        return
+      case 'better':
+        this.suggest([])
+        this.heardFromStudent(BETTER_QUESTION)
+        return this.observe({ kind: 'asked', at: Date.now(), text: BETTER_QUESTION })
       case 'reonboard':
         this.onboardingTurns.length = 0
         this.suggest([])
@@ -704,9 +759,12 @@ export class Session {
   }
 
   updateProfile(patch: Partial<Profile>): void {
+    const before = this.profile.tier
     this.profile = { ...this.profile, ...patch }
     this.deps.saveProfile(this.profile)
     this.patch({ onboarded: true })
+    // The ceiling is an event like any other, so a recording carries it.
+    if (patch.tier && patch.tier !== before) void this.observe({ kind: 'ceiling', at: Date.now(), tier: patch.tier })
   }
 
   /** Transcripts do not outlive the session that made them. */
