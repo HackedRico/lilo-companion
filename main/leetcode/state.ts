@@ -21,6 +21,9 @@ export interface Work {
   quietUntil: number | null
 }
 
+/** How long the same verdict, with the same detail, is the same run answered twice. */
+const SAME_RUN_MS = 20_000
+
 export const EMPTY_WORK: Work = {
   problem: null,
   code: '',
@@ -68,8 +71,20 @@ export function fold(work: Work, event: WorkEvent): Work {
       return { ...work, code: event.code, language: event.language, changedAt: event.at }
     case 'pending':
       return { ...work, pendingAt: event.at }
-    case 'outcome':
+    case 'outcome': {
+      // The page polls one check URL until the run settles, and answers with
+      // the same verdict on every poll after it does. Three of those arrived
+      // for one submission and the companion cheered three times in a row.
+      const again =
+        work.outcome !== null &&
+        work.outcomeAt !== null &&
+        event.at - work.outcomeAt < SAME_RUN_MS &&
+        work.outcome.verdict === event.outcome.verdict &&
+        work.outcome.detail === event.outcome.detail &&
+        work.outcome.output === event.outcome.output
+      if (again) return work
       return { ...work, pendingAt: null, outcome: event.outcome, outcomeAt: event.at, attempts: work.attempts + 1 }
+    }
     case 'attention':
       return { ...work, inFront: event.inFront }
     case 'ceiling':

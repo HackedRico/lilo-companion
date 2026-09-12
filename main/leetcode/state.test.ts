@@ -98,3 +98,20 @@ test('time reads the way a person would say it', () => {
   assert.equal(ago(0, 60000 * 3), '3 minutes ago')
   assert.equal(ago(0, 60000), '1 minute ago')
 })
+
+test('the same verdict twice is one run, not two', () => {
+  // The page polls one check URL until the run settles and keeps answering
+  // SUCCESS afterwards, so the companion cheered three times for one submit.
+  const accepted = { verdict: 'accepted' as const, detail: '' }
+  const opened = fold(EMPTY_WORK, { kind: 'opened', at: 0, problem: PROBLEM })
+  const once = fold(opened, { kind: 'outcome', at: 1000, outcome: accepted })
+  const twice = fold(once, { kind: 'outcome', at: 1400, outcome: accepted })
+  assert.equal(twice, once, 'the second changes nothing at all')
+  assert.equal(twice.attempts, 1)
+
+  const later = fold(once, { kind: 'outcome', at: 60_000, outcome: accepted })
+  assert.equal(later.attempts, 2, 'but submitting again later is another run')
+
+  const different = fold(once, { kind: 'outcome', at: 1400, outcome: { verdict: 'wrong_answer', detail: '' } })
+  assert.equal(different.attempts, 2, 'and a different verdict is always its own')
+})

@@ -135,6 +135,10 @@ export class LeetCodePractice {
         voice.suggest([])
         return
       case 'outcome':
+        // The same verdict twice is the page answering the same poll again, and
+        // fold hands back what it already had. Nothing new happened, so nothing
+        // is said about it.
+        if (this.work === before) return
         if (event.outcome.verdict === 'accepted') {
           voice.orb('cheering')
           await voice.say('Accepted. That one is yours.')
