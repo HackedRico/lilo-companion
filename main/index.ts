@@ -180,9 +180,19 @@ app.whenReady().then(async () => {
       .catch(() => void session.trouble(`I could not read ${path}.`))
   }
 
-  /** Any transcript on disk will do, so the file is chosen rather than shipped. */
+  /**
+   * Any transcript on disk will do, so the file is chosen rather than shipped.
+   *
+   * Hiding the Dock makes Lilo an accessory app, and an accessory app is never
+   * the active one, so the picker opened behind whatever the student was
+   * looking at and the button read as dead. Verified on macOS: the handler ran
+   * and the dialog sat open, unseen. The panel is its parent now, which makes
+   * it a sheet on the panel rather than a window of its own, and the app is
+   * brought forward first so that sheet is somewhere the student is looking.
+   */
   async function pickLecture(): Promise<void> {
-    const picked = await dialog.showOpenDialog({
+    app.focus({ steal: true })
+    const picked = await dialog.showOpenDialog(panel.win, {
       // The hint rides in the title, which every platform shows; message is macOS only.
       title: 'Upload a lecture: a transcript, slides, or notes',
       filters: [
