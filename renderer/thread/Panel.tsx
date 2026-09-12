@@ -109,6 +109,7 @@ export function Panel({
           <button className="lecture-button" title="Upload a lecture" onClick={() => api.openLecture()}>
             <span className="meta">Upload a lecture</span>
           </button>
+          <PracticeToggle on={state.practice} />
           <VoiceToggle on={state.voice} />
         </span>
         <span className="flex items-center gap-3">
@@ -161,6 +162,35 @@ export function Panel({
       <Aim state={state} />
       <Composer state={state} room={scroller} panelHeight={rect.height} />
     </section>
+  )
+}
+
+/**
+ * The LeetCode practice, the same switch as voice mode and for the same
+ * reason. A problem left open in another window otherwise takes the composer
+ * and answers everything as coaching, so a session about a lecture stops being
+ * about the lecture.
+ */
+function PracticeToggle({ on }: { on: boolean }): ReactElement {
+  return (
+    <button
+      className="lecture-button flex items-center gap-1.5"
+      data-on={on ? 'true' : undefined}
+      aria-label="LeetCode practice"
+      aria-pressed={on}
+      title={
+        on
+          ? 'LeetCode coaching is on. Click to leave the problem alone.'
+          : 'LeetCode coaching is off. Click to have it read the problem you are on.'
+      }
+      onClick={() => api.setPractice(!on)}
+    >
+      <Brackets />
+      <span className="meta" data-below="bare">
+        <span data-below="tight">LeetCode </span>
+        {on ? 'on' : 'off'}
+      </span>
+    </button>
   )
 }
 
@@ -525,6 +555,20 @@ function Mic({ className = 'h-3 w-3' }: { className?: string }): ReactElement {
     >
       <rect x="5.75" y="1.75" width="4.5" height="7.5" rx="2.25" />
       <path d="M3.5 7.5a4.5 4.5 0 0 0 9 0M8 12v2.25M6 14.25h4" />
+    </svg>
+  )
+}
+
+function Brackets({ className = 'h-3 w-3' }: { className?: string }): ReactElement {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      className={`${className} shrink-0 fill-none stroke-current`}
+      strokeWidth={1.35}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M6 2.5 3 5.5v2L1.75 8 3 8.5v2l3 3M10 2.5l3 3v2L14.25 8 13 8.5v2l-3 3" />
     </svg>
   )
 }

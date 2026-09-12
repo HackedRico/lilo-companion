@@ -632,3 +632,27 @@ test('a file the model finds nothing in is said plainly, not as a schema error',
   assert.match(said, /not enough in that for me to work with/)
   assert.doesNotMatch(said, /schema|expected|invalid_type|undefined/i)
 })
+
+test('with the practice switched off, a problem on screen does not take the session', async () => {
+  // A problem left open in another window took the composer and answered every
+  // typed line as coaching, so a session about a lecture stopped being one.
+  const llm = new ScriptedLlm()
+  const { session } = harness(llm, ikb)
+  session.updatePractice(false)
+  await session.observe({ kind: 'opened', at: Date.now(), problem: { slug: 'two-sum', title: 'Two Sum', difficulty: 'Easy', statement: 'add up to target' } })
+
+  assert.equal(session.state.composer.mode, 'chat')
+  await session.typed('what roles use this at work?')
+  assert.ok(llm.lastAsk("never do a student's homework"), 'answered as a question, not as coaching')
+})
+
+test('switching the practice off hands the composer back', async () => {
+  const llm = new ScriptedLlm()
+  const { session } = harness(llm, ikb)
+  await session.observe({ kind: 'opened', at: Date.now(), problem: { slug: 'two-sum', title: 'Two Sum', difficulty: 'Easy', statement: 'add up to target' } })
+  assert.equal(session.state.composer.mode, 'leetcode')
+
+  session.updatePractice(false)
+  assert.equal(session.state.composer.mode, 'chat')
+  assert.equal(session.state.practice, false)
+})

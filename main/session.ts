@@ -107,7 +107,8 @@ export class Session {
     composer: { mode: 'chat', hint: 'Ask me anything' },
     onboarded: false,
     modelConfigured: false,
-    voice: false
+    voice: false,
+    practice: true
   }
 
   private readonly deps: SessionDeps
@@ -174,6 +175,9 @@ export class Session {
 
   /** What the page reported, or what the student asked of the practice. */
   observe(event: WorkEvent): Promise<void> {
+    // Switched off, the page may carry on reporting and none of it is acted on.
+    // The tier is the exception: what it is set to is remembered either way.
+    if (!this.state.practice && event.kind !== 'ceiling') return Promise.resolve()
     return this.leetcode.observe(event)
   }
 
@@ -184,6 +188,16 @@ export class Session {
   /** Voice mode, as main remembers it. */
   updateVoice(on: boolean): void {
     this.patch({ voice: on })
+  }
+
+  /**
+   * The LeetCode practice, on or off. Off, a problem left open in another
+   * window stops taking the composer and nothing the page says is acted on, so
+   * a session about a lecture stays about the lecture.
+   */
+  updatePractice(on: boolean): void {
+    this.patch({ practice: on })
+    if (!on) this.focusProblem(null)
   }
 
   // Speaking -------------------------------------------------------------

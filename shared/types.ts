@@ -194,6 +194,12 @@ export interface CompanionState {
   modelConfigured: boolean
   /** Voice mode, kept by main, so the microphone grant can read it too. */
   voice: boolean
+  /**
+   * Whether the LeetCode practice is switched on. Off, nothing the page
+   * reports is acted on and the composer stays a composer, so a session about
+   * a lecture is not taken over by a problem left open in another window.
+   */
+  practice: boolean
 }
 
 // The window -------------------------------------------------------------

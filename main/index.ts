@@ -143,6 +143,7 @@ app.whenReady().then(async () => {
 
   panel.onExpandedChange = (expanded) => session.setExpanded(expanded)
   session.updateVoice(prefs.voice)
+  session.updatePractice(prefs.practice)
 
   // The microphone, for the panel, and nothing else: voice mode records there,
   // and only once the student presses the mic. Every other request a page
@@ -296,6 +297,10 @@ app.whenReady().then(async () => {
     tray.refresh()
   })
   ipcMain.on(IN.dismissWhisper, () => session.dismissWhisper())
+  ipcMain.on(IN.practice, (_event, on: unknown) => {
+    prefs.practice = on === true
+    session.updatePractice(prefs.practice)
+  })
   ipcMain.on(IN.voice, (_event, on: unknown) => {
     prefs.voice = on === true
     session.updateVoice(prefs.voice)

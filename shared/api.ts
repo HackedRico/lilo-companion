@@ -44,7 +44,8 @@ export const IN = {
   openPrefs: 'prefs:open',
   closePrefs: 'prefs:close',
   revealExtension: 'chrome:reveal',
-  voice: 'ui:voice'
+  voice: 'ui:voice',
+  practice: 'ui:practice'
 } as const
 
 export interface TokenPayload {
@@ -130,6 +131,8 @@ export interface LiloApi {
   revealExtension(): void
   /** Voice mode on or off. Main remembers it and says it back in the state. */
   setVoice(on: boolean): void
+  /** Turns the LeetCode practice on and off. */
+  setPractice(on: boolean): void
   /** One WAV from the microphone, and the words in it or the reason there are none. */
   transcribe(wav: ArrayBuffer): Promise<Heard>
 }

@@ -30,6 +30,8 @@ interface Saved {
   settings: SavedSettings
   /** Voice mode. Off, nothing in the app may open the microphone. */
   voice: boolean
+  /** The LeetCode practice. On unless it was turned off, since it is half the app. */
+  practice: boolean
 }
 
 /**
@@ -40,7 +42,7 @@ interface Saved {
 export class Prefs {
   private readonly store = new Store<Saved>({
     name: 'lilo',
-    defaults: { orb: null, panel: null, profile: EMPTY_PROFILE, settings: {}, voice: false }
+    defaults: { orb: null, panel: null, profile: EMPTY_PROFILE, settings: {}, voice: false, practice: true }
   })
 
   get orb(): Point | null {
@@ -81,6 +83,14 @@ export class Prefs {
 
   set voice(value: boolean) {
     this.store.set('voice', value)
+  }
+
+  get practice(): boolean {
+    return this.store.get('practice') !== false
+  }
+
+  set practice(value: boolean) {
+    this.store.set('practice', value)
   }
 
   /** Everything the student ever told us, gone. */
