@@ -24,13 +24,12 @@ interview, the offer.
 - **Ask about an interview.** It reads what people posted first-hand about a
   company, with a citation on every claim.
 
-It cheers when you get there. It never does the work for you.
+It cheers when you get there. It never does the work for you. It runs on
+macOS and Windows from one codebase.
 
 > [!IMPORTANT]
 > **Built for the LILO Summer Academy Hackathon, September 2026.**
 > Track 01, LILO Behind the Scenes: DSA practice and interviewing.
-> Runs on macOS and Windows from one codebase.
-> The three minute demo is scripted in [docs/demo-script.md](docs/demo-script.md).
 
 ## Why it matters
 
