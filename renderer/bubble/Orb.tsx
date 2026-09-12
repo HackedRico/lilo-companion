@@ -61,7 +61,7 @@ export function Orb({ rect, state }: { rect: Rect; state: CompanionState }): Rea
         })
       }
     >
-      <div className="orb" data-mood={mood} data-listening={state.listening}>
+      <div className="orb" data-mood={mood}>
         <div className="orb-ring" />
         <div className="orb-body" ref={tile}>
           <svg viewBox="0 0 100 100" role="img" aria-label="Lilo">
@@ -176,7 +176,7 @@ function hop(mood: Mood, tile: HTMLDivElement | null, ring: SVGRectElement | nul
 function useBlink(mood: Mood): boolean {
   const [closed, setClosed] = useState(false)
   useEffect(() => {
-    if (mood !== 'idle' && mood !== 'watching' && mood !== 'thinking') return
+    if (mood !== 'idle' && mood !== 'thinking') return
     let alive = true
     let timer: ReturnType<typeof setTimeout>
     const next = (): void => {

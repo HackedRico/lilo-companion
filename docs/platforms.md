@@ -76,26 +76,6 @@ Remote Desktop, the window can come back black instead of clear.
 reaching the renderer while clicks pass through to the app underneath. When it
 fails it fails quietly, by the orb going dead rather than by throwing.
 
-## Audio
-
-The microphone path is the same code on both. `getUserMedia`, `MediaRecorder`
-and webm/opus behave the same, so `audio/mic.ts` needs nothing per platform.
-
-**A signed macOS build hears nothing without the entitlement.** The hardened
-runtime is on for signed builds, and `build/entitlements.mac.plist` grants
-`com.apple.security.device.audio-input`; leave that pair together.
-
-**A refusal reads differently.** macOS shows a prompt, and
-`NSMicrophoneUsageDescription` in `electron-builder.yml` explains it. Windows
-has a privacy setting and no prompt to trigger, so `getUserMedia` simply rejects
-and the app has to say why in its own words.
-
-**System audio would be two implementations, not a flag.** Windows does loopback
-through `setDisplayMediaRequestHandler` with a loopback audio source. macOS needs
-ScreenCaptureKit, which depends on the Electron version, or a virtual device the
-student installs. Hearing a lecture playing on the machine itself is where that
-gets expensive.
-
 ## Shipping
 
 Installers are unsigned, because nothing configures signing. On Windows that

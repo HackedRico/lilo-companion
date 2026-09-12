@@ -12,15 +12,13 @@ export const OUT = {
   cardNew: 'card:new',
   profile: 'profile:data',
   recap: 'recap:data',
-  focusComposer: 'ui:focus-composer',
-  capture: 'audio:capture'
+  focusComposer: 'ui:focus-composer'
 } as const
 
 /** Renderer to main. */
 export const IN = {
   ready: 'ui:ready',
-  listenStart: 'listen:start',
-  listenStop: 'listen:stop',
+  lectureOpen: 'lecture:open',
   notes: 'input:notes',
   why: 'why:ask',
   scenarioCreate: 'scenario:create',
@@ -44,9 +42,7 @@ export const IN = {
   openLink: 'ui:open-link',
   typed: 'ui:typed',
   openPrefs: 'prefs:open',
-  closePrefs: 'prefs:close',
-  audioChunk: 'audio:chunk',
-  audioError: 'audio:error'
+  closePrefs: 'prefs:close'
 } as const
 
 export interface TokenPayload {
@@ -82,10 +78,10 @@ export interface LiloApi {
   onProfile(cb: (profile: Profile) => void): () => void
   onRecap(cb: (recap: Recap) => void): () => void
   onFocusComposer(cb: () => void): () => void
-  onCapture(cb: (on: boolean) => void): () => void
 
   ready(): void
-  listen(on: boolean): void
+  /** Asks main for the file dialog, since the renderer has no way to open one. */
+  openLecture(): void
   sendNotes(text: string): void
   send(intent: Intent): void
   type(text: string): void
@@ -117,6 +113,4 @@ export interface LiloApi {
   storagePath(): Promise<string>
   listModels(query: string): Promise<{ models: string[]; detail: string }>
   resolveAims(said: string[]): Promise<Aim[]>
-  sendAudio(chunk: ArrayBuffer): void
-  audioFailed(reason: string): void
 }

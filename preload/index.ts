@@ -30,10 +30,9 @@ const api: LiloApi = {
   onProfile: (cb) => on<Profile>(OUT.profile, cb),
   onRecap: (cb) => on<Recap>(OUT.recap, cb),
   onFocusComposer: (cb) => on<void>(OUT.focusComposer, cb),
-  onCapture: (cb) => on<boolean>(OUT.capture, cb),
 
   ready: () => ipcRenderer.send(IN.ready),
-  listen: (value: boolean) => ipcRenderer.send(value ? IN.listenStart : IN.listenStop),
+  openLecture: () => ipcRenderer.send(IN.lectureOpen),
   sendNotes: (text: string) => ipcRenderer.send(IN.notes, text),
   send: (intent: Intent) => ipcRenderer.send(IN.intent, intent),
   type: (text: string) => ipcRenderer.send(IN.typed, text),
@@ -62,9 +61,7 @@ const api: LiloApi = {
   writeProfile: (patch: Partial<Profile>) => ipcRenderer.invoke(ASK.profileWrite, patch),
   storagePath: () => ipcRenderer.invoke(ASK.storagePath),
   listModels: (query: string) => ipcRenderer.invoke(ASK.models, query),
-  resolveAims: (said: string[]) => ipcRenderer.invoke(ASK.resolveAims, said),
-  sendAudio: (chunk: ArrayBuffer) => ipcRenderer.send(IN.audioChunk, new Uint8Array(chunk)),
-  audioFailed: (reason: string) => ipcRenderer.send(IN.audioError, reason)
+  resolveAims: (said: string[]) => ipcRenderer.invoke(ASK.resolveAims, said)
 }
 
 contextBridge.exposeInMainWorld('lilo', api)

@@ -254,29 +254,12 @@ button {
   pointer-events: none;
 }
 
-.orb[data-listening='true'] .orb-ring {
-  border-color: var(--live);
-  box-shadow: 0 0 0 1px rgba(214, 55, 47, 0.2), 0 0 12px rgba(214, 55, 47, 0.4);
-  animation: live 2.6s var(--ease) infinite;
-}
-
 .orb[data-mood='celebrating'] .orb-ring {
   border-color: var(--gold);
   box-shadow: 0 0 0 1px rgba(168, 116, 26, 0.25), 0 0 18px rgba(168, 116, 26, 0.55);
   animation: none;
 }
 
-@keyframes live {
-  0%,
-  100% {
-    opacity: 1;
-    scale: 1;
-  }
-  50% {
-    opacity: 0.5;
-    scale: 1.055;
-  }
-}
 
 
 /* The panel ------------------------------------------------------------- */
@@ -336,37 +319,19 @@ button {
   color: var(--ink);
 }
 
-.listen-toggle {
+/* The one way in from the panel: a quiet pill, since the tray has the same item. */
+.lecture-button {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 3px 9px 3px 7px;
+  padding: 3px 9px;
   border: 1px solid transparent;
   border-radius: 99px;
   background: transparent;
-  transition: background 140ms var(--ease), border-color 140ms var(--ease);
+  transition: background 140ms var(--ease);
 }
 
-.listen-toggle:hover {
+.lecture-button:hover {
   background: var(--well);
-}
-
-.listen-toggle[data-on='true'] {
-  border-color: color-mix(in srgb, var(--live) 35%, transparent);
-  background: color-mix(in srgb, var(--live) 9%, transparent);
-}
-
-.listen-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--rule-strong);
-}
-
-.listen-toggle[data-on='true'] .listen-dot {
-  background: var(--live);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--live) 18%, transparent);
-  animation: live 2.6s var(--ease) infinite;
 }
 
 /* The panel's free corner. Quiet until the pointer is near it, and always the
@@ -1179,7 +1144,6 @@ button {
 @media (prefers-reduced-motion: reduce) {
   .orb-body,
   .orb-ring,
-  .listen-toggle[data-on='true'] .listen-dot,
   .dots span,
   .arriving,
   .caret::after {

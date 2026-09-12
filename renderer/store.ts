@@ -4,7 +4,6 @@ import type { CompanionState, Layout, Profile, Recap, ThreadItem } from '../shar
 
 const EMPTY_COMPANION: CompanionState = {
   orb: 'idle',
-  listening: false,
   expanded: false,
   thread: [],
   suggestions: [],

@@ -1,9 +1,9 @@
 # Working on Lilo
 
-Lilo is an Electron companion for software engineering students. It listens to
-a lecture, says where the concept turns up in real software engineering
-postings, and hands the student a vague request from a coworker to answer, the
-way it would land on the engineer on a team. It ships on macOS and Windows, and
+Lilo is an Electron companion for software engineering students. It reads a
+lecture the student hands it, says where the concept turns up in real software
+engineering postings, and hands the student a vague request from a coworker to
+answer, the way it would land on the engineer on a team. It ships on macOS and Windows, and
 every change has to hold on both.
 
 ## Layout
@@ -22,7 +22,7 @@ every change has to hold on both.
 Read [docs/architecture.md](docs/architecture.md) before changing the loop in
 `main/session.ts`, the window in `main/panel.ts`, or a prompt: it says why each
 is shaped the way it is. Read [docs/platforms.md](docs/platforms.md) before
-touching the window, the tray, keys, audio or packaging: it says what differs
+touching the window, the tray, keys, paths or packaging: it says what differs
 between macOS and Windows and which of those differences are load-bearing.
 Read [docs/character.md](docs/character.md) before changing the orb, its
 moods or the tray mark: it holds the geometry and the numbers.
@@ -90,7 +90,7 @@ message names the change.
 
 ## Running it
 
-README.md covers setup. Development switches: `--replay <file>` plays a saved
-transcript with no microphone, `LILO_OPEN_PREFS=1` opens the preferences
+README.md covers setup. Development switches: `--lecture <file>` reads a saved
+lecture on launch, `LILO_OPEN_PREFS=1` opens the preferences
 window on launch, and `LILO_DEBUG_LLM=1` prints every raw model reply. On
 Windows, set the variables in `.env` or with `$env:NAME = "1"` in PowerShell.

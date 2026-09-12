@@ -15,7 +15,7 @@ export interface Keychain {
   open(sealed: string): string
 }
 
-type Secret = 'apiKey' | 'deepgramKey'
+type Secret = 'apiKey'
 
 /**
  * Reads the address, the key and the two model names from .env. Nothing is
@@ -65,7 +65,7 @@ export class SettingsStore {
   }
 
   private fromEnv(which: Secret): string {
-    return which === 'apiKey' ? configFromEnv(this.env).apiKey : (this.env['DEEPGRAM_API_KEY'] ?? '')
+    return which === 'apiKey' ? configFromEnv(this.env).apiKey : ''
   }
 
   private resolve(which: Secret): { value: string; fromEnv: boolean } {
@@ -76,10 +76,6 @@ export class SettingsStore {
 
   get apiKey(): string {
     return this.resolve('apiKey').value
-  }
-
-  get deepgramKey(): string {
-    return this.resolve('deepgramKey').value
   }
 
   llmConfig(): LlmConfig {
@@ -97,14 +93,12 @@ export class SettingsStore {
   view(): SettingsView {
     const config = this.llmConfig()
     const key = this.resolve('apiKey')
-    const deepgram = this.resolve('deepgramKey')
     return {
       protocol: config.protocol,
       baseUrl: config.baseUrl,
       modelFast: config.fast,
       modelStrong: config.strong,
       apiKey: { ...maskKey(key.value), fromEnv: key.fromEnv && key.value.length > 0 },
-      deepgramKey: { ...maskKey(deepgram.value), fromEnv: deepgram.fromEnv && deepgram.value.length > 0 },
       encrypted: this.keychain.available,
       local: isLocal(config.baseUrl)
     }
@@ -115,7 +109,7 @@ export class SettingsStore {
     if (patch.baseUrl !== undefined) next.baseUrl = patch.baseUrl.trim()
     if (patch.modelFast !== undefined) next.modelFast = patch.modelFast.trim()
     if (patch.modelStrong !== undefined) next.modelStrong = patch.modelStrong.trim()
-    for (const which of ['apiKey', 'deepgramKey'] as const) {
+    for (const which of ['apiKey'] as const) {
       const value = patch[which]
       if (value === undefined) continue
       // An empty string means "forget mine", which falls back to .env.

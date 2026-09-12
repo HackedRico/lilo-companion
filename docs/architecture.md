@@ -7,10 +7,9 @@ from reading them.
 
 `main/session.ts` holds one loop and every state it can be in.
 
-**Hear.** Transcript arrives a line at a time, from the microphone through
-Deepgram or from a saved lecture read back at speaking pace. Every fifteen
-seconds the last few minutes are considered, and if enough has been said, one
-call names at most three concepts.
+**Hear.** A lecture arrives whole: a transcript or captions uploaded from the
+tray or the panel, or notes pasted into the composer. There is no microphone.
+One call over what arrived names at most three concepts.
 
 **See.** A concept is translated into what postings call the same thing. The
 model is not asked to guess: the terms that appear in postings nearest the
@@ -22,9 +21,9 @@ becomes a card with three sentences quoted from three different companies.
 three or four hidden facts that each change what the right answer is. The
 student asks questions, submits an answer, and a senior reviews it.
 
-**Lock in.** A review names a topic in three words or fewer. `watch.ts` listens
-for those exact words in a later lecture and turns the orb gold when they
-arrive.
+**Lock in.** A review names a topic in three words or fewer. `watch.ts` looks
+for those exact words on every line of the next lecture that arrives, and turns
+the orb gold when it finds them.
 
 **Recap.** What the student met, and what the postings for their track ask
 for that they have not.

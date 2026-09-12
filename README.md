@@ -2,10 +2,10 @@
 
 Hear it in class. See it in real jobs. Do it like work.
 
-A floating desktop companion for software engineering students. It listens to
-a lecture, tells you where the concept turns up at work with evidence from real
-software engineering postings, then hands you a vague request from a coworker
-so you can try it the way an engineer would.
+A floating desktop companion for software engineering students. Hand it a
+lecture and it tells you where the concept turns up at work with evidence from
+real software engineering postings, then hands you a vague request from a
+coworker so you can try it the way an engineer would.
 
 It runs on macOS and Windows. The two differ in how a floating window behaves,
 how the menu bar mark is drawn and where keys are kept, and
@@ -51,16 +51,17 @@ last four characters. An address on this machine is recognised as local and
 stops asking for one. Anything left blank falls through to `.env`, so a
 developer checkout needs no clicking.
 
-## Listening without a microphone
+## Lectures
 
-A saved lecture is fed back in as if it were being spoken, so the loop runs
-with no room and no network in it. Pick one from the menu bar mark under "Play a
-saved lecture". Any transcript works: one line per thing said, and a line
-arrives every few seconds. Nothing is bundled, so the first one is yours to
+A lecture is a file you hand over: a transcript, captions or your own notes,
+one line per thing said. Pick one from the menu bar mark under "Upload a
+lecture", press the button at the top of the panel, or paste notes into the
+composer. It is read whole, and the companion says what is being taught and
+where it turns up at work. Nothing is bundled, so the first one is yours to
 bring.
 
-To start with a lecture already playing, put `REPLAY_FILE=path/to/lecture.txt`
-in `.env`, or pass `--replay path/to/lecture.txt` to a packaged build.
+To start with a lecture already read, put `LECTURE_FILE=path/to/lecture.txt`
+in `.env`, or pass `--lecture path/to/lecture.txt` to a packaged build.
 
 ## The evidence base
 

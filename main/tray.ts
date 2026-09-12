@@ -6,16 +6,13 @@ interface Deps {
   panel: Panel
   openPrefs(): void
   prefsPath: string
-  listening(): boolean
-  setListening(on: boolean): void
-  playLecture(): void
+  openLecture(): void
   endSession(): void
 }
 
 /**
  * The menu bar item. A frameless always on top window needs somewhere to quit
- * from, and playing a saved lecture needs a way in that does not go through the
- * microphone.
+ * from, and a lecture needs a way in that does not go through the panel.
  */
 export function installTray(deps: Deps): { refresh(): void } {
   const tray = new Tray(trayIcon())
@@ -26,20 +23,7 @@ export function installTray(deps: Deps): { refresh(): void } {
   const refresh = (): void => {
     tray.setContextMenu(
       Menu.buildFromTemplate([
-        {
-          label: deps.listening() ? 'Stop listening' : 'Start listening',
-          click: () => {
-            deps.setListening(!deps.listening())
-            refresh()
-          }
-        },
-        {
-          label: 'Play a saved lecture…',
-          click: () => {
-            deps.playLecture()
-            refresh()
-          }
-        },
+        { label: 'Upload a lecture…', click: () => deps.openLecture() },
         { type: 'separator' },
         {
           label: deps.panel.isExpanded ? 'Close the panel' : 'Open the panel',

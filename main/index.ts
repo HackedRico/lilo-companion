@@ -26,19 +26,16 @@ import { PrefsWindow } from './prefs-window.ts'
 import { asPoint, asSize, asText } from './guards.ts'
 import { ModelCatalogue, SettingsStore, osKeychain, testConnection } from './settings.ts'
 import { Prefs } from './store.ts'
-import { Replay } from './replay.ts'
+import { readLecture } from './lecture.ts'
 import { Session } from './session.ts'
-import { Listener } from './audio/deepgram.ts'
 import { installTray } from './tray.ts'
 
 if (!app.requestSingleInstanceLock()) app.quit()
 
-/** How often the background pass over the transcript is considered. */
-const TICK = 15000
-
-function replayArgument(): string | null {
-  const flag = process.argv.indexOf('--replay')
-  const given = flag >= 0 ? process.argv[flag + 1] : process.env['REPLAY_FILE']
+/** A lecture to read on launch, so a change can be tried without clicking. */
+function lectureArgument(): string | null {
+  const flag = process.argv.indexOf('--lecture')
+  const given = flag >= 0 ? process.argv[flag + 1] : process.env['LECTURE_FILE']
   return given ?? null
 }
 
@@ -98,59 +95,13 @@ app.whenReady().then(async () => {
 
   panel.onExpandedChange = (expanded) => session.setExpanded(expanded)
 
-  const listener = new Listener(
-    settings.deepgramKey,
-    (text) => session.heard(text),
-    (reason) => {
-      setListening(false)
-      void session.trouble(`The microphone stopped: ${reason}`)
-    }
-  )
+  // Nothing in a renderer needs a device or a permission, so every request is refused.
+  electronSession.defaultSession.setPermissionRequestHandler((_contents, _permission, decide) => decide(false))
 
-  // The renderer holds the microphone; the key never leaves this process.
-  // Microphone only: a media request that also wants the camera is refused.
-  electronSession.defaultSession.setPermissionRequestHandler((_contents, permission, decide, details) => {
-    const wants = 'mediaTypes' in details ? (details.mediaTypes ?? []) : []
-    decide(permission === 'media' && wants.every((type) => type === 'audio'))
-  })
-
-  /** One way in and out of listening, whether it is a lecture file or a mic. */
-  function setListening(on: boolean, fromReplay = false): void {
-    if (!on) {
-      replay.stop()
-      listener.stop()
-      panel.emit(OUT.capture, false)
-      session.setListening(false)
-      tray.refresh()
-      return
-    }
-    if (!fromReplay) {
-      if (!listener.available) {
-        void session.trouble('There is no Deepgram key set, so I cannot hear a room. Play a lecture instead.')
-        return
-      }
-      // The socket opens on the first chunk, once the microphone has actually
-      // been granted, so a slow permission prompt cannot outlast Deepgram's
-      // patience for silence.
-      panel.emit(OUT.capture, true)
-    }
-    session.setListening(true)
-    tray.refresh()
-  }
-
-  const replay = new Replay(
-    (line) => session.heard(line),
-    () => setListening(false)
-  )
-
-  /** Reads a saved lecture back in as if it were being spoken. */
-  function playLecture(path: string): void {
-    void replay
-      .load(path)
-      .then(() => {
-        replay.start()
-        setListening(true, true)
-      })
+  /** Reads a lecture whole and hands it to the loop. */
+  function openLecture(path: string): void {
+    void readLecture(path)
+      .then((text) => session.useNotes(text))
       .catch(() => void session.trouble(`I could not read ${path}.`))
   }
 
@@ -158,25 +109,20 @@ app.whenReady().then(async () => {
   async function pickLecture(): Promise<void> {
     const picked = await dialog.showOpenDialog({
       // The hint rides in the title, which every platform shows; message is macOS only.
-      title: 'Play a saved lecture: a transcript, one line per thing said',
+      title: 'Upload a lecture: a transcript or your notes, one line per thing said',
       filters: [{ name: 'Transcript', extensions: ['txt', 'md', 'vtt'] }],
       properties: ['openFile']
     })
     const path = picked.filePaths[0]
-    if (path) playLecture(path)
+    if (path) openLecture(path)
   }
 
   const tray = installTray({
     panel,
     openPrefs: () => prefsWindow.open(),
     prefsPath: prefs.path,
-    listening: () => session.state.listening,
-    setListening: (on) => setListening(on),
-    playLecture: () => void pickLecture(),
-    endSession: () => {
-      setListening(false)
-      session.endSession()
-    }
+    openLecture: () => void pickLecture(),
+    endSession: () => session.endSession()
   })
 
   bridgeEditingShortcuts(panel.win.webContents)
@@ -206,26 +152,11 @@ app.whenReady().then(async () => {
     // Lets the preferences window be worked on against the real keychain and
     // the real settings file, without hunting for the menu bar every reload.
     if (dev && process.env['LILO_OPEN_PREFS']) prefsWindow.open()
-    const file = replayArgument()
-    if (file) playLecture(file)
+    const file = lectureArgument()
+    if (file) openLecture(file)
   })
 
-  ipcMain.on(IN.listenStart, () => setListening(true))
-  ipcMain.on(IN.listenStop, () => setListening(false))
-  ipcMain.on(IN.audioChunk, (_event, chunk: Uint8Array) => {
-    if (!listener.open) void listener.start()
-    listener.send(chunk)
-  })
-  ipcMain.on(IN.audioError, (_event, reason: string) => {
-    setListening(false)
-    const text = String(reason).slice(0, 120)
-    // Windows shows no prompt for a desktop app; the switch is in Settings, and nothing else says so.
-    const hint =
-      process.platform === 'win32' && /NotAllowed|denied|permission/i.test(text)
-        ? ' On Windows, microphone access for desktop apps is a switch under Settings, Privacy, Microphone.'
-        : ''
-    void session.trouble(`I could not get at the microphone. ${text}${hint}`)
-  })
+  ipcMain.on(IN.lectureOpen, () => void pickLecture())
   ipcMain.on(IN.notes, (_event, text: unknown) => void session.useNotes(asText(text)))
   ipcMain.on(IN.intent, (_event, intent: Intent) => void session.run(intent))
   ipcMain.on(IN.typed, (_event, text: unknown) => void session.typed(asText(text)))
@@ -272,7 +203,6 @@ app.whenReady().then(async () => {
   /** Settings can change at any moment, so everything that holds config re-reads it. */
   function adopt(): void {
     llm.reconfigure(settings.llmConfig())
-    listener.setKey(settings.deepgramKey)
     catalogue.forget()
     tray.refresh()
   }
@@ -328,14 +258,7 @@ app.whenReady().then(async () => {
     if (/^https:\/\//.test(String(url))) void shell.openExternal(String(url))
   })
 
-  const tick = setInterval(() => {
-    if (session.dueForExtract()) void session.refresh()
-  }, TICK)
-
   app.on('before-quit', () => {
-    clearInterval(tick)
-    replay.stop()
-    listener.stop()
     globalShortcut.unregisterAll()
   })
 

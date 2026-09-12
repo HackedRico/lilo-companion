@@ -1,7 +1,7 @@
 /**
  * Deciding when a lecture reaches the concept a student asked to be tapped on.
- * Deliberately not a model call: this fires in the middle of a lecture, so it
- * has to be instant, free, and the same every time.
+ * Deliberately not a model call: it runs over every line of every lecture that
+ * arrives, so it has to be instant, free, and the same every time.
  */
 
 const NOISE = new Set([

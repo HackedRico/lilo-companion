@@ -28,7 +28,6 @@ export interface SettingsView extends Settings {
   /** Decided from the address, so the student can see what will be spoken. */
   protocol: Protocol
   apiKey: KeyState
-  deepgramKey: KeyState
   /** False when the platform has no keychain, so keys sit in plain text. */
   encrypted: boolean
   /** True when the address is on this machine, so no key is wanted. */
@@ -38,7 +37,6 @@ export interface SettingsView extends Settings {
 /** An absent field is left alone. An empty string for a key clears it. */
 export interface SettingsPatch extends Partial<Settings> {
   apiKey?: string
-  deepgramKey?: string
 }
 
 export interface ConnectionResult {

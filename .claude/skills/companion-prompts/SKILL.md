@@ -18,7 +18,7 @@ Every prompt is a function in `shared/prompts.ts` returning `{ system, user }`. 
 1. Edit the function in `prompts.ts`. Keep `JSON_ONLY` on any prompt that is parsed, and keep the schema line in the system prompt in step with the Zod schema.
 2. If the reply shape changes, change the schema first, with bounds loose enough that a small open model passes them: `min` and `max` on every string and array, never an exact count.
 3. Run `node --test main/session.test.ts`. `ScriptedLlm` there answers every schema from a script and records every `Ask`, so a test can assert what was sent, including that the persona prompt carries only uncovered facts and that an invented citation is dropped.
-4. Try it on a real model with `LILO_DEBUG_LLM=1`, which prints every raw reply, over a replayed lecture. The `run-lilo` skill has the steps. Small models drift: the translate prompt hands back the academic name unless the worked example holds it to the menu.
+4. Try it on a real model with `LILO_DEBUG_LLM=1`, which prints every raw reply, over an uploaded lecture. The `run-lilo` skill has the steps. Small models drift: the translate prompt hands back the academic name unless the worked example holds it to the menu.
 
 Done when the session test passes, a raw reply from the `fast` lane parses, and the commit says which model it was tried on.
 

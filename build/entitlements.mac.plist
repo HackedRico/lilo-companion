@@ -9,8 +9,5 @@
   <true/>
   <key>com.apple.security.cs.disable-library-validation</key>
   <true/>
-  <!-- The one thing this app is for. Without it a signed build hears nothing. -->
-  <key>com.apple.security.device.audio-input</key>
-  <true/>
 </dict>
 </plist>

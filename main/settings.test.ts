@@ -32,8 +32,7 @@ const ENV = {
   LLM_API_KEY: 'env-key-1111',
   LLM_BASE_URL: 'https://env.example',
   MODEL_FAST: 'env/fast',
-  MODEL_STRONG: 'env/strong',
-  DEEPGRAM_API_KEY: 'env-deepgram-2222'
+  MODEL_STRONG: 'env/strong'
 } as NodeJS.ProcessEnv
 
 const NOTHING = {} as NodeJS.ProcessEnv

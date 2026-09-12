@@ -7,7 +7,7 @@ import { OPENING } from './logo.ts'
  * has to be said with lids, a gaze and a curve.
  */
 
-export type Mood = 'idle' | 'watching' | 'thinking' | 'cheering' | 'celebrating' | 'asleep'
+export type Mood = 'idle' | 'thinking' | 'cheering' | 'celebrating' | 'asleep'
 
 export const INK = '#171f33'
 export const BLUSH = '#ff8094'
@@ -50,8 +50,6 @@ export interface Expression {
 
 export const EXPRESSIONS: Record<Mood, Expression> = {
   idle: { mouth: 'smile', lids: 1, gaze: { dx: 0, dy: 0 }, blush: false },
-  // Toward the lecture, which sits below and to the left of the corner the orb keeps.
-  watching: { mouth: 'smile', lids: 1, gaze: { dx: -2.7, dy: 1 }, blush: false },
   thinking: { mouth: 'o', lids: 1, gaze: { dx: 2, dy: -3 }, blush: false },
   cheering: { mouth: 'grin', lids: 0.4, gaze: { dx: 0, dy: 0 }, blush: false },
   celebrating: { mouth: 'grin', lids: 0.4, gaze: { dx: 0, dy: 0 }, blush: true },
@@ -61,7 +59,7 @@ export const EXPRESSIONS: Record<Mood, Expression> = {
 /** Lids most of the way down, for the length of a blink. */
 export const BLINK_LIDS = 0.12
 
-/** Asleep is nothing to hear and nobody talking to it. Everything else is a mood. */
+/** Asleep is the panel shut with nothing going on. Everything else is a mood. */
 export function moodOf(state: { orb: OrbState; expanded: boolean }): Mood {
   switch (state.orb) {
     case 'alert':
@@ -70,8 +68,6 @@ export function moodOf(state: { orb: OrbState; expanded: boolean }): Mood {
       return 'cheering'
     case 'thinking':
       return 'thinking'
-    case 'listening':
-      return 'watching'
     case 'idle':
       return state.expanded ? 'idle' : 'asleep'
   }

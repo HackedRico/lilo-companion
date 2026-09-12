@@ -144,8 +144,9 @@ const LECTURE = [
   'The standard error of the mean is sigma over the square root of n, so four times the data buys twice the precision.'
 ]
 
-function teach(session: Session): void {
-  for (const line of LECTURE) session.heard(line)
+/** The lecture arrives whole, the way an upload or a paste does. */
+async function teach(session: Session): Promise<void> {
+  await session.useNotes(LECTURE.join('\n'))
 }
 
 let ikb: Ikb
@@ -157,8 +158,7 @@ before(async () => {
 test('a card only claims terms the postings actually carry', async () => {
   const llm = new ScriptedLlm()
   const { session, thread } = harness(llm, ikb)
-  teach(session)
-  await session.why()
+  await teach(session)
 
   const said = thread.map((item) => item.text).join('\n')
   assert.match(said, /A\/B testing/, 'it names the term the postings use')
@@ -172,8 +172,7 @@ test('a card only claims terms the postings actually carry', async () => {
 test('the persona is never handed a fact the student has not uncovered', async () => {
   const llm = new ScriptedLlm()
   const { session } = harness(llm, ikb)
-  teach(session)
-  await session.why()
+  await teach(session)
   await session.startScenario()
 
   // A question that uncovers nothing.
@@ -196,8 +195,7 @@ test('the persona is never handed a fact the student has not uncovered', async (
 test('the rubric and the facts never reach the student', async () => {
   const llm = new ScriptedLlm()
   const { session, thread } = harness(llm, ikb)
-  teach(session)
-  await session.why()
+  await teach(session)
   await session.startScenario()
 
   const said = thread.map((item) => item.text).join('\n')
@@ -209,8 +207,7 @@ test('the rubric and the facts never reach the student', async () => {
 test('what the student types goes where they are, not always to chat', async () => {
   const llm = new ScriptedLlm()
   const { session } = harness(llm, ikb)
-  teach(session)
-  await session.why()
+  await teach(session)
   await session.startScenario()
 
   assert.equal(session.state.composer.mode, 'ask', 'during a scenario, typing reaches the coworker')
@@ -225,8 +222,7 @@ test('what the student types goes where they are, not always to chat', async () 
 test('a review names the lecture that closes the gap, and the tap waits for it', async () => {
   const llm = new ScriptedLlm()
   const { session, thread } = harness(llm, ikb)
-  teach(session)
-  await session.why()
+  await teach(session)
   await session.startScenario()
   const scenarioId = session.state.activeScenarioId!
 
@@ -238,13 +234,12 @@ test('a review names the lecture that closes the gap, and the tap waits for it',
   assert.deepEqual(session.state.watching, ['hypothesis testing'])
 
   // The wrong lecture does not wake them.
-  session.heard('Right, today we are carrying on with descriptive statistics.')
+  await session.useNotes('Right, today we are carrying on with descriptive statistics.')
   assert.equal(session.state.orb, 'idle')
   assert.deepEqual(session.state.watching, ['hypothesis testing'])
 
   // The right one does.
-  session.heard('Today we answer that question. This is hypothesis testing.')
-  await new Promise((done) => setTimeout(done, 30))
+  await session.useNotes('Today we answer that question. This is hypothesis testing.')
   assert.equal(session.state.orb, 'alert')
   assert.deepEqual(session.state.watching, [])
   assert.match(thread.at(-1)!.text, /hypothesis testing/)
@@ -253,8 +248,7 @@ test('a review names the lecture that closes the gap, and the tap waits for it',
 test('reopening puts the earlier answer beside the new one', async () => {
   const llm = new ScriptedLlm()
   const { session, thread } = harness(llm, ikb)
-  teach(session)
-  await session.why()
+  await teach(session)
   await session.startScenario()
   const scenarioId = session.state.activeScenarioId!
 
@@ -263,24 +257,6 @@ test('reopening puts the earlier answer beside the new one', async () => {
 
   const shown = thread.find((item) => item.priorAnswer)
   assert.match(shown!.priorAnswer!.text, /12 percent is a big lift/)
-})
-
-test('a quiet pass in the background never swallows a tap', async () => {
-  const llm = new ScriptedLlm()
-  const { session, thread } = harness(llm, ikb)
-  teach(session)
-  session.setListening(true)
-
-  llm.delayMs = 30
-  const background = session.refresh()
-  // The student taps while that pass is still in flight.
-  await session.why()
-  await background
-
-  assert.ok(
-    thread.some((item) => /A\/B testing/.test(item.text)),
-    'the tap produced a card rather than being dropped on the floor'
-  )
 })
 
 test('a citation the retriever never returned is stripped from the answer', async () => {

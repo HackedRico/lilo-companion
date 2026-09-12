@@ -25,7 +25,7 @@ Everything is in a **100 unit box** that holds the D and the face. The box is
 drawn at 90 percent of the tile, centred, so at 56 pt one unit is 0.504 pt.
 
 **Tile.** A square, white, corner radius 22 percent of the side. No border and
-no shadow of its own; the ring that marks listening or a lock-in sits 4 px
+no shadow of its own; the ring that marks a lock-in sits 4 px
 outside it and follows its corners.
 
 **The D.** A linear gradient from top left `#14a3fa` to bottom right
@@ -60,14 +60,13 @@ and the inner bowl back up. The **opening** is `x 40, y 26, w 34, h 48`.
 
 ## Moods
 
-What the companion knows about itself, read as a mood. Asleep is nothing to
-hear and nobody talking to it.
+What the companion knows about itself, read as a mood. Asleep is the panel
+shut with nothing going on.
 
 | Mood | When | Eyes | Mouth | Tile |
 |---|---|---|---|---|
-| asleep | not listening, panel shut | lids to 45 percent | flat | 80 percent opacity, still |
+| asleep | panel shut | lids to 45 percent | flat | 80 percent opacity, still |
 | idle | panel open | centred, blinking | small smile | breathes |
-| watching | listening | 2.7 left, 1 down, toward the lecture | small smile | breathes |
 | thinking | a model call in flight | 2 right, 3 up | round "o" | pulses 1.0 to 1.05 every 0.8 s over the breath |
 | cheering | a ship-it verdict, for 2.5 s | lids to 40 percent | wide grin | hops 10 px and springs back |
 | celebrating | a lock-in, until the panel opens | squint, and the blush | wide grin | hops 15 px, and throws its outline outward as a ring |

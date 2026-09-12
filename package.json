@@ -33,7 +33,6 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.125.0",
-    "@deepgram/sdk": "^5.10.1",
     "dotenv": "^17.4.2",
     "electron-store": "^11.0.2",
     "minisearch": "^7.2.0",

@@ -78,16 +78,8 @@ export function Panel({
       style={{ left: rect.x, top: rect.y, width: rect.width, height: rect.height }}
     >
       <header className="panel-head">
-        <button
-          className="listen-toggle"
-          data-on={state.listening}
-          title={state.listening ? 'Stop listening' : 'Start listening'}
-          onClick={() => api.listen(!state.listening)}
-        >
-          <span className="listen-dot" />
-          <span className="meta" style={state.listening ? { color: 'var(--live)' } : undefined}>
-            {state.listening ? 'Listening' : 'Not listening'}
-          </span>
+        <button className="lecture-button" title="Upload a lecture" onClick={() => api.openLecture()}>
+          <span className="meta">Upload a lecture</span>
         </button>
         <span className="flex items-center gap-0.5">
           <button className="icon-button" aria-label="Settings" title="Settings" onClick={() => api.openPrefs()}>
@@ -103,7 +95,7 @@ export function Panel({
         <div className="thread">
           {state.thread.length === 0 && !state.composing && (
             <p className="empty">
-              Play a lecture or paste your notes. I will tell you where it turns up at work.
+              Upload a lecture or paste your notes. I will tell you where it turns up at work.
             </p>
           )}
           {state.thread.map((item) => (

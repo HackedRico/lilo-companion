@@ -347,19 +347,6 @@ function ModelTab({
           </span>
         )}
       </div>
-
-      <Group
-        title="Lectures"
-        note="Without a key, saved lectures and pasted notes still work. Audio is sent straight out and never written down."
-      >
-        <Field label="Deepgram key">
-          <KeyRow
-            state={settings.deepgramKey}
-            envName="DEEPGRAM_API_KEY"
-            onSet={(deepgramKey) => change({ deepgramKey })}
-          />
-        </Field>
-      </Group>
     </>
   )
 }

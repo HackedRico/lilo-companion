@@ -16,7 +16,6 @@ export interface SavedSettings {
   modelStrong?: string
   /** Ciphertext when the platform has a keychain, otherwise the key itself. */
   apiKey?: string
-  deepgramKey?: string
 }
 
 interface Saved {
@@ -28,9 +27,9 @@ interface Saved {
 }
 
 /**
- * Local only, and deliberately small. Audio is never written anywhere, and the
- * transcript is dropped when the session ends, so this holds the profile and
- * where the student left the orb.
+ * Local only, and deliberately small. The transcript is dropped when the
+ * session ends, so this holds the profile, the settings, and where the student
+ * left the orb.
  */
 export class Prefs {
   private readonly store = new Store<Saved>({

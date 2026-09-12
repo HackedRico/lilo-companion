@@ -29,12 +29,6 @@ import { firstMatch } from './watch.ts'
 const WORD_MS = 26
 const TURN_PAUSE = 420
 
-/** Concepts are pulled out of the rolling window no oftener than this. */
-const EXTRACT_EVERY = 60000
-
-/** Quiet this long with the panel shut and the companion says something small. */
-const WHISPER_AFTER = 50000
-
 /** The senior whose review the student gets. Fictional, and always the same. */
 const REVIEWER = { name: 'Sam', role: 'senior engineer' }
 
@@ -75,7 +69,6 @@ export class Session {
   readonly transcript = new Transcript()
   state: CompanionState = {
     orb: 'idle',
-    listening: false,
     expanded: false,
     thread: [],
     suggestions: [],
@@ -92,11 +85,7 @@ export class Session {
   private readonly runs = new Map<string, ScenarioRun>()
   private readonly seen: { concept: Concept; terms: string[] }[] = []
   private profile: Profile = EMPTY_PROFILE
-  private pending: Concept | null = null
-  private lastExtract = 0
-  private lastSpoke = Date.now()
   private busy = false
-  private refreshing = false
   private readonly onboardingTurns: { role: string; text: string }[] = []
 
   private readonly pace: { word: number; turn: number }
@@ -148,7 +137,6 @@ export class Session {
     this.deps.emit.end(item.id)
     const done: ThreadItem = { ...item, text, streaming: false }
     this.state.thread.push(done)
-    this.lastSpoke = Date.now()
     return done
   }
 
@@ -208,7 +196,7 @@ export class Session {
       await this.say('I did not catch all of that, but we can get going anyway.')
       this.finishOnboarding()
     } finally {
-      this.patch({ orb: this.state.listening ? 'listening' : 'idle' })
+      this.patch({ orb: 'idle' })
     }
   }
 
@@ -226,26 +214,18 @@ export class Session {
     await this.say(line)
   }
 
-  // Listening ------------------------------------------------------------
+  // Reading a lecture ----------------------------------------------------
 
-  setListening(on: boolean): void {
-    this.patch({ listening: on, orb: on ? 'listening' : 'idle' })
-  }
-
-  /** A line of lecture arrived, from replay or from the microphone. */
-  heard(line: string): void {
-    this.transcript.append(line)
-
-    const hit = firstMatch(line, this.state.watching)
-    if (hit) {
-      void this.lockIn(hit)
-      return
+  /** A lecture arrives whole: uploaded from the tray, or pasted as notes. */
+  async useNotes(text: string): Promise<void> {
+    this.transcript.append(text)
+    // The tap waits for the line where the lecturer says it, not for the words
+    // scattered across a whole lecture.
+    for (const line of text.split('\n')) {
+      const hit = firstMatch(line, this.state.watching)
+      if (hit) return this.lockIn(hit)
     }
-
-    if (!this.state.expanded && Date.now() - this.lastSpoke > WHISPER_AFTER) {
-      this.lastSpoke = Date.now()
-      this.whisper('Still with me?')
-    }
+    await this.why()
   }
 
   private async lockIn(concept: string): Promise<void> {
@@ -255,7 +235,7 @@ export class Session {
     })
     this.whisper('This is it.')
     const waiting = [...this.runs.values()].find((run) => run.submitted !== null)
-    await this.say(`She just started on ${concept}. This is the piece you were missing.`)
+    await this.say(`This lecture gets to ${concept}. This is the piece you were missing.`)
     this.suggest([
       ...(waiting
         ? [
@@ -283,15 +263,12 @@ export class Session {
     try {
       this.patch({ orb: 'thinking' })
       if (this.transcript.empty) {
-        await this.say('Nothing has come through yet. Start a lecture or paste your notes and I will read it back.')
+        await this.say('Nothing has come through yet. Upload a lecture or paste your notes and I will read it back.')
         return
       }
-      // A background pass usually has one ready, so the card lands immediately.
-      const concept =
-        this.pending ?? (await extractConcepts(this.deps.llm, this.transcript.window()))[0]
-      this.pending = null
+      const [concept] = await extractConcepts(this.deps.llm, this.transcript.window())
       if (!concept) {
-        await this.say('Nothing much is being taught in the last few minutes. Ask me again once she gets going.')
+        await this.say('Nothing much is being taught in that. Try another part of the lecture.')
         return
       }
       await this.showCard(concept)
@@ -299,8 +276,7 @@ export class Session {
       await this.apologise('read that back', error)
     } finally {
       this.busy = false
-      this.lastExtract = Date.now()
-      this.patch({ orb: this.state.listening ? 'listening' : 'idle' })
+      this.patch({ orb: 'idle' })
     }
   }
 
@@ -337,11 +313,6 @@ export class Session {
       { id: nextId(), text: 'Sounds like me', intent: { kind: 'affinity', cardId: card.id } },
       { id: nextId(), text: 'Go on then', intent: { kind: 'chat', text: `Tell me more about ${concept.name} at work` } }
     ])
-  }
-
-  async useNotes(text: string): Promise<void> {
-    this.transcript.append(text)
-    await this.why()
   }
 
   // Do -------------------------------------------------------------------
@@ -397,7 +368,7 @@ export class Session {
       await this.apologise('write that up as work', error)
     } finally {
       this.busy = false
-      this.patch({ orb: this.state.listening ? 'listening' : 'idle' })
+      this.patch({ orb: 'idle' })
     }
   }
 
@@ -434,7 +405,7 @@ export class Session {
       await this.apologise('get an answer out of her', error)
     } finally {
       this.busy = false
-      this.patch({ orb: this.state.listening ? 'listening' : 'idle' })
+      this.patch({ orb: 'idle' })
     }
   }
 
@@ -485,10 +456,10 @@ export class Session {
       this.busy = false
       // A ship-it is the one thing worth a hop. It settles on its own, unless
       // something else has already moved the face on.
-      this.patch({ orb: cheer ? 'cheering' : this.state.listening ? 'listening' : 'idle' })
+      this.patch({ orb: cheer ? 'cheering' : 'idle' })
       if (cheer) {
         setTimeout(() => {
-          if (this.state.orb === 'cheering') this.patch({ orb: this.state.listening ? 'listening' : 'idle' })
+          if (this.state.orb === 'cheering') this.patch({ orb: 'idle' })
         }, CHEER_MS).unref()
       }
     }
@@ -629,12 +600,11 @@ export class Session {
         sources
       }
       this.state.thread.push(done)
-      this.lastSpoke = Date.now()
     } catch (error) {
       await this.apologise('answer that', error)
     } finally {
       this.busy = false
-      this.patch({ orb: this.state.listening ? 'listening' : 'idle' })
+      this.patch({ orb: 'idle' })
     }
   }
 
@@ -669,7 +639,7 @@ export class Session {
         return this.reopen(intent.scenarioId)
       case 'watch':
         this.patch({ watching: [...new Set([...this.state.watching, intent.concept])] })
-        await this.say(`I will tap you when she gets to ${intent.concept}.`)
+        await this.say(`I will tap you when a lecture gets to ${intent.concept}.`)
         this.suggest([])
         return
       case 'recap':
@@ -681,7 +651,7 @@ export class Session {
       case 'onboarded':
         this.finishOnboarding()
         this.suggest([])
-        await this.say('Good. Start a lecture whenever, and I will tell you where it turns up.')
+        await this.say('Good. Upload a lecture whenever, and I will tell you where it turns up.')
         return
       case 'profile': {
         const { courses, interests } = this.profile
@@ -720,44 +690,13 @@ export class Session {
     await this.say('Noted. I will lean that way when I pick what to show you.')
   }
 
-  /** Whether the window is due another pass over the transcript. */
-  dueForExtract(now = Date.now()): boolean {
-    return (
-      this.state.listening && !this.busy && !this.refreshing && now - this.lastExtract > EXTRACT_EVERY
-    )
-  }
-
-  /**
-   * A quiet pass over the rolling window, so the concept is already in hand
-   * when the student asks. Says nothing on its own.
-   */
-  async refresh(): Promise<void> {
-    if (this.busy || this.refreshing || this.transcript.empty) return
-    this.lastExtract = Date.now()
-    // Its own flag, not `busy`: a quiet pass in the background must never make
-    // a tap on "Why do I need this?" do nothing at all.
-    this.refreshing = true
-    try {
-      const concepts = await extractConcepts(this.deps.llm, this.transcript.window())
-      if (concepts[0]) this.pending = concepts[0]
-    } catch {
-      // A background pass that fails just means the next ask does the work.
-    } finally {
-      this.refreshing = false
-    }
-  }
-
-  get waitingConcept(): Concept | null {
-    return this.pending
-  }
-
   dismissWhisper(): void {
     if (this.state.whisper) this.patch({ whisper: null })
   }
 
   setExpanded(on: boolean): void {
     this.patch({ expanded: on, whisper: on ? null : this.state.whisper })
-    if (on && this.state.orb === 'alert') this.patch({ orb: this.state.listening ? 'listening' : 'idle' })
+    if (on && this.state.orb === 'alert') this.patch({ orb: 'idle' })
   }
 
   getProfile(): Profile {

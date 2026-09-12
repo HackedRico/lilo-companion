@@ -1,11 +1,11 @@
 ---
 name: run-lilo
-description: Launches and drives the Lilo desktop app to see a change working, with no microphone, no room and no lecture to attend. Use when asked to run, start, try or screenshot the app, or when a test cannot show the change. The same steps hold on macOS and Windows.
+description: Launches and drives the Lilo desktop app to see a change working, with no room and no lecture to attend. Use when asked to run, start, try or screenshot the app, or when a test cannot show the change. The same steps hold on macOS and Windows.
 ---
 
 # Run Lilo
 
-Lilo is an Electron app: an orb bottom right, a tray item beside the clock, no Dock or taskbar entry. Everything the app does, it can do from a saved transcript, so a change is checked without a microphone or a lecturer. `README.md` holds the install steps and stays the source of truth for them.
+Lilo is an Electron app: an orb bottom right, a tray item beside the clock, no Dock or taskbar entry. Everything the app does, it does from a lecture handed to it as a file, so a change is checked without a lecturer. `README.md` holds the install steps and stays the source of truth for them.
 
 ## Start it
 
@@ -19,15 +19,15 @@ The window appears when the renderer is ready. Cmd/Ctrl+Shift+Y opens and closes
 
 ## Feed it a lecture
 
-Nothing is bundled. Write a transcript in the scratchpad, one line per thing said, ten or more lines that teach something a student would look up. A line arrives every four seconds and the extract pass considers the last few minutes, so a three-line file never reaches a concept.
+Nothing is bundled. Write a transcript in the scratchpad, one line per thing said, ten or more lines that teach something a student would look up. It is read whole and extracted at once, so a three-line file that teaches nothing gets told so.
 
 Point the app at it through `.env`, which both platforms read with no shell syntax:
 
 ```
-REPLAY_FILE=<absolute path to lecture.txt, in the form this OS writes paths>
+LECTURE_FILE=<absolute path to lecture.txt, in the form this OS writes paths>
 ```
 
-Or pick it at runtime from the tray under "Play a saved lecture". The main process also reads `--replay <file>` from argv, and electron-vite forwards what follows a second `--`: `npm run dev -- -- --replay <file>`.
+Or pick it at runtime from the tray under "Upload a lecture", or the button at the top of the panel. The main process also reads `--lecture <file>` from argv, and electron-vite forwards what follows a second `--`: `npm run dev -- -- --lecture <file>`.
 
 A model has to be configured for anything past hearing: an address, a key and two model names, in `.env` or the preferences window. A local Ollama or LM Studio at its default address needs no key and nothing leaves the machine.
 

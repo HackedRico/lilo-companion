@@ -18,8 +18,7 @@ extraResources:
 
 mac:
   category: public.app-category.education
-  # A signed build runs hardened, and hardened needs the microphone granted
-  # explicitly or the app hears nothing.
+  # A signed build runs hardened; the entitlements say what Electron needs under it.
   hardenedRuntime: true
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
@@ -27,9 +26,6 @@ mac:
     - dmg
     - zip
   extendInfo:
-    NSMicrophoneUsageDescription: >-
-      Lilo listens to your lecture so it can tell you where the concept turns
-      up in real jobs. Audio is never saved.
     # A menu bar companion, not a Dock app.
     LSUIElement: true
 

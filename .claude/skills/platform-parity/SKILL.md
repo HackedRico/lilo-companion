@@ -30,7 +30,6 @@ Done when every surface in the diff has both branches accounted for and the comm
 | Keys | `main/settings.ts`, `main/store.ts` | `safeStorage` may be unavailable. The `encrypted` flag tells the preferences window. | What is the same: keys |
 | Files and paths | anything importing `node:path` or `node:fs` | `join` from `node:path`, never a `/` in a string. `process.resourcesPath` when packaged, `app.getAppPath()` in dev. A file written on Windows carries `\r\n`, so lines are trimmed. | none; the rule lives here |
 | Type and CSS | `renderer/styles.css` | No font files. `ui-serif` and `Segoe UI Variable Text` resolve per platform. Platform-only CSS hangs off `:root[data-platform]`. | What is the same: type |
-| Audio | `renderer/audio/mic.ts`, `main/audio/deepgram.ts` | Windows refuses `getUserMedia` with no prompt, so the app says why in its own words. | Audio |
 | Packaging | `electron-builder.yml`, `.github/workflows/build.yml` | Unsigned on both. `package:mac` and `package:win` each run on their own OS; CI is the Windows build. | Shipping |
 
 ## Checking Windows from a Mac
