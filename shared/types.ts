@@ -174,7 +174,7 @@ export interface Whisper {
 }
 
 /** The orb's whole vocabulary. */
-export type OrbState = 'idle' | 'listening' | 'thinking' | 'alert'
+export type OrbState = 'idle' | 'listening' | 'thinking' | 'alert' | 'cheering'
 
 /**
  * Where what the student types goes next. A question during a scenario reaches

@@ -8,9 +8,9 @@ function pixel(buffer: Buffer, size: number, x: number, y: number): number[] {
   return [buffer[at] ?? 0, buffer[at + 1] ?? 0, buffer[at + 2] ?? 0, buffer[at + 3] ?? 0]
 }
 
-/** Where the D's stem is solid, at any size. */
+/** The middle of the D's stem, which starts partway down, at any size. */
 function onStem(size: number): { x: number; y: number } {
-  return { x: Math.round(size * 0.2), y: Math.round(size * 0.5) }
+  return { x: Math.round(size * 0.31), y: Math.round(size * 0.7) }
 }
 
 test('every scale the tray can ask for is drawn', () => {

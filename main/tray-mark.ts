@@ -84,38 +84,27 @@ function spread(mark: Uint8Array, size: number, radius: number): Uint8Array {
   return out
 }
 
-/** A bold D in a unit box: a stem joined to a bowl, with the counter cut out. */
+/**
+ * The mark in a unit square: the same D as the orb, with its stem starting
+ * partway down and its opening open to the left. Fitted to 80 percent of the
+ * square, in the mark's own 100 unit box.
+ */
 function inMark(u: number, v: number): boolean {
-  const left = 0.14
-  const right = 0.86
-  const top = 0.1
-  const bottom = 0.9
-  const t = 0.185
-  const spine = left + 0.26
-  const cy = (top + bottom) / 2
-  return (
-    outside(u, v, left, right, top, bottom, spine, cy) &&
-    !outside(u, v, left + t, right - t, top + t, bottom - t, spine, cy)
-  )
+  const x = 12 + ((u - 0.1) / 0.8) * 82
+  const y = 12 + ((v - 0.1) / 0.8) * 76
+  if (y < 12 || y > 88) return false
+  // The top bar, its corner cut from (22, 26) up to (34, 12).
+  if (y <= 26 && x <= 56 && x >= 22 + (26 - y) * (12 / 14)) return true
+  // The stem, which starts partway down, and the bottom bar.
+  if (x >= 28 && x <= 40 && y >= 48) return true
+  if (y >= 74 && x >= 28 && x <= 56) return true
+  // The bowl: inside the outer half ellipse and outside the inner one.
+  if (x >= 56) return inEllipse(x, y, 56, 50, 38.25, 38) && !inEllipse(x, y, 56, 50, 21, 24)
+  return false
 }
 
-/** Inside the D's outer silhouette: a rectangle to the spine, a half ellipse past it. */
-function outside(
-  u: number,
-  v: number,
-  left: number,
-  right: number,
-  top: number,
-  bottom: number,
-  spine: number,
-  cy: number
-): boolean {
-  if (v < top || v > bottom || u < left) return false
-  if (u <= spine) return true
-  const rx = right - spine
-  const ry = (bottom - top) / 2
-  if (rx <= 0 || ry <= 0) return false
-  const dx = (u - spine) / rx
-  const dy = (v - cy) / ry
+function inEllipse(x: number, y: number, cx: number, cy: number, rx: number, ry: number): boolean {
+  const dx = (x - cx) / rx
+  const dy = (y - cy) / ry
   return dx * dx + dy * dy <= 1
 }

@@ -1,58 +1,97 @@
 import type { OrbState } from '../../shared/types.ts'
+import { OPENING } from './logo.ts'
 
 /**
- * The companion's face, in the same 100 unit box as the mark. Two eyes and a
- * mouth are the whole vocabulary, so every state has to be said with a radius
- * and a curve.
- *
- * Every mouth is one quadratic with the same command structure, and the eyes
- * differ only in their geometry properties. Chromium animates both, so the face
- * moves between states rather than cutting.
+ * The character's face, laid out from the opening in the mark, in the same
+ * 100 unit box. Two eyes and a mouth are the whole vocabulary, so every mood
+ * has to be said with lids, a gaze and a curve.
  */
-export interface Expression {
-  /** Half width and half height of an eye. Taller reads as more awake. */
-  eye: { rx: number; ry: number }
-  /** How far the eyes sit from centre, and how high. */
-  gaze: { dx: number; dy: number }
-  mouth: string
-  /** A mouth that is open is filled; a mouth that is a line is stroked. */
-  open: boolean
+
+export type Mood = 'idle' | 'watching' | 'thinking' | 'cheering' | 'celebrating' | 'asleep'
+
+export const INK = '#171f33'
+export const BLUSH = '#ff8094'
+
+const CENTRE_X = OPENING.x + OPENING.width / 2
+
+/** Two capsules either side of the opening's centre, a little above its middle. */
+export const EYE = {
+  width: 7.5,
+  height: 11.5,
+  y: OPENING.y + OPENING.height * 0.36,
+  xs: [CENTRE_X - 7, CENTRE_X + 7] as const,
+  highlight: { diameter: 2.6, dx: -1.4, dy: -3, opacity: 0.95 }
 }
 
-const EYE_Y = 43
-const EYE_X = 13
+/** The frame the mouth is drawn in, and the stroke it is drawn with. */
+export const MOUTH = {
+  width: 15,
+  height: 8,
+  cx: CENTRE_X,
+  cy: OPENING.y + OPENING.height * 0.7,
+  stroke: 2,
+  /** In points. At a small tile the stroke is held here rather than scaled away. */
+  minStrokePt: 1.4
+}
 
-export const FACES: Record<OrbState, Expression> = {
-  // Awake and unbothered: round eyes, a shallow smile.
-  idle: {
-    eye: { rx: 7, ry: 7 },
-    gaze: { dx: 0, dy: 0 },
-    mouth: 'M 38 62 Q 50 71 62 62',
-    open: false
-  },
-  // Taking something in. Eyes a little taller, mouth almost closed.
-  listening: {
-    eye: { rx: 7, ry: 8.5 },
-    gaze: { dx: 0, dy: -1 },
-    mouth: 'M 40 65 Q 50 67 60 65',
-    open: false
-  },
-  // Looking away and up, the way anyone does while working something out.
-  thinking: {
-    eye: { rx: 6.5, ry: 5.5 },
-    gaze: { dx: 3, dy: -3 },
-    mouth: 'M 42 66 Q 50 63 58 66',
-    open: false
-  },
-  // The lock-in. Eyes wide, mouth open, and the ink turns gold around it.
-  alert: {
-    eye: { rx: 8.5, ry: 9.5 },
-    gaze: { dx: 0, dy: -1 },
-    mouth: 'M 41 61 Q 50 77 59 61',
-    open: true
+/** Two dots that appear while celebrating, just above the mouth. */
+export const BLUSH_DOTS = { diameter: 4, xs: [46, 68] as const, y: MOUTH.cy - 3, opacity: 0.75 }
+
+export type MouthShape = 'smile' | 'grin' | 'o' | 'flat'
+
+export interface Expression {
+  mouth: MouthShape
+  /** Vertical scale of each eye about its own centre. Open is 1. */
+  lids: number
+  /** Where both eyes look, in box units. */
+  gaze: { dx: number; dy: number }
+  blush: boolean
+}
+
+export const EXPRESSIONS: Record<Mood, Expression> = {
+  idle: { mouth: 'smile', lids: 1, gaze: { dx: 0, dy: 0 }, blush: false },
+  // Toward the lecture, which sits below and to the left of the corner the orb keeps.
+  watching: { mouth: 'smile', lids: 1, gaze: { dx: -2.7, dy: 1 }, blush: false },
+  thinking: { mouth: 'o', lids: 1, gaze: { dx: 2, dy: -3 }, blush: false },
+  cheering: { mouth: 'grin', lids: 0.4, gaze: { dx: 0, dy: 0 }, blush: false },
+  celebrating: { mouth: 'grin', lids: 0.4, gaze: { dx: 0, dy: 0 }, blush: true },
+  asleep: { mouth: 'flat', lids: 0.45, gaze: { dx: 0, dy: 0 }, blush: false }
+}
+
+/** Lids most of the way down, for the length of a blink. */
+export const BLINK_LIDS = 0.12
+
+/** Asleep is nothing to hear and nobody talking to it. Everything else is a mood. */
+export function moodOf(state: { orb: OrbState; expanded: boolean }): Mood {
+  switch (state.orb) {
+    case 'alert':
+      return 'celebrating'
+    case 'cheering':
+      return 'cheering'
+    case 'thinking':
+      return 'thinking'
+    case 'listening':
+      return 'watching'
+    case 'idle':
+      return state.expanded ? 'idle' : 'asleep'
   }
 }
 
-export function eyeAt(side: -1 | 1, face: Expression): { cx: number; cy: number } {
-  return { cx: 50 + side * EYE_X + face.gaze.dx, cy: EYE_Y + face.gaze.dy }
+/** The mouth as path data, drawn in its frame. */
+export function mouthPath(shape: MouthShape): string {
+  const { width: w, height: h, cx, cy } = MOUTH
+  const at = (fx: number, fy: number): string => `${cx - w / 2 + fx * w} ${cy - h / 2 + fy * h}`
+  switch (shape) {
+    case 'smile':
+      return `M ${at(0.2, 0.35)} Q ${at(0.5, 1)} ${at(0.8, 0.35)}`
+    case 'grin':
+      return `M ${at(0, 0.2)} Q ${at(0.5, 1.7)} ${at(1, 0.2)}`
+    case 'flat':
+      return `M ${at(0.25, 0.5)} L ${at(0.75, 0.5)}`
+    case 'o': {
+      const rx = w * 0.16
+      const ry = h * 0.3
+      return `M ${cx - rx} ${cy} A ${rx} ${ry} 0 1 0 ${cx + rx} ${cy} A ${rx} ${ry} 0 1 0 ${cx - rx} ${cy}`
+    }
+  }
 }

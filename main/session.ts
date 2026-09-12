@@ -68,6 +68,9 @@ function words(text: string): string[] {
   return text.split(/(\s+)/).filter(Boolean)
 }
 
+/** How long a ship-it is cheered before the face settles. */
+const CHEER_MS = 2500
+
 export class Session {
   readonly transcript = new Transcript()
   state: CompanionState = {
@@ -439,6 +442,7 @@ export class Session {
     const run = this.runs.get(scenarioId)
     if (!run || this.busy) return
     this.busy = true
+    let cheer = false
     try {
       this.heardFromStudent(reply)
       this.patch({ orb: 'thinking' })
@@ -446,6 +450,7 @@ export class Session {
       const review = await reviewAnswer(this.deps.llm, run, reply)
       const prior = run.submitted
       run.submitted = reply
+      cheer = review.verdict === 'ship_it'
 
       const verdict = review.verdict === 'ship_it' ? 'Ship it.' : 'Not yet.'
       const mark = { from: REVIEWER, verdict: review.verdict }
@@ -478,7 +483,14 @@ export class Session {
       await this.apologise('get that reviewed', error)
     } finally {
       this.busy = false
-      this.patch({ orb: this.state.listening ? 'listening' : 'idle' })
+      // A ship-it is the one thing worth a hop. It settles on its own, unless
+      // something else has already moved the face on.
+      this.patch({ orb: cheer ? 'cheering' : this.state.listening ? 'listening' : 'idle' })
+      if (cheer) {
+        setTimeout(() => {
+          if (this.state.orb === 'cheering') this.patch({ orb: this.state.listening ? 'listening' : 'idle' })
+        }, CHEER_MS).unref()
+      }
     }
   }
 

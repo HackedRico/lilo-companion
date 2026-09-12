@@ -1,53 +1,49 @@
-import { useEffect, useRef, type CSSProperties, type ReactElement } from 'react'
+import { useEffect, useRef, useState, type ReactElement } from 'react'
+import { ORB } from '../../shared/layout.ts'
 import type { CompanionState, Rect } from '../../shared/types.ts'
 import { api } from '../api.ts'
 import { trackPointer } from '../drag.ts'
-import { FACES, eyeAt } from './face.ts'
 import {
-  ALERT_FROM,
-  ALERT_TO,
-  CORNER_SOFTEN,
-  GLYPH_TRANSFORM,
-  GRADIENT_FROM,
-  GRADIENT_TO,
-  STEM,
-  SWOOSH
-} from './logo.ts'
+  BLINK_LIDS,
+  BLUSH,
+  BLUSH_DOTS,
+  EXPRESSIONS,
+  EYE,
+  INK,
+  MOUTH,
+  moodOf,
+  mouthPath,
+  type Mood
+} from './face.ts'
+import { BOX_FILL, BOX_TRANSFORM, GRADIENT_FROM, GRADIENT_TO, MARK, TILE_RADIUS } from './logo.ts'
 
 /**
- * The face is drawn over the mark, not instead of it. At rest the orb is the
- * logo. The moment the companion is doing something the mark drops to a tint
- * and the eyes and mouth come up in full ink on top of it, because blue over
- * blue would not read at 56 points.
+ * The character: a white tile, the mark, and a face inside the mark's opening.
+ * The tile is the fixed point on screen; everything else opens around it and
+ * closes back to it. A mood is lids, a gaze and a mouth, and two of them hop.
  */
 
-/** Transitioning a path needs the d in the style, not the attribute. */
-function mouthStyle(d: string): CSSProperties {
-  return { d: `path("${d}")` } as CSSProperties
-}
+/** Hops in pixels, from the notes' points at a 66 pt tile, scaled to this one. */
+const HOP = { cheering: Math.round(12 * (ORB / 66)), celebrating: Math.round(18 * (ORB / 66)) }
+
+/** One box unit in points, so a stroke can be held to a minimum the eye can see. */
+const UNIT_PT = (ORB * BOX_FILL) / 100
 
 export function Orb({ rect, state }: { rect: Rect; state: CompanionState }): ReactElement {
-  const burst = useRef<HTMLDivElement>(null)
-  const previous = useRef(state.orb)
+  const tile = useRef<HTMLDivElement>(null)
+  const ring = useRef<SVGRectElement>(null)
+  const mood = moodOf(state)
+  const previous = useRef<Mood>(mood)
+  const blinking = useBlink(mood)
 
   useEffect(() => {
-    // The lock-in is the only moment the mark changes colour, so it gets a ring.
-    if (previous.current !== 'alert' && state.orb === 'alert') {
-      burst.current?.animate([{ scale: '1', opacity: 0.7 }, { scale: '1.7', opacity: 0 }], {
-        duration: 900,
-        easing: 'cubic-bezier(0.15, 0.7, 0.3, 1)'
-      })
-    }
-    previous.current = state.orb
-  }, [state.orb])
+    if (previous.current !== mood) hop(mood, tile.current, ring.current)
+    previous.current = mood
+  }, [mood])
 
-  const ink = state.orb === 'alert' ? 'url(#orbAlert)' : 'url(#orbInk)'
-  const face = FACES[state.orb]
-  const left = eyeAt(-1, face)
-  const right = eyeAt(1, face)
-  // Awake whenever it is listening, thinking or alerting, and whenever the
-  // panel is open and it is being talked to. Idle with the panel shut is the logo.
-  const awake = state.orb !== 'idle' || state.expanded
+  const face = EXPRESSIONS[mood]
+  const lids = blinking ? BLINK_LIDS : face.lids
+  const stroke = Math.max(MOUTH.stroke, MOUTH.minStrokePt / UNIT_PT)
 
   return (
     <div
@@ -65,49 +61,144 @@ export function Orb({ rect, state }: { rect: Rect; state: CompanionState }): Rea
         })
       }
     >
-      <div className="orb" data-state={state.orb} data-listening={state.listening} data-face={awake}>
-        <div className="orb-burst" ref={burst} />
+      <div className="orb" data-mood={mood} data-listening={state.listening}>
         <div className="orb-ring" />
-        <div className="orb-body">
+        <div className="orb-body" ref={tile}>
           <svg viewBox="0 0 100 100" role="img" aria-label="Lilo">
             <defs>
               <linearGradient id="orbInk" x1="0" y1="0" x2="1" y2="1">
                 <stop offset="0" stopColor={GRADIENT_FROM} />
                 <stop offset="1" stopColor={GRADIENT_TO} />
               </linearGradient>
-              <linearGradient id="orbAlert" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0" stopColor={ALERT_FROM} />
-                <stop offset="1" stopColor={ALERT_TO} />
-              </linearGradient>
             </defs>
 
-            <g
-              className="orb-mark"
-              transform={GLYPH_TRANSFORM}
-              fill={ink}
-              stroke={ink}
-              strokeWidth={CORNER_SOFTEN}
-              strokeLinejoin="round"
-            >
-              <path d={SWOOSH} fillRule="evenodd" />
-              <path d={STEM} />
-            </g>
+            {/* The celebration ring: the tile's own outline, in the gradient, thrown outward. */}
+            <rect
+              className="orb-burst"
+              ref={ring}
+              x="0"
+              y="0"
+              width="100"
+              height="100"
+              rx={100 * TILE_RADIUS}
+              fill="none"
+              stroke="url(#orbInk)"
+              strokeWidth="3"
+              opacity="0"
+            />
 
-            <g className="orb-face" fill={ink}>
-              <ellipse className="orb-eye" cx={left.cx} cy={left.cy} rx={face.eye.rx} ry={face.eye.ry} />
-              <ellipse className="orb-eye" cx={right.cx} cy={right.cy} rx={face.eye.rx} ry={face.eye.ry} />
+            <g transform={BOX_TRANSFORM}>
+              <path d={MARK} fill="url(#orbInk)" />
+
+              <g className="orb-gaze" style={{ transform: `translate(${face.gaze.dx}px, ${face.gaze.dy}px)` }}>
+                {EYE.xs.map((x) => (
+                  <g key={x} className="orb-eye" style={{ transform: `scaleY(${lids})` }}>
+                    <rect
+                      x={x - EYE.width / 2}
+                      y={EYE.y - EYE.height / 2}
+                      width={EYE.width}
+                      height={EYE.height}
+                      rx={EYE.width / 2}
+                      fill={INK}
+                    />
+                    <circle
+                      cx={x + EYE.highlight.dx}
+                      cy={EYE.y + EYE.highlight.dy}
+                      r={EYE.highlight.diameter / 2}
+                      fill="#ffffff"
+                      opacity={EYE.highlight.opacity}
+                    />
+                  </g>
+                ))}
+              </g>
+
               <path
                 className="orb-mouth"
-                style={mouthStyle(face.open ? `${face.mouth} Z` : face.mouth)}
-                fill={face.open ? ink : 'none'}
-                stroke={ink}
-                strokeWidth={face.open ? 0 : 4.4}
+                d={mouthPath(face.mouth)}
+                fill="none"
+                stroke={INK}
+                strokeWidth={stroke}
                 strokeLinecap="round"
               />
+
+              {BLUSH_DOTS.xs.map((x) => (
+                <circle
+                  key={x}
+                  className="orb-blush"
+                  cx={x}
+                  cy={BLUSH_DOTS.y}
+                  r={BLUSH_DOTS.diameter / 2}
+                  fill={BLUSH}
+                  opacity={face.blush ? BLUSH_DOTS.opacity : 0}
+                />
+              ))}
             </g>
           </svg>
         </div>
       </div>
     </div>
   )
+}
+
+/** Cheering hops and springs back. Celebrating hops higher and throws the ring. */
+function hop(mood: Mood, tile: HTMLDivElement | null, ring: SVGRectElement | null): void {
+  if (!tile) return
+  if (mood === 'cheering') {
+    tile.animate(
+      [
+        { transform: 'translateY(0)' },
+        { transform: `translateY(-${HOP.cheering}px)`, offset: 0.25, easing: 'ease-in' },
+        { transform: 'translateY(2px)', offset: 0.65 },
+        { transform: 'translateY(0)' }
+      ],
+      { duration: 480, easing: 'ease-out' }
+    )
+  }
+  if (mood === 'celebrating') {
+    tile.animate(
+      [
+        { transform: 'translateY(0)' },
+        { transform: `translateY(-${HOP.celebrating}px)`, offset: 0.25, easing: 'ease-in' },
+        { transform: 'translateY(4px)', offset: 0.55 },
+        { transform: 'translateY(-1px)', offset: 0.8 },
+        { transform: 'translateY(0)' }
+      ],
+      { duration: 640, easing: 'ease-out' }
+    )
+    ring?.animate([{ transform: 'scale(1)', opacity: 1 }, { transform: 'scale(1.45)', opacity: 0 }], {
+      duration: 900,
+      easing: 'cubic-bezier(0.15, 0.7, 0.3, 1)'
+    })
+  }
+}
+
+/** Open eyes blink every 2.5 to 5.5 seconds. A squint and a sleeping face are left alone. */
+function useBlink(mood: Mood): boolean {
+  const [closed, setClosed] = useState(false)
+  useEffect(() => {
+    if (mood !== 'idle' && mood !== 'watching' && mood !== 'thinking') return
+    let alive = true
+    let timer: ReturnType<typeof setTimeout>
+    const next = (): void => {
+      timer = setTimeout(
+        () => {
+          if (!alive) return
+          setClosed(true)
+          timer = setTimeout(() => {
+            if (!alive) return
+            setClosed(false)
+            next()
+          }, 110)
+        },
+        2500 + Math.random() * 3000
+      )
+    }
+    next()
+    return () => {
+      alive = false
+      clearTimeout(timer)
+      setClosed(false)
+    }
+  }, [mood])
+  return closed
 }
