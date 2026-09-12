@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { before, test } from 'node:test'
 import { resolve } from 'node:path'
+import { ROLE_FAMILIES, type RoleFamily } from '../../shared/types.ts'
 import { loadIkb, type Ikb } from './load.ts'
 import { evidenceFor, evidenceOf, freeSearch, resolveTerms } from './search.ts'
 import { computeGaps } from './gaps.ts'
@@ -9,6 +10,14 @@ let ikb: Ikb
 
 before(async () => {
   ikb = await loadIkb(resolve(import.meta.dirname, '../../data'))
+})
+
+test('every posting in the base is software engineering, on a track', () => {
+  const families = new Set<string>(ROLE_FAMILIES)
+  for (const posting of ikb.postings.values()) {
+    assert.ok(families.has(posting.roleFamily), `${posting.title} is on ${posting.roleFamily}`)
+  }
+  assert.ok(ikb.postingCount > 300, `${ikb.postingCount} postings is enough to quote from`)
 })
 
 test('the anchor terms return real sentences', () => {
@@ -30,7 +39,7 @@ test('loose phrasing resolves to the tagged vocabulary, and invented terms do no
 
 test('a card quotes three companies, not one company three times', () => {
   const terms = resolveTerms(ikb, ['A/B testing', 'experimentation'])
-  const sentences = evidenceFor(ikb, terms, ['data'])
+  const sentences = evidenceFor(ikb, terms, ['backend'])
   assert.equal(sentences.length, 3)
   const companies = sentences.map((s) => ikb.postings.get(s.postingId)?.company)
   assert.equal(new Set(companies).size, 3)
@@ -56,6 +65,18 @@ test('three real gaps come back for a software role', () => {
     assert.ok(gap.exampleSentence.tags.includes(gap.practice))
   }
   assert.ok(cohort.postings >= 40, 'percentages are taken over a real cohort')
+})
+
+test('a thin track widens to all of software engineering rather than quoting a handful', () => {
+  const counts = new Map<RoleFamily, number>()
+  for (const posting of ikb.postings.values()) {
+    counts.set(posting.roleFamily, (counts.get(posting.roleFamily) ?? 0) + 1)
+  }
+  const thin = ROLE_FAMILIES.find((family) => (counts.get(family) ?? 0) < 40)
+  if (!thin) return
+  const { cohort } = computeGaps(ikb, [thin], [])
+  assert.deepEqual(cohort.roles, ['swe'], 'the cohort says it is every track')
+  assert.equal(cohort.postings, ikb.postingCount)
 })
 
 test('what the student already heard is not sold back to them as a gap', () => {

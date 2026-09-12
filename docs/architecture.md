@@ -26,8 +26,8 @@ student asks questions, submits an answer, and a senior reviews it.
 for those exact words in a later lecture and turns the orb gold when they
 arrive.
 
-**Recap.** What the student met, and what the postings for their aim ask for
-that they have not.
+**Recap.** What the student met, and what the postings for their track ask
+for that they have not.
 
 ## Two rules
 
@@ -47,15 +47,18 @@ gating by what is passed in is a fact about the call.
 
 `ingest-ikb.ts` pulls public ATS endpoints, strips boilerplate, splits
 requirements into sentences and tags each one against the tool and practice
-vocabularies. Postings get a role family and a seniority from their title.
+vocabularies. Postings get a track and a seniority from their title, and a
+title that is not a software engineering role is dropped there, so nothing
+downstream has to filter sales or legal back out.
 
 Retrieval is exact where it can be and fuzzy where it has to be. `byTag` is the
 exact index, `MiniSearch` covers free text and loose phrasing, and a term only
 survives if the index has hits for it.
 
 Gap percentages need a cohort big enough to quote. Below 40 postings the cohort
-widens from the seniority to the whole role family, and `computeGaps` returns
-which cohort it used, so the companion can say so.
+widens from early career on the track to the whole track, and from a thin track
+to all of software engineering, and `computeGaps` returns which cohort it used,
+so the companion can say so.
 
 A tagger rule reads `data scien\w*` rather than `data scien\b`, because a word
 boundary after a prefix can never match the letter that follows it.
@@ -121,11 +124,12 @@ query, going to two columns once there is room. It has two tabs, because it
 holds two unrelated things, and the tab is remembered in the window's own
 storage.
 
-What you are aiming at is typed, not picked. The seven role families are what
-every posting is tagged with, and evidence and gap statistics both filter on
-them, so free text alone would match nothing. The phrase is searched against
-real job titles and resolves to the family those titles carry, with "nothing
-like it" said plainly when there is no such work.
+What you are aiming at is typed, not picked. The eight tracks are what every
+posting is tagged with, and evidence and gap statistics both filter on them, so
+free text alone would match nothing. The phrase is searched against real job
+titles and resolves to the track those titles carry, with "nothing like it"
+said plainly when there is no such work. `swe` is a posting that named no
+track, and a student who aims at it is aiming at every track.
 
 ## The look
 

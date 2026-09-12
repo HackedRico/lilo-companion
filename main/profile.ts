@@ -1,4 +1,4 @@
-import type { Profile, RoleFamily } from '../shared/types.ts'
+import { labelRoles, type Profile, type RoleFamily } from '../shared/types.ts'
 import { profileOut } from '../shared/schemas.ts'
 import { extractProfile } from '../shared/prompts.ts'
 import type { LlmLike } from './llm/service.ts'
@@ -29,7 +29,7 @@ export function withHeardTerms(profile: Profile, terms: string[]): Profile {
 
 export function summarise(profile: Profile): string {
   const parts = [profile.major, profile.year].filter(Boolean)
-  const aiming = profile.targetRoles.join(' or ')
+  const aiming = labelRoles(profile.targetRoles)
   if (parts.length === 0 && !aiming) return 'a student who has not said much about themselves yet'
   return [parts.join(', '), aiming ? `aiming at ${aiming}` : ''].filter(Boolean).join(', ')
 }

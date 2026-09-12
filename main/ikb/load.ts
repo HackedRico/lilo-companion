@@ -14,7 +14,7 @@ export interface Ikb {
   practices: Set<string>
   matchers: Matcher[]
   search: MiniSearch<Sentence>
-  /** Job titles, so a phrase like "quantitative finance" can find its family. */
+  /** Job titles, so a phrase like "distributed systems" can find its track. */
   titles: MiniSearch<TitleDoc>
   postingCount: number
 }

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { ROLE_FAMILIES } from './types.ts'
 
 /**
  * Every model response is parsed through one of these. Featherless supports
@@ -64,7 +65,7 @@ export const profileOut = z.object({
   major: z.string().max(80),
   year: z.string().max(40),
   courses: z.array(z.string().max(80)).max(10),
-  targetRoles: z.array(z.enum(['swe', 'data', 'pm', 'design', 'security', 'devops', 'other'])).max(3),
+  targetRoles: z.array(z.enum(ROLE_FAMILIES)).max(3),
   interests: z.array(z.string().max(60)).max(8)
 })
 

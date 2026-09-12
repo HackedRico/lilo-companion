@@ -12,10 +12,11 @@ before(async () => {
 
 test('the obvious phrasings land where you would expect', () => {
   assert.equal(resolveAim(ikb, 'software engineering').family, 'swe')
-  assert.equal(resolveAim(ikb, 'backend engineer').family, 'swe')
-  assert.equal(resolveAim(ikb, 'data science').family, 'data')
-  assert.equal(resolveAim(ikb, 'product manager').family, 'pm')
+  assert.equal(resolveAim(ikb, 'backend engineer').family, 'backend')
+  assert.equal(resolveAim(ikb, 'iOS').family, 'mobile')
+  assert.equal(resolveAim(ikb, 'machine learning').family, 'ml')
   assert.equal(resolveAim(ikb, 'security').family, 'security')
+  assert.equal(resolveAim(ikb, 'site reliability').family, 'infra')
 })
 
 test('a phrase nobody hires for admits it rather than guessing', () => {
@@ -30,10 +31,10 @@ test('an empty or one letter phrase resolves to nothing', () => {
 })
 
 test('only what resolved becomes a filter, in the order it was said', () => {
-  const aims = resolveAims(ikb, ['product manager', 'underwater basket weaving', 'data science'])
-  assert.deepEqual(familiesOf(aims), ['pm', 'data'])
+  const aims = resolveAims(ikb, ['machine learning', 'underwater basket weaving', 'backend engineer'])
+  assert.deepEqual(familiesOf(aims), ['ml', 'backend'])
 })
 
-test('the same family said twice is one filter', () => {
-  assert.deepEqual(familiesOf(resolveAims(ikb, ['backend engineer', 'software engineering'])), ['swe'])
+test('the same track said twice is one filter', () => {
+  assert.deepEqual(familiesOf(resolveAims(ikb, ['iOS engineer', 'android'])), ['mobile'])
 })

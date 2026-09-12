@@ -25,6 +25,7 @@ interface Board {
 
 /** One posting should not be able to flood the evidence for a term. */
 const SENTENCES_PER_POSTING = 12
+/** Nor should one company. Counted over what is kept, since most of a board is not engineering. */
 const POSTINGS_PER_BOARD = 80
 const TIMEOUT_MS = 30000
 
@@ -129,8 +130,13 @@ async function main(): Promise<void> {
     }
 
     let kept = 0
-    for (const job of raw.slice(0, POSTINGS_PER_BOARD)) {
+    for (const job of raw) {
+      if (kept >= POSTINGS_PER_BOARD) break
       if (!job.title || !job.text) continue
+      // Only software engineering is evidence. Sales, legal and the rest of a
+      // board are left out here, so nothing downstream has to filter them.
+      const roleFamily = classifyRole(job.title)
+      if (roleFamily === null) continue
       const postingId = `${board.ats}:${board.token}:${job.id}`
       const tagged: Sentence[] = []
 
@@ -149,7 +155,7 @@ async function main(): Promise<void> {
         id: postingId,
         company: board.company,
         title: job.title,
-        roleFamily: classifyRole(job.title),
+        roleFamily,
         seniority: classifySeniority(job.title),
         url: job.url
       })

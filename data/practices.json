@@ -240,19 +240,6 @@
     ]
   },
   {
-    "term": "user research",
-    "aliases": [
-      "customer interviews",
-      "user interviews"
-    ]
-  },
-  {
-    "term": "customer feedback",
-    "aliases": [
-      "voice of customer"
-    ]
-  },
-  {
     "term": "metrics",
     "aliases": [
       "KPIs",
@@ -264,12 +251,6 @@
     "term": "dashboards",
     "aliases": [
       "reporting"
-    ]
-  },
-  {
-    "term": "data visualization",
-    "aliases": [
-      "visualizations"
     ]
   },
   {

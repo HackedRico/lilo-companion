@@ -1,4 +1,4 @@
-import type { RoleFamily, Seniority } from '../../shared/types'
+import type { RoleFamily, Seniority } from '../../shared/types.ts'
 
 /**
  * Turning a job posting into tagged sentences. Pure, so the ingest script and
@@ -19,7 +19,7 @@ export interface Matcher {
  * Short words that are also ordinary English. In postings they turn up inside
  * lists ("Python, Go, Rust"), so a separator nearby is what tells them apart.
  */
-const AMBIGUOUS = new Set(['Go', 'R', 'C', 'Spring', 'Excel'])
+const AMBIGUOUS = new Set(['Go', 'R', 'C', 'Spring'])
 
 /** A term may not run into a neighbouring word, version number or extension. */
 const EDGE = '[A-Za-z0-9+#&.]'
@@ -104,23 +104,51 @@ export function isBoilerplate(sentence: string): boolean {
   return BOILERPLATE.some((pattern) => pattern.test(sentence))
 }
 
-const ROLE_RULES: [RegExp, RoleFamily][] = [
-  [/\b(sre|site reliability|devops|platform engineer|infrastructure engineer)\b/i, 'devops'],
-  [/\b(security|appsec|infosec|cryptograph)/i, 'security'],
-  [
-    // No trailing boundary: several of these are prefixes, and a boundary after
-    // "data scien" can never match the "t" in "Data Scientist".
-    /\b(data scien|data analy|data engineer|machine learning|ml engineer|analytics|analyst|research scientist|quantitative|statistician|econometric|business intelligence)/i,
-    'data'
-  ],
-  [/\b(product manager|program manager|product owner|tpm)\b/i, 'pm'],
-  [/\b(designer|design|ux|ui researcher)\b/i, 'design'],
-  [/\b(software|engineer|developer|backend|frontend|front.end|back.end|full.stack|mobile|ios|android)\b/i, 'swe']
+/** A title is software engineering when it says so. Anything else is not evidence. */
+const ENGINEERING = /\b(software|engineer|engineering|developer|programmer|sre|devops)\b/i
+
+/**
+ * Titles that carry an engineering word and are still not the job a student is
+ * aiming at: management, the customer-facing kinds of engineer, and the roles
+ * that borrow the word from another discipline.
+ */
+const NOT_ENGINEERING = [
+  /\b(manager|director|head of|vp|vice president|chief|recruit)/i,
+  /\b(sales|solutions?|pre-?sales|support|customer|field|partner|consulting|enablement|services)\s+(\w+\s+)?engineer/i,
+  /\b(developer|engineering) (advocate|relations|onboarding)\b|\bdevrel\b/i,
+  /\b(electrical|hardware|physical|legal|business systems?|it|grc|analytics|analytical|events?|risk|threat|applications?|technical services)\s+(\w+\s+){0,2}engineer/i,
+  /\b(site engineer|network (deployment|hardware)|data center|supply|administrative|marketing|designer|product manager|program manager|abuse research)\b/i
 ]
 
-export function classifyRole(title: string): RoleFamily {
-  for (const [pattern, family] of ROLE_RULES) if (pattern.test(title)) return family
-  return 'other'
+/**
+ * What the posting is about, first match wins. The kind of code someone writes
+ * comes before the domain it runs in, so "Backend Engineer, Infrastructure" is
+ * backend and "Cloud Security Engineer" is security.
+ */
+const TRACK_RULES: [RegExp, RoleFamily][] = [
+  [/\b(ios|android|mobile)\b/i, 'mobile'],
+  [/\b(front.?end|web|ui|ux)\b/i, 'frontend'],
+  [/\b(back.?end|server|distributed systems|databases?|apis?|streaming|postgres)\b/i, 'backend'],
+  [/\b(full.?stack|product engineer)\b/i, 'fullstack'],
+  [/\b(security|appsec|infosec|detection|privacy|cryptograph|iam|ciam)\b/i, 'security'],
+  [
+    // No trailing boundary: "machine learning" is a prefix of "Machine Learning
+    // Engineer" and a boundary after it can never match the space.
+    /\b(machine learning|ml|ai engineer|applied ai|ai research|research engineer|inference|computer vision|deep learning|llm|nlp|data engineer)/i,
+    'ml'
+  ],
+  [
+    /\b(sre|site reliability|devops|platform engineer|infrastructure|infra|cloud|network(ing)?|observability|reliability|compute|cdn|storage|kubernetes|deployment|developer (experience|productivity|platform))\b/i,
+    'infra'
+  ]
+]
+
+/** The track a software engineering title is on, or null when it is not one. */
+export function classifyRole(title: string): RoleFamily | null {
+  if (!ENGINEERING.test(title)) return null
+  if (NOT_ENGINEERING.some((pattern) => pattern.test(title))) return null
+  for (const [pattern, family] of TRACK_RULES) if (pattern.test(title)) return family
+  return 'swe'
 }
 
 const SENIORITY_RULES: [RegExp, Seniority][] = [

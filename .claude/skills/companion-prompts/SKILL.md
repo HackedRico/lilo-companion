@@ -11,7 +11,7 @@ Two rules hold across every prompt, and code enforces both. **The LLM translates
 
 Every prompt is a function in `shared/prompts.ts` returning `{ system, user }`. Every JSON reply is parsed through a schema in `shared/schemas.ts`, and the schema is the gate: the endpoints in use offer JSON mode without schema enforcement, so nothing reaches the app that Zod did not accept. A call names a lane, `fast` for keeping up with the lecture and playing the coworker, `strong` for writing the scenario and the review.
 
-`VOICE` at the top of `prompts.ts` is the companion's register and every conversational prompt inherits it. A prompt that reads well to a person and breaks the voice is the wrong prompt.
+`VOICE` at the top of `prompts.ts` is the companion's register and every conversational prompt inherits it. A prompt that reads well to a person and breaks the voice is the wrong prompt. Every prompt also says the student is a software engineering student and its worked example is a software one; a small model handed a prompt without that drifts generic.
 
 ## Changing a prompt
 

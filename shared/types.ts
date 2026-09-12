@@ -1,6 +1,27 @@
 // Domain -----------------------------------------------------------------
 
-export type RoleFamily = 'swe' | 'data' | 'pm' | 'design' | 'security' | 'devops' | 'other'
+/**
+ * The tracks a software engineering posting can be on. `swe` is a posting that
+ * named no track, and a student who aims at `swe` is aiming at every track.
+ * Nothing outside software engineering is in the base, so there is no `other`.
+ */
+export const ROLE_FAMILIES = [
+  'swe',
+  'backend',
+  'frontend',
+  'fullstack',
+  'mobile',
+  'infra',
+  'security',
+  'ml'
+] as const
+
+export type RoleFamily = (typeof ROLE_FAMILIES)[number]
+
+/** Whether a posting on `family` is one the student's aims take in. */
+export function wantsFamily(wanted: readonly RoleFamily[], family: RoleFamily): boolean {
+  return wanted.length === 0 || wanted.includes('swe') || wanted.includes(family)
+}
 
 export type Seniority = 'intern' | 'new_grad' | 'junior' | 'mid' | 'senior'
 
@@ -235,10 +256,16 @@ export interface Layout {
 
 export const ROLE_LABEL: Record<RoleFamily, string> = {
   swe: 'software engineering',
-  data: 'data',
-  pm: 'product',
-  design: 'design',
+  backend: 'backend',
+  frontend: 'frontend',
+  fullstack: 'full stack',
+  mobile: 'mobile',
+  infra: 'infrastructure',
   security: 'security',
-  devops: 'infrastructure',
-  other: 'other'
+  ml: 'machine learning'
+}
+
+/** The families the student aims at, said the way the companion says them. */
+export function labelRoles(roles: readonly RoleFamily[]): string {
+  return roles.map((role) => ROLE_LABEL[role]).join(' and ')
 }

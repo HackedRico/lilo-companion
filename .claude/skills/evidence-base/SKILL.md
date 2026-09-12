@@ -12,8 +12,8 @@ Every claim about industry traces to a sentence in `data/ikb.json`, and every se
 1. `nearbyTerms` draws a menu from the postings nearest the concept.
 2. The model copies terms off the menu.
 3. `resolveTerms` keeps only what the vocabulary maps to a tag with hits.
-4. `evidenceFor` quotes three sentences from three different companies, on-role first.
-5. `computeGaps` counts practices the student has not met over a cohort of at least 40 postings, widening from early-career to the whole family when it must.
+4. `evidenceFor` quotes three sentences from three different companies, on-track first.
+5. `computeGaps` counts practices the student has not met over a cohort of at least 40 postings, widening from early career to the whole track, and from a thin track to all of software engineering, when it must.
 
 Every link is a pure function in `main/ikb/` with a test beside it. `tag.ts` has no Electron in it, so the ingest script and the app share one tagger.
 
@@ -40,4 +40,4 @@ Done when the new term has hits, checked with `ikb.byTag.get(term)` in a test, a
 - **A gap the student already met.** `heardTerms` on the profile is what suppresses it.
 - **A percentage off a handful of postings.** The cohort widened. `computeGaps` returns which one it used and the companion says so.
 
-The role rules in `tag.ts` match prefixes with no trailing boundary on purpose; the comment beside them says why. Keep that shape when adding a family.
+`classifyRole` in `tag.ts` answers null for any title that is not a software engineering role, and the ingest drops those, so a company's sales and legal postings never reach the base. The track rules put the kind of code someone writes ahead of the domain it runs in, and match prefixes with no trailing boundary where the comment says why. Keep both when adding a track.

@@ -107,7 +107,7 @@ class ScriptedLlm implements LlmLike {
 function harness(llm: ScriptedLlm, ikb: Ikb): { session: Session; thread: ThreadItem[]; states: Partial<CompanionState>[] } {
   const thread: ThreadItem[] = []
   const states: Partial<CompanionState>[] = []
-  let profile: Profile = { ...EMPTY_PROFILE, targetRoles: ['data'] }
+  let profile: Profile = { ...EMPTY_PROFILE, targetRoles: ['backend'] }
 
   const session = new Session({
     llm,

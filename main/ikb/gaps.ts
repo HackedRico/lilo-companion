@@ -1,11 +1,12 @@
-import type { Gap, RoleFamily, Sentence, Seniority } from '../../shared/types.ts'
+import { wantsFamily, type Gap, type RoleFamily, type Sentence, type Seniority } from '../../shared/types.ts'
 import type { Ikb } from './load.ts'
 
 const EARLY: Seniority[] = ['intern', 'new_grad', 'junior']
 
 /**
- * Below this many postings a percentage is noise, so the cohort widens to the
- * whole role rather than quoting a statistic off a handful of listings.
+ * Below this many postings a percentage is noise, so the cohort widens from
+ * early career on the track to the whole track, and from a thin track to all
+ * of software engineering, rather than quoting a statistic off a handful.
  */
 const MIN_COHORT = 40
 
@@ -36,12 +37,13 @@ export function computeGaps(
   heardTerms: string[],
   limit = 3
 ): GapResult {
-  const wanted = new Set(roles.length > 0 ? roles : (['swe'] as RoleFamily[]))
-  const onRole = [...ikb.postings.values()].filter((posting) => wanted.has(posting.roleFamily))
-  const early = onRole.filter((posting) => EARLY.includes(posting.seniority))
+  const all = [...ikb.postings.values()]
+  const onTrack = all.filter((posting) => wantsFamily(roles, posting.roleFamily))
+  const early = onTrack.filter((posting) => EARLY.includes(posting.seniority))
 
   const earlyCareerOnly = early.length >= MIN_COHORT
-  const cohort = earlyCareerOnly ? early : onRole
+  const widened = !earlyCareerOnly && onTrack.length < MIN_COHORT
+  const cohort = earlyCareerOnly ? early : widened ? all : onTrack
   const cohortIds = new Set(cohort.map((posting) => posting.id))
 
   // One posting counts once for a practice however often it repeats it.
@@ -75,8 +77,10 @@ export function computeGaps(
     if (gaps.length === limit) break
   }
 
+  // `swe` is every track, which is what a widened or unstated aim comes to.
+  const used: RoleFamily[] = widened || roles.length === 0 ? ['swe'] : [...roles]
   return {
     gaps,
-    cohort: { roles: [...wanted], earlyCareerOnly, postings: cohort.length }
+    cohort: { roles: used, earlyCareerOnly, postings: cohort.length }
   }
 }

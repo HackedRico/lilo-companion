@@ -1,4 +1,4 @@
-import type { Card, Evidence, Profile, RoleFamily, Sentence } from '../../shared/types.ts'
+import { wantsFamily, type Card, type Evidence, type Profile, type RoleFamily, type Sentence } from '../../shared/types.ts'
 import type { Ikb } from './load.ts'
 
 /** How many sentences a card carries. */
@@ -26,13 +26,13 @@ export function resolveTerms(ikb: Ikb, raw: string[]): TermHit[] {
   return [...seen.entries()].map(([term, hits]) => ({ term, hits }))
 }
 
-function scoreFor(sentence: Sentence, roles: Set<RoleFamily>, ikb: Ikb, headline?: string): number {
+function scoreFor(sentence: Sentence, roles: RoleFamily[], ikb: Ikb, headline?: string): number {
   const posting = ikb.postings.get(sentence.postingId)
   if (!posting) return -1
   let score = 0
   // The quote has to back the term the companion just said out loud.
   if (headline && sentence.tags.includes(headline)) score += 14
-  if (roles.has(posting.roleFamily)) score += 10
+  if (wantsFamily(roles, posting.roleFamily)) score += 10
   if (posting.seniority === 'intern' || posting.seniority === 'new_grad') score += 4
   if (posting.seniority === 'junior') score += 2
   // Shorter sentences quote better.
@@ -40,9 +40,8 @@ function scoreFor(sentence: Sentence, roles: Set<RoleFamily>, ikb: Ikb, headline
   return score
 }
 
-/** Sentences for a card: on-role where possible, and never two from one company. */
+/** Sentences for a card: on-track where possible, and never two from one company. */
 export function evidenceFor(ikb: Ikb, terms: TermHit[], roles: RoleFamily[]): Sentence[] {
-  const wanted = new Set(roles.length > 0 ? roles : (['swe'] as RoleFamily[]))
   const pool = new Map<string, Sentence>()
   for (const { term } of terms) {
     for (const sentence of ikb.byTag.get(term) ?? []) pool.set(sentence.id, sentence)
@@ -50,7 +49,7 @@ export function evidenceFor(ikb: Ikb, terms: TermHit[], roles: RoleFamily[]): Se
 
   const headline = terms[0]?.term
   const ranked = [...pool.values()]
-    .map((sentence) => ({ sentence, score: scoreFor(sentence, wanted, ikb, headline) }))
+    .map((sentence) => ({ sentence, score: scoreFor(sentence, roles, ikb, headline) }))
     .filter((entry) => entry.score >= 0)
     .sort((a, b) => b.score - a.score)
 

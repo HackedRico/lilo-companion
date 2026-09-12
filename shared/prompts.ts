@@ -1,3 +1,4 @@
+import { labelRoles, ROLE_LABEL } from './types.ts'
 import type { Card, HiddenFact, Posting, Profile, Scenario, Sentence } from './types.ts'
 
 export interface Prompt {
@@ -9,7 +10,7 @@ export interface Prompt {
  * The companion's voice. Everything conversational inherits this, so the tone
  * stays the same whether it is explaining evidence or reviewing an answer.
  */
-const VOICE = `You are a companion that sits beside a student while they study.
+const VOICE = `You are a companion that sits beside a software engineering student while they study.
 You speak plainly and a little dryly, like a friend who already has the job.
 One or two short sentences. Never more.
 Never write labels like "Concept:" or "Industry term:". Just say it in a sentence.
@@ -22,8 +23,8 @@ const JSON_ONLY = 'Reply with one JSON object and nothing else. No prose, no cod
 
 export function extractConcepts(transcript: string): Prompt {
   return {
-    system: `You read a few minutes of a university lecture and name what is being taught.
-Name at most three concepts, the ones a student would need to look up.
+    system: `You read a few minutes of a lecture a software engineering student is sitting in, and name what is being taught.
+Name at most three concepts, the ones they would need to look up.
 Skip admin, greetings, and exam logistics. If nothing is being taught, return an empty list.
 Confidence is high when the lecturer defines or works through it, low when it is mentioned in passing.
 ${JSON_ONLY}
@@ -36,19 +37,19 @@ Schema: {"concepts":[{"name":string,"summary":string,"confidence":"low"|"medium"
 
 export function translateConcept(concept: string, summary: string, vocabulary: string[]): Prompt {
   return {
-    system: `A student just heard an academic idea in a lecture. Say what job postings call the same thing.
+    system: `A software engineering student just heard an academic idea in a lecture. Say what software engineering job postings call the same thing.
 
 You are given terms that appear in real postings. Choose three to five of them and copy each one
 exactly as it is written. Handing the academic name back is the one thing you must not do:
-"sampling variability" is not a posting term, "A/B testing" is.
+"amortised analysis" is not a posting term, "performance optimization" is.
 Only invent a term if the list has nothing related at all, and then at most one.
 
 Also write one sentence saying where this shows up in the work itself. Address the student as "you".
 No company names, no numbers, no first person, under 25 words.
 
 Worked example.
-Concept: sampling variability, the sample mean moves between samples.
-Good reply: {"terms":["A/B testing","metrics","experimentation"],"oneLiner":"Every time someone says a change worked, this is the argument you are about to walk into."}
+Concept: amortised analysis, the cost of a rare expensive step spread over the cheap ones around it.
+Good reply: {"terms":["performance optimization","scalability","system design"],"oneLiner":"Every time someone asks why the tail latency spikes once an hour, this is the answer you are about to give."}
 
 ${JSON_ONLY}
 Schema: {"terms":[string],"oneLiner":string}`,
@@ -69,7 +70,7 @@ export function generateScenario(
   profile: Profile
 ): Prompt {
   return {
-    system: `You write a work request that a student practises on. It must feel like real work, which means it is incomplete.
+    system: `You write a work request that a software engineering student practises on. It lands on them as the engineer on a team, and it must feel like real work, which means it is incomplete.
 
 Rules:
 - The visible message is vague on purpose. A careful person cannot answer it well without asking questions first.
@@ -77,11 +78,11 @@ Rules:
 - revealWhen names the kind of question that uncovers that fact, as a noun phrase: "a question about when the change went live".
 - The sender is a coworker, not technical, busy, friendly. The persona says how they talk and what they do not know.
 - The sender does not know the technique and never names it. They ask about the outcome they care about,
-  not the method: "did the new checkout button help", never "can you run a significance test".
+  not the method: "why is the page slow on Mondays", never "can you profile the query plan".
 - Write it as a real message to one person the sender already knows. Never use a placeholder like
   [Student], [Name] or [Team], and never address a group.
 - The team and the people are fictional. Never use the real company's name inside the message.
-- The deliverable is a real artefact: a reply they can act on, a PR description, review comments. Not an essay.
+- The deliverable is a real artefact an engineer would hand over: a reply they can act on, a PR description, review comments, a short design note. Not an essay.
 - classVersion is one line saying how a textbook would have posed the same problem, fully specified.
 - The rubric is what a senior would check. Reward asking the questions that uncover the hidden facts, and giving an answer someone can act on. Never reward length.
 - An attachment is optional. If present: at most 15 lines of code, or at most 8 rows of a plain text table.
@@ -89,8 +90,8 @@ ${JSON_ONLY}
 Schema: {"title":string,"format":"jira"|"slack"|"email","from":{"name":string,"role":string},"persona":string,"visibleMessage":string,"attachment":{"type":"table"|"code"|"none","content":string},"hiddenFacts":[{"id":string,"fact":string,"revealWhen":string}],"deliverable":string,"classVersion":string,"rubric":[string]}`,
     user: `The student just learned: ${card.concept.name} — ${card.concept.summary}
 At work this shows up as: ${card.terms.map((term) => term.term).join(', ')}
-A real posting for a ${posting.roleFamily} role says: "${sentence.text}"
-The student is aiming at: ${profile.targetRoles.join(', ') || 'software engineering'}
+A real posting for a ${ROLE_LABEL[posting.roleFamily]} role says: "${sentence.text}"
+The student is aiming at: ${labelRoles(profile.targetRoles) || 'software engineering'}
 
 Write the request so that using ${card.concept.name} correctly is the heart of a good answer.`
   }
@@ -200,7 +201,7 @@ ${inScenario ? 'They are in the middle of a work scenario right now, so give hin
 
 When a claim about industry comes from one of the posting sentences below, cite it as [S:id] right
 after the claim. Never cite an id that is not listed. If nothing below supports a claim, do not make it.`,
-    user: `About the student: ${profile.major || 'unknown major'}, ${profile.year || 'unknown year'}, aiming at ${profile.targetRoles.join(' or ') || 'not said yet'}.
+    user: `About the student: software engineering, ${profile.major ? `studying ${profile.major}` : 'course not said'}, ${profile.year || 'year not said'}, aiming at ${labelRoles(profile.targetRoles) || 'no track said yet'}.
 ${card ? `They are looking at: ${card.concept.name} — ${card.oneLiner}\n` : ''}${transcript ? `Recent lecture:\n"""\n${transcript.slice(-2500)}\n"""\n` : ''}
 Posting sentences you may cite:
 ${sentences.length > 0 ? sentences.map((sentence) => `[S:${sentence.id}] ${sentence.text}`).join('\n') : '(none retrieved)'}
@@ -213,8 +214,10 @@ ${history.length > 0 ? `Conversation so far:\n${history.map((turn) => `${turn.ro
 
 export function extractProfile(history: { role: string; text: string }[]): Prompt {
   return {
-    system: `Read a short getting-to-know-you chat and fill in what the student told you.
-Leave a field empty rather than guessing. targetRoles uses only: swe, data, pm, design, security, devops, other.
+    system: `Read a short getting-to-know-you chat with a software engineering student and fill in what they told you.
+Leave a field empty rather than guessing. major is what they call their course: computer science, software engineering, computer engineering.
+targetRoles is the kind of engineering they are after, using only: swe, backend, frontend, fullstack, mobile, infra, security, ml.
+swe is for software engineering with no track named.
 ${JSON_ONLY}
 Schema: {"major":string,"year":string,"courses":[string],"targetRoles":[string],"interests":[string]}`,
     user: history.map((turn) => `${turn.role}: ${turn.text}`).join('\n')

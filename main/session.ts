@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { ROLE_LABEL } from '../shared/types.ts'
+import { labelRoles } from '../shared/types.ts'
 import type {
   Card,
   CompanionState,
@@ -180,7 +180,7 @@ export class Session {
     this.patch({
       composer: { mode: 'onboarding', hint: 'Tell me in your own words', who: null, scenarioId: null }
     })
-    await this.say('Before we start. What are you studying, and what kind of job are you after?')
+    await this.say('Before we start. What are you studying, and what kind of engineering are you after?')
   }
 
   private async onboardingTurn(text: string): Promise<void> {
@@ -550,8 +550,9 @@ export class Session {
       const names = this.seen.map((entry) => entry.concept.name).join(', ')
       await this.say(`Today you heard ${names}. All of it is on postings, under other names.`)
     }
-    const role = ROLE_LABEL[cohort.roles[0] ?? 'swe']
-    await this.say(`Here is what ${role} postings keep asking for that has not come up in your lectures.`)
+    await this.say(
+      `Here is what ${labelRoles(cohort.roles)} postings keep asking for that has not come up in your lectures.`
+    )
 
     for (const gap of gaps) {
       const evidence = evidenceOf(this.deps.ikb, gap.exampleSentence)

@@ -75,12 +75,31 @@ test('punctuation in a term survives', () => {
   assert.ok(tagText('Fluent in C++ and Java', matchers).includes('C++'))
 })
 
-test('titles sort into role families and seniority', () => {
-  assert.equal(classifyRole('Senior Backend Engineer'), 'swe')
-  assert.equal(classifyRole('Data Scientist, Growth'), 'data')
-  assert.equal(classifyRole('Site Reliability Engineer'), 'devops')
-  assert.equal(classifyRole('Product Manager, Payments'), 'pm')
-  assert.equal(classifyRole('Account Executive'), 'other')
+test('an engineering title lands on its track', () => {
+  assert.equal(classifyRole('Senior Backend Engineer'), 'backend')
+  assert.equal(classifyRole('Backend Software Engineer - Infrastructure'), 'backend')
+  assert.equal(classifyRole('Frontend Engineer, Ads'), 'frontend')
+  assert.equal(classifyRole('Senior Full-Stack Software Engineer, Growth'), 'fullstack')
+  assert.equal(classifyRole('Senior Software Engineer, iOS, Growth'), 'mobile')
+  assert.equal(classifyRole('Site Reliability Engineer'), 'infra')
+  assert.equal(classifyRole('Senior Cloud Security Engineer'), 'security')
+  assert.equal(classifyRole('Machine Learning Engineer II, Core Engineering'), 'ml')
+  assert.equal(classifyRole('Software Engineer, Early Career'), 'swe')
+})
+
+test('what is not software engineering is not evidence', () => {
+  assert.equal(classifyRole('Account Executive'), null)
+  assert.equal(classifyRole('Product Manager, Payments'), null)
+  assert.equal(classifyRole('Data Scientist, Growth'), null)
+  assert.equal(classifyRole('Senior Product Designer'), null)
+  assert.equal(classifyRole('Engineering Manager, Cloud Infrastructure'), null)
+  assert.equal(classifyRole('Enterprise Sales Engineer - Toronto'), null)
+  assert.equal(classifyRole('Senior Support Engineer - Dublin'), null)
+  assert.equal(classifyRole('Electrical Engineering Co-Op'), null)
+  assert.equal(classifyRole('Developer Advocate'), null)
+})
+
+test('seniority reads off the title', () => {
   assert.equal(classifySeniority('Software Engineer Intern'), 'intern')
   assert.equal(classifySeniority('New Grad Software Engineer'), 'new_grad')
   assert.equal(classifySeniority('Staff Engineer'), 'senior')

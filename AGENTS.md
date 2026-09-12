@@ -1,9 +1,10 @@
 # Working on Lilo
 
-Lilo is an Electron companion that listens to a lecture, says where the concept
-turns up in real job postings, and hands the student a vague request from a
-coworker to answer. It ships on macOS and Windows, and every change has to hold
-on both.
+Lilo is an Electron companion for software engineering students. It listens to
+a lecture, says where the concept turns up in real software engineering
+postings, and hands the student a vague request from a coworker to answer, the
+way it would land on the engineer on a team. It ships on macOS and Windows, and
+every change has to hold on both.
 
 ## Layout
 
@@ -25,6 +26,14 @@ touching the window, the tray, keys, audio or packaging: it says what differs
 between macOS and Windows and which of those differences are load-bearing.
 Read [docs/character.md](docs/character.md) before changing the orb, its
 moods or the tray mark: it holds the geometry and the numbers.
+
+## One audience
+
+Lilo is for software engineering students and nobody else. The evidence base
+holds software engineering postings only: `classifyRole` answers null for any
+other title and the ingest drops it. The role families are engineering tracks,
+every prompt says who the student is, and copy, placeholders and worked
+examples name software engineering rather than a stand-in from another field.
 
 ## Two rules the code keeps
 

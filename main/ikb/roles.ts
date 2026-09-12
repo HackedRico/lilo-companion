@@ -1,8 +1,8 @@
-import type { Aim, RoleFamily } from '../../shared/types.ts'
+import { ROLE_FAMILIES, type Aim, type RoleFamily } from '../../shared/types.ts'
 import type { Ikb } from './load.ts'
 
 /**
- * Turning what a student says they are after into the family their postings
+ * Turning what a student says they are after into the track their postings
  * actually live under. The same move the rest of the app makes: they propose,
  * the postings decide, and nothing is claimed that the data cannot back.
  */
@@ -10,7 +10,7 @@ import type { Ikb } from './load.ts'
 /** Below this the phrase has not really found anything. */
 const ENOUGH = 3
 
-const FAMILIES = new Set<string>(['swe', 'data', 'pm', 'design', 'security', 'devops', 'other'])
+const FAMILIES = new Set<string>(ROLE_FAMILIES)
 
 export function resolveAim(ikb: Ikb, said: string): Aim {
   const phrase = said.trim()

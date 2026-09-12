@@ -164,11 +164,11 @@ function ProfileTab({
   return (
     <>
       <p className="lede">
-        What the companion tailors itself to: which postings it shows you, and who the work comes from.
+        What the companion tailors itself to: which engineering postings it shows you, and who the work comes from.
       </p>
       <div className="fields">
         <Field label="Studying">
-          <TextInput value={profile.major} placeholder="Statistics" onCommit={(major) => save({ major })} />
+          <TextInput value={profile.major} placeholder="Computer science" onCommit={(major) => save({ major })} />
         </Field>
         <Field label="Year">
           <TextInput value={profile.year} placeholder="Junior" onCommit={(year) => save({ year })} />
@@ -253,7 +253,7 @@ function Aims({
       <input
         className="input"
         value={draft}
-        placeholder="Quantitative finance, backend, product design…"
+        placeholder="Backend, mobile, infrastructure…"
         spellCheck={false}
         onChange={(event) => setDraft(event.target.value)}
         onBlur={() => {

@@ -2,9 +2,10 @@
 
 Hear it in class. See it in real jobs. Do it like work.
 
-A floating desktop companion that listens to a lecture, tells you where the
-concept turns up at work with evidence from real job postings, then hands you a
-vague request from a coworker so you can try it.
+A floating desktop companion for software engineering students. It listens to
+a lecture, tells you where the concept turns up at work with evidence from real
+software engineering postings, then hands you a vague request from a coworker
+so you can try it the way an engineer would.
 
 It runs on macOS and Windows. The two differ in how a floating window behaves,
 how the menu bar mark is drawn and where keys are kept, and
@@ -32,9 +33,10 @@ pick models. Nothing needs to be configured before the app starts.
 
 ## Settings and profile
 
-**You** is the profile: what you study, what you are aiming at, and what the
-companion has already read back to you. That last list is what stops the recap
-offering something as a gap when you have already met it.
+**You** is the profile: what you study, which kind of engineering you are
+aiming at, and what the companion has already read back to you. That last list
+is what stops the recap offering something as a gap when you have already met
+it.
 
 **The model** is an endpoint URL, a key and two model names, all yours to
 type. The URL is wherever the model is: Featherless, OpenRouter, Groq, Ollama,
@@ -62,10 +64,12 @@ in `.env`, or pass `--replay path/to/lecture.txt` to a packaged build.
 
 ## The evidence base
 
-`data/ikb.json` is what the companion proves claims against: postings and the
-sentences inside them, tagged with the tools and practices in `data/tools.json`
-and `data/practices.json`. It ships built, from the 30 public ATS boards listed
-in `data/boards.json`.
+`data/ikb.json` is what the companion proves claims against: software
+engineering postings and the sentences inside them, tagged with the tools and
+practices in `data/tools.json` and `data/practices.json`. It ships built, from
+the 30 public ATS boards listed in `data/boards.json`. Only a posting whose
+title is a software engineering role is kept; sales, product, design and the
+rest of a board are dropped at ingest.
 
 ```bash
 npm run ingest
