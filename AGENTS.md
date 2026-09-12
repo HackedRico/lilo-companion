@@ -73,6 +73,14 @@ from `describe`, with no model in it.
   focus when clicked, and transparency with hardware acceleration off. Say
   which of these you checked.
 
+## Latency
+
+`docs/architecture.md` under "Where the time goes" holds the measured costs and
+the rules that came out of them: JSON mode only after an unparseable reply,
+prose on the quick lane and judgement on the careful one, and nothing the
+student asks for dropped on a busy flag. `LILO_DEBUG_LLM=1` prints the queue
+wait and the wire time of every call. Measure before changing any of it.
+
 ## Conventions
 
 - Relative imports carry explicit `.ts` and `.tsx` extensions, and constructors

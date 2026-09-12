@@ -121,6 +121,42 @@ Chrome's framed messages to the running app over a local socket in
 `main/leetcode/bridge.ts`. [platforms.md](platforms.md) says where each
 platform keeps the manifest.
 
+## Where the time goes
+
+A student notices latency more than almost anything else, so the costs are
+written down here rather than rediscovered.
+
+**JSON mode is asked for only after a reply comes back that is not JSON.**
+Where an endpoint implements it by constraining what the model may emit, it
+costs seconds. Measured against Featherless with Qwen2.5-Coder, the same coach
+prompt answered in about two seconds plain and about seven with JSON mode on,
+on the larger model. `jsonFrom` already lifts an object out of fences or prose,
+so the fast way is tried first and the guarantee is what the retry buys. A
+reply that parsed and then failed the schema is a different fault, and asking
+the endpoint to constrain its output cannot fix it, so that retry stays plain.
+
+**Prose runs on the quick lane, judgement on the careful one.** Companion chat,
+the translation and the interview brief are prose. The coach is judgement. The
+brief was on the careful lane once: the configured code model collapsed into a
+run of one character on that prompt four times out of four, while the quick one
+wrote it every time in a third of the wire time. `degenerate` in
+`main/interviews/brief.ts` is what catches that when it happens anyway.
+
+**Nothing the student asks for is dropped.** Both the practice and the session
+hold what is on the wire in a promise and wait for it, rather than checking a
+flag and returning. A press or a typed line that is refused after the composer
+has cleared is a line the student loses, so what they said goes in the thread
+before any waiting starts.
+
+**The dots are the sign of life.** They stay up until something is on screen,
+which means through the model call, not until the empty line is created. `say`
+charges its pace per word and not per separator, which `words` keeps so a line
+reads as it will finally look.
+
+`LILO_DEBUG_LLM=1` prints every call as it returns, with how long it waited in
+the queue and how long it was on the wire, so a slow reply is read rather than
+guessed at.
+
 ## The window
 
 The panel is transparent, frameless and always on top, and it must not take the
