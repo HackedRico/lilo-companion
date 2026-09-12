@@ -494,18 +494,20 @@ export class Session {
   async typed(text: string): Promise<void> {
     const { mode } = this.state.composer
     if (mode === 'onboarding') return this.onboardingTurn(text)
-    // The empty panel invites them to paste their notes, and until this was
-    // here that paste was answered as a question and never became a card.
-    if (readsAsALecture(text)) {
-      this.heardFromStudent(text)
-      return this.useNotes(text)
-    }
     // A problem open in Chrome takes the composer, but asking what an interview
     // there is like is never a question about the code on screen.
     const aboutAnInterview = interviewAsk(text, this.companies) !== null
     if (mode === 'leetcode' && !aboutAnInterview) {
       this.heardFromStudent(text)
       return this.observe({ kind: 'asked', at: Date.now(), text })
+    }
+    // The empty panel invites them to paste their notes, and nothing called the
+    // path that reads them, so a paste was answered as a question and never
+    // became a card. Checked after the problem in view, because a wall of text
+    // pasted with LeetCode open is a stack trace far more often than a lecture.
+    if (readsAsALecture(text)) {
+      this.heardFromStudent(text)
+      return this.useNotes(text)
     }
     return this.chat(text)
   }

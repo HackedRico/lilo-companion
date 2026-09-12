@@ -604,3 +604,14 @@ test('a long typed question is still a question', async () => {
   assert.ok(llm.lastAsk("never do a student's homework"), 'answered as a question')
   assert.ok(!llm.lastAsk('name what is being taught'), 'and not read as a lecture')
 })
+
+test('a wall of text pasted with a problem open goes to the coach, not the lecture reader', async () => {
+  // With LeetCode in view that is a stack trace or their own code far more
+  // often than it is lecture notes.
+  const llm = new ScriptedLlm()
+  const { session } = harness(llm, ikb)
+  await session.observe({ kind: 'opened', at: Date.now(), problem: { slug: 'two-sum', title: 'Two Sum', difficulty: 'Easy', statement: 'add up to target' } })
+  assert.equal(session.state.composer.mode, 'leetcode')
+  await session.typed(LECTURE.join('\n'))
+  assert.ok(!llm.lastAsk('name what is being taught'), 'not read as a lecture while a problem is open')
+})
