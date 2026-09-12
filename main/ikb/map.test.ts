@@ -171,3 +171,15 @@ test('the count said out loud is postings, not sentences', () => {
     assert.ok(count <= sentences.length)
   }
 })
+
+test('the term said out loud is the one the lecture names, not one in passing', () => {
+  // The order was whatever the alias list happened to be sorted by, so a
+  // summary that mentions Python made a lecture on DataFrames a lecture on
+  // Python, with 604 postings behind it and a quote listing four languages.
+  const mapped = mapConceptTerms(
+    ikb,
+    concept('Pandas DataFrames', 'A Python library providing tabular data structures for data analysis.')
+  )
+  assert.equal(mapped[0]?.term, 'Pandas')
+  assert.ok(mapped.some((hit) => hit.term === 'Python'))
+})

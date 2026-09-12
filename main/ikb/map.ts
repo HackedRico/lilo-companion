@@ -110,9 +110,14 @@ export function mapConceptTerms(ikb: Ikb, concept: Concept): MappedTerm[] {
     .filter(([alias]) => normalise(alias).length >= MIN_LITERAL)
     .sort((a, b) => b[0].length - a[0].length)
 
-  for (const [alias, canonical] of literal) {
-    if (!includesPhrase(text, normalise(alias))) continue
-    pushSupported(ikb, out, canonical, 'literal')
+  // The name of the concept is read before its description, because the first
+  // term to survive is the one said out loud. A summary of Pandas DataFrames
+  // mentions Python, and the lecture is not about Python.
+  for (const where of [normalise(concept.name), text]) {
+    for (const [alias, canonical] of literal) {
+      if (!includesPhrase(where, normalise(alias))) continue
+      pushSupported(ikb, out, canonical, 'literal')
+    }
   }
 
   return [...out.values()]
