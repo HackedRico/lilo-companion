@@ -36,6 +36,8 @@ mac:
   extendInfo:
     # A menu bar companion, not a Dock app.
     LSUIElement: true
+    # Voice mode. macOS refuses the microphone outright without this string.
+    NSMicrophoneUsageDescription: Voice mode turns what you say into words in the field. Nothing is recorded until you press the mic.
 
 win:
   target:

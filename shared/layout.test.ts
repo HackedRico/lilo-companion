@@ -4,6 +4,7 @@ import {
   GAP,
   ORB,
   PAD,
+  HEAD_STEPS,
   PANEL,
   PANEL_MIN,
   choosePlacement,
@@ -133,4 +134,10 @@ test('the corner to drag is the one the orb is not standing next to', () => {
       `${placement.side}/${placement.edge} puts the handle opposite the orb`
     )
   }
+})
+
+test('the default panel sits in the middle head step, and the floor in the last', () => {
+  assert.ok(HEAD_STEPS.bare < HEAD_STEPS.tight && HEAD_STEPS.tight < HEAD_STEPS.snug)
+  assert.ok(PANEL.width >= HEAD_STEPS.bare && PANEL.width < HEAD_STEPS.tight)
+  assert.ok(PANEL_MIN.width < HEAD_STEPS.bare)
 })

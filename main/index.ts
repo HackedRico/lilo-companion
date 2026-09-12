@@ -10,7 +10,8 @@ import {
   ipcMain,
   safeStorage,
   session as electronSession,
-  shell
+  shell,
+  systemPreferences
 } from 'electron'
 import { join } from 'node:path'
 import { z } from 'zod'
@@ -18,16 +19,18 @@ import { ASK, IN, OUT } from '../shared/api.ts'
 import { warmUp } from '../shared/prompts.ts'
 import type { SettingsPatch } from '../shared/settings.ts'
 import type { Intent, Profile } from '../shared/types.ts'
+import type { Heard } from '../shared/voice.ts'
 import { loadIkb } from './ikb/load.ts'
 import { familiesOf, resolveAims } from './ikb/roles.ts'
 import { providerFor } from './llm/providers.ts'
 import { ModelService } from './llm/service.ts'
 import { Panel } from './panel.ts'
 import { PrefsWindow } from './prefs-window.ts'
-import { asPoint, asSize, asText } from './guards.ts'
+import { asAudio, asPoint, asSize, asText } from './guards.ts'
 import { ModelCatalogue, SettingsStore, osKeychain, testConnection } from './settings.ts'
 import { Prefs } from './store.ts'
 import { readLecture } from './lecture.ts'
+import { Transcriber } from './voice.ts'
 import { Bridge, bridgePath } from './leetcode/bridge.ts'
 import { installNativeHost } from './leetcode/connect.ts'
 import { Recorder, readRecording, replay } from './leetcode/recording.ts'
@@ -44,6 +47,15 @@ if (!app.requestSingleInstanceLock()) app.quit()
  * asking rarely means a hint the ladder has earned arrives up to a tick late.
  */
 const TICK = 2000
+
+/** True when both are pages of one origin. Two files are one origin, which is the packaged case. */
+function sameOrigin(a: string, b: string): boolean {
+  try {
+    return new URL(a).origin === new URL(b).origin
+  } catch {
+    return false
+  }
+}
 
 /** A file named on the command line or in .env, so a change can be tried without clicking. */
 function fileArgument(flag: string, variable: string): string | null {
@@ -77,6 +89,7 @@ app.whenReady().then(async () => {
   const settings = new SettingsStore(prefs, osKeychain(safeStorage))
   const catalogue = new ModelCatalogue(providerFor)
   const llm = new ModelService(settings.llmConfig(), providerFor)
+  const transcriber = new Transcriber(settings.voiceConfig())
   const ikb = await loadIkb(dataDir)
   const panel = new Panel(prefs.orb, prefs.panel)
   const prefsWindow = new PrefsWindow((contents) => {
@@ -129,9 +142,36 @@ app.whenReady().then(async () => {
   await bridge.listen().catch((error: unknown) => console.warn(`[lilo] no bridge for chrome: ${String(error)}`))
 
   panel.onExpandedChange = (expanded) => session.setExpanded(expanded)
+  session.updateVoice(prefs.voice)
 
-  // Nothing in a renderer needs a device or a permission, so every request is refused.
-  electronSession.defaultSession.setPermissionRequestHandler((_contents, _permission, decide) => decide(false))
+  // The microphone, for the panel, and nothing else: voice mode records there,
+  // and only once the student presses the mic. Every other request a page
+  // could make, a camera, the screen, a location, is still refused.
+  electronSession.defaultSession.setPermissionRequestHandler((contents, permission, decide, details) => {
+    const types = 'mediaTypes' in details ? (details.mediaTypes ?? []) : []
+    const wanted =
+      permission === 'media' &&
+      prefs.voice &&
+      contents === panel.win.webContents &&
+      details.isMainFrame &&
+      sameOrigin(details.requestingUrl, contents.getURL()) &&
+      types.length > 0 &&
+      types.every((type) => type === 'audio')
+    // macOS keeps its own answer, asked once and remembered under System
+    // Settings. Asking here turns a refusal into a clean NotAllowedError in the
+    // renderer rather than a capture that never starts. Windows has one switch
+    // for desktop apps, and Chromium reads it itself.
+    const answer =
+      wanted && process.platform === 'darwin'
+        ? systemPreferences.askForMediaAccess('microphone')
+        : Promise.resolve(wanted)
+    void answer.then((granted) => {
+      if (dev && permission === 'media') {
+        console.log(`[lilo] microphone ${granted ? 'granted to' : 'refused for'} ${details.requestingUrl}`)
+      }
+      decide(granted)
+    })
+  })
 
   /** Reads a lecture whole and hands it to the loop. */
   function openLecture(path: string): void {
@@ -235,6 +275,10 @@ app.whenReady().then(async () => {
     tray.refresh()
   })
   ipcMain.on(IN.dismissWhisper, () => session.dismissWhisper())
+  ipcMain.on(IN.voice, (_event, on: unknown) => {
+    prefs.voice = on === true
+    session.updateVoice(prefs.voice)
+  })
 
   ipcMain.on(IN.dragStart, (_event, at: unknown) => {
     const point = asPoint(at)
@@ -265,6 +309,7 @@ app.whenReady().then(async () => {
     catalogue.forget()
     tray.refresh()
     session.updateModelAvailable(llm.available)
+    transcriber.reconfigure(settings.voiceConfig())
   }
 
   ipcMain.handle(ASK.settingsGet, () => settings.view())
@@ -291,6 +336,11 @@ app.whenReady().then(async () => {
       })
     })
   )
+  ipcMain.handle(ASK.transcribe, async (_event, wav: unknown): Promise<Heard> => {
+    const audio = asAudio(wav)
+    if (!audio) return { ok: false, detail: 'That recording could not be read.' }
+    return transcriber.hear(audio)
+  })
   ipcMain.handle(ASK.profileRead, () => session.getProfile())
   ipcMain.handle(ASK.profileWrite, (_event, patch: Partial<Profile>) => {
     // A typed aim only counts for as much as the postings say it does.

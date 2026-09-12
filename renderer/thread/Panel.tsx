@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -9,8 +10,9 @@ import {
 } from 'react'
 import type { CompanionState, Placement, Rect, Suggestion } from '../../shared/types.ts'
 import { api } from '../api.ts'
-import { PANEL_MIN } from '../../shared/layout.ts'
+import { HEAD_STEPS, PANEL_MIN } from '../../shared/layout.ts'
 import { trackPointer } from '../drag.ts'
+import { Dictation, micTrouble } from './dictation.ts'
 import { Line } from './Line.tsx'
 
 /** How tall the field takes itself, before anyone drags it. */
@@ -28,6 +30,20 @@ const GRAB = 3
 
 /** Within this far of the bottom is still reading the newest line. */
 const AT_BOTTOM = 4
+
+/**
+ * What the microphone is doing: nothing, waiting on the OS to hand it over,
+ * hearing, or being turned into words.
+ */
+type Ear = 'off' | 'opening' | 'listening' | 'writing'
+
+/** What the field says while the microphone has it. */
+const EAR_HINT: Record<Ear, string | null> = {
+  off: null,
+  opening: 'Opening the microphone…',
+  listening: 'Listening…',
+  writing: 'Writing that down…'
+}
 
 export function Panel({
   rect,
@@ -77,12 +93,24 @@ export function Panel({
       data-solid=""
       data-corner-side={corner.side}
       data-corner-edge={corner.edge}
+      data-room={
+        rect.width < HEAD_STEPS.bare
+          ? 'bare'
+          : rect.width < HEAD_STEPS.tight
+            ? 'tight'
+            : rect.width < HEAD_STEPS.snug
+              ? 'snug'
+              : undefined
+      }
       style={{ left: rect.x, top: rect.y, width: rect.width, height: rect.height }}
     >
       <header className="panel-head">
-        <button className="lecture-button" title="Upload a lecture" onClick={() => api.openLecture()}>
-          <span className="meta">Upload a lecture</span>
-        </button>
+        <span className="flex min-w-0 items-center gap-1">
+          <button className="lecture-button" title="Upload a lecture" onClick={() => api.openLecture()}>
+            <span className="meta">Upload a lecture</span>
+          </button>
+          <VoiceToggle on={state.voice} />
+        </span>
         <span className="flex items-center gap-3">
           <button
             className="lecture-button flex items-center gap-1.5"
@@ -91,7 +119,9 @@ export function Panel({
             onClick={() => api.openPrefs()}
           >
             <Gear />
-            <span className="meta">Settings</span>
+            <span className="meta" data-below="snug">
+              Settings
+            </span>
             {state.modelConfigured === false && (
               <span
                 className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"
@@ -131,6 +161,30 @@ export function Panel({
       <Aim state={state} />
       <Composer state={state} room={scroller} panelHeight={rect.height} />
     </section>
+  )
+}
+
+/**
+ * Voice mode is the master switch, beside the other way in. Off, the app never
+ * asks for the microphone. On, the mic sits beside the field and what it hears
+ * lands there, to be read before it is sent.
+ */
+function VoiceToggle({ on }: { on: boolean }): ReactElement {
+  return (
+    <button
+      className="lecture-button flex items-center gap-1.5"
+      data-on={on ? 'true' : undefined}
+      aria-label="Voice mode"
+      aria-pressed={on}
+      title={on ? 'Voice mode is on. Click to turn it off.' : 'Voice mode is off. Click to speak instead of typing.'}
+      onClick={() => api.setVoice(!on)}
+    >
+      <Mic />
+      <span className="meta" data-below="bare">
+        <span data-below="tight">Voice </span>
+        {on ? 'on' : 'off'}
+      </span>
+    </button>
   )
 }
 
@@ -236,6 +290,103 @@ function Composer({
     return api.onFocusComposer(() => field.current?.focus())
   }, [])
 
+  const voice = state.voice
+  const [ear, setEar] = useState<Ear>('off')
+  const [note, setNote] = useState<string | null>(null)
+  // Read by a press that may have been queued before the last render landed.
+  const earNow = useRef<Ear>('off')
+  const dictation = useRef<Dictation | null>(null)
+  const mic = (): Dictation => (dictation.current ??= new Dictation())
+  /** Counts presses, so a transcription outlived by a drop lands nowhere. */
+  const turn = useRef(0)
+
+  const hear = useCallback((next: Ear): void => {
+    earNow.current = next
+    setEar(next)
+  }, [])
+
+  /** Opens the microphone, which is the OS's prompt the first time. */
+  const open = useCallback(async (): Promise<void> => {
+    setNote(null)
+    hear('opening')
+    try {
+      hear((await mic().start()) ? 'listening' : 'off')
+    } catch (error) {
+      setNote(micTrouble(error, api.platform))
+      hear('off')
+    }
+  }, [hear])
+
+  /**
+   * Closes it and writes down what was said, into the field rather than to
+   * the model: a misheard word is read and fixed here, not answered. A drop
+   * in the meantime, voice mode off or the panel closing, moves the turn on,
+   * and whatever comes back after that lands nowhere.
+   */
+  const writeDown = useCallback(async (): Promise<void> => {
+    const mine = ++turn.current
+    setNote(null)
+    hear('writing')
+    try {
+      const wav = await mic().stop()
+      if (mine !== turn.current) return
+      if (!wav) {
+        setNote('I heard nothing.')
+        return
+      }
+      const heard = await api.transcribe(wav)
+      if (mine !== turn.current) return
+      if (!heard.ok) {
+        setNote(heard.detail)
+        return
+      }
+      setDraft((current) => (current.trim() ? `${current.trimEnd()} ${heard.text}` : heard.text))
+      field.current?.focus()
+    } catch (error) {
+      if (mine !== turn.current) return
+      console.warn('[voice] could not read the recording', error)
+      setNote('I could not hear that.')
+    } finally {
+      if (mine === turn.current) hear('off')
+    }
+  }, [hear])
+
+  /** One press opens the microphone and the next writes it down. In between, nothing. */
+  const press = useCallback((): void => {
+    if (earNow.current === 'off') void open()
+    else if (earNow.current === 'listening') void writeDown()
+  }, [open, writeDown])
+
+  /** Stops whatever is going on and forgets it: voice mode off, or the panel closing. */
+  const drop = useCallback((): void => {
+    turn.current++
+    mic().cancel()
+    hear('off')
+    setNote(null)
+  }, [hear])
+
+  // The mic runs out on its own. Voice mode going off, or the panel closing,
+  // throws away what was being said rather than sending it: `voice` is listed
+  // so the cleanup runs on the way off.
+  useEffect(() => {
+    mic().onTimeout = press
+    return drop
+  }, [voice, press, drop])
+
+  // Hands on the keyboard: the same press, without reaching for the mouse.
+  useEffect(() => {
+    if (!voice) return
+    const onKey = (event: KeyboardEvent): void => {
+      // Matched on the physical key, like the editing bridge in main, so a
+      // Cyrillic or Greek layout still has it.
+      if (!(event.metaKey || event.ctrlKey) || !event.shiftKey || event.code !== 'KeyM') return
+      event.preventDefault()
+      press()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [voice, press])
+
   /**
    * The tallest the field can be and still leave a strip of thread showing.
    * The field and the scroll port divide one column of fixed height, so what
@@ -274,7 +425,7 @@ function Composer({
    */
   useLayoutEffect(() => {
     setLift((current) => (current === null ? null : Math.min(current, ceiling())))
-  }, [panelHeight, lift])
+  }, [panelHeight, lift, note])
 
   /** Drag the grip to set the height yourself. Click it to hand it back. */
   const resize = (event: ReactPointerEvent): void => {
@@ -305,35 +456,76 @@ function Composer({
   }
 
   return (
-    <div className="composer">
-      <div className="composer-field">
-        <div
-          className="grip"
-          role="separator"
-          title="Drag to resize. Click to reset."
-          onPointerDown={resize}
-        />
-        <textarea
-          ref={field}
-          rows={1}
-          value={draft}
-          style={lift === null ? undefined : { height: lift }}
-          spellCheck={false}
-          placeholder={state.composer.mode === 'chat' ? 'Ask me anything' : state.composer.hint}
-          onChange={(event) => setDraft(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key !== 'Enter' || event.shiftKey) return
-            event.preventDefault()
-            send()
-          }}
-        />
+    <>
+      {note && (
+        <p className="voice-note arriving" role="status">
+          {note}
+        </p>
+      )}
+      <div className="composer">
+        <div className="composer-field">
+          <div
+            className="grip"
+            role="separator"
+            title="Drag to resize. Click to reset."
+            onPointerDown={resize}
+          />
+          <textarea
+            ref={field}
+            rows={1}
+            value={draft}
+            style={lift === null ? undefined : { height: lift }}
+            spellCheck={false}
+            placeholder={
+              EAR_HINT[ear] ?? (state.composer.mode === 'chat' ? 'Ask me anything' : state.composer.hint)
+            }
+            onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key !== 'Enter' || event.shiftKey) return
+              event.preventDefault()
+              send()
+            }}
+          />
+        </div>
+        {voice && (
+          <button
+            className="mic"
+            data-ear={ear}
+            aria-label={ear === 'listening' ? 'Stop and write it down' : 'Speak'}
+            aria-pressed={ear === 'listening'}
+            title={
+              ear === 'listening'
+                ? 'Listening. Press again to write it down.'
+                : `Speak, or press ${api.platform === 'darwin' ? 'Cmd' : 'Ctrl'}+Shift+M`
+            }
+            disabled={ear === 'writing' || ear === 'opening'}
+            onClick={press}
+          >
+            <Mic className="h-4 w-4" />
+          </button>
+        )}
+        <button className="send" aria-label="Send" disabled={draft.trim().length === 0} onClick={send}>
+          <svg viewBox="0 0 16 16" aria-hidden>
+            <path d="M8 13.5V3.2M8 3.2 3.8 7.4M8 3.2l4.2 4.2" />
+          </svg>
+        </button>
       </div>
-      <button className="send" aria-label="Send" disabled={draft.trim().length === 0} onClick={send}>
-        <svg viewBox="0 0 16 16" aria-hidden>
-          <path d="M8 13.5V3.2M8 3.2 3.8 7.4M8 3.2l4.2 4.2" />
-        </svg>
-      </button>
-    </div>
+    </>
+  )
+}
+
+function Mic({ className = 'h-3 w-3' }: { className?: string }): ReactElement {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      className={`${className} shrink-0 fill-none stroke-current`}
+      strokeWidth={1.35}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="5.75" y="1.75" width="4.5" height="7.5" rx="2.25" />
+      <path d="M3.5 7.5a4.5 4.5 0 0 0 9 0M8 12v2.25M6 14.25h4" />
+    </svg>
   )
 }
 

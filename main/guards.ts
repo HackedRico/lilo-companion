@@ -1,4 +1,5 @@
 import type { Point, Size } from '../shared/types.ts'
+import { LOUDEST_BYTES } from '../shared/voice.ts'
 
 /**
  * Anything arriving over IPC comes from a renderer, and a renderer must never
@@ -25,4 +26,15 @@ export function asSize(value: unknown): Size | null {
 
 export function asText(value: unknown, limit = 8000): string {
   return typeof value === 'string' ? value.slice(0, limit) : ''
+}
+
+/**
+ * A recording from the microphone, in whichever container the bridge put the
+ * bytes in, and never one that would hold the transcriber for minutes.
+ */
+export function asAudio(value: unknown, limit = LOUDEST_BYTES): Uint8Array | null {
+  const bytes =
+    value instanceof ArrayBuffer ? new Uint8Array(value) : value instanceof Uint8Array ? value : null
+  if (!bytes || bytes.byteLength === 0 || bytes.byteLength > limit) return null
+  return bytes
 }

@@ -12,14 +12,7 @@ export class OpenAiProvider implements Provider {
   private readonly client: OpenAI
 
   constructor(endpoint: Endpoint, fetch?: typeof globalThis.fetch) {
-    this.client = new OpenAI({
-      // Local servers ignore it, and the client refuses to start without one.
-      apiKey: endpoint.apiKey || 'local',
-      baseURL: endpoint.baseUrl,
-      maxRetries: 0,
-      timeout: REQUEST_TIMEOUT_MS,
-      fetch
-    })
+    this.client = openAiClient(endpoint, { fetch })
   }
 
   async complete(turn: Turn): Promise<string> {
@@ -72,10 +65,32 @@ export class OpenAiProvider implements Provider {
     try {
       return await work()
     } catch (error) {
-      if (error instanceof OpenAI.APIError) {
-        throw new ProviderError(error.message, typeof error.status === 'number' ? error.status : null, error)
-      }
-      throw error
+      throw asProviderError(error)
     }
   }
+}
+
+/**
+ * A client for anything at an OpenAI-shaped address, with the policy every
+ * call here shares: no retries of the SDK's own, since the service decides
+ * those, and one timeout, since every call is queued behind the last.
+ */
+export function openAiClient(
+  endpoint: Endpoint,
+  options: { fetch?: typeof globalThis.fetch; timeout?: number } = {}
+): OpenAI {
+  return new OpenAI({
+    // Local servers ignore it, and the client refuses to start without one.
+    apiKey: endpoint.apiKey || 'local',
+    baseURL: endpoint.baseUrl,
+    maxRetries: 0,
+    timeout: options.timeout ?? REQUEST_TIMEOUT_MS,
+    fetch: options.fetch
+  })
+}
+
+/** The SDK's own error, carrying its status where it has one, or the error as it was. */
+export function asProviderError(error: unknown): unknown {
+  if (!(error instanceof OpenAI.APIError)) return error
+  return new ProviderError(error.message, typeof error.status === 'number' ? error.status : null, error)
 }

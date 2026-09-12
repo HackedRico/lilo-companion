@@ -64,7 +64,9 @@ const api: LiloApi = {
   resolveAims: (said: string[]) => ipcRenderer.invoke(ASK.resolveAims, said),
   connectChrome: () => ipcRenderer.invoke(ASK.connectChrome),
   chromeStatus: () => ipcRenderer.invoke(ASK.chromeStatus),
-  revealExtension: () => ipcRenderer.send(IN.revealExtension)
+  revealExtension: () => ipcRenderer.send(IN.revealExtension),
+  setVoice: (on: boolean) => ipcRenderer.send(IN.voice, on),
+  transcribe: (wav: ArrayBuffer) => ipcRenderer.invoke(ASK.transcribe, wav)
 }
 
 contextBridge.exposeInMainWorld('lilo', api)

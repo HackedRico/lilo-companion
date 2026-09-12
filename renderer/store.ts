@@ -12,7 +12,8 @@ const EMPTY_COMPANION: CompanionState = {
   watching: [],
   composer: { mode: 'chat', hint: 'Ask me anything' },
   onboarded: true,
-  modelConfigured: false
+  modelConfigured: false,
+  voice: false
 }
 
 const EMPTY_PROFILE: Profile = {

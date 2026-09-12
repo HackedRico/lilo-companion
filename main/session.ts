@@ -27,7 +27,7 @@ import { ASKS, BETTER_QUESTION, LeetCodePractice, TRACE_QUESTION } from './leetc
 import { interviewAsk } from './interviews/ask.ts'
 import { briefInterview, firstSentences } from './interviews/brief.ts'
 import { mentions, type Account } from './interviews/sources.ts'
-import { reasonFor } from './settings.ts'
+import { reasonFor } from './llm/provider.ts'
 
 /** How fast the companion talks, and how long it pauses between turns. */
 const WORD_MS = 26
@@ -106,7 +106,8 @@ export class Session {
     watching: [],
     composer: { mode: 'chat', hint: 'Ask me anything' },
     onboarded: false,
-    modelConfigured: false
+    modelConfigured: false,
+    voice: false
   }
 
   private readonly deps: SessionDeps
@@ -178,6 +179,11 @@ export class Session {
 
   updateModelAvailable(available: boolean): void {
     this.patch({ modelConfigured: available })
+  }
+
+  /** Voice mode, as main remembers it. */
+  updateVoice(on: boolean): void {
+    this.patch({ voice: on })
   }
 
   // Speaking -------------------------------------------------------------

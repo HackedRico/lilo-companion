@@ -1,7 +1,9 @@
 import type { ConnectionResult, SettingsPatch, SettingsView } from '../shared/settings.ts'
 import { maskKey } from '../shared/settings.ts'
+import { reasonFor } from './llm/provider.ts'
 import { isLocal, normaliseBaseUrl, protocolFor, type LlmConfig, type ProviderFactory } from './llm/service.ts'
 import type { SavedSettings } from './store.ts'
+import type { VoiceConfig } from './voice.ts'
 
 /** All this needs of the preferences file, so a test can stand in for it. */
 export interface SettingsHome {
@@ -15,7 +17,7 @@ export interface Keychain {
   open(sealed: string): string
 }
 
-type Secret = 'apiKey'
+type Secret = 'apiKey' | 'voiceKey'
 
 /**
  * Reads the address, the key and the two model names from .env. Nothing is
@@ -79,6 +81,19 @@ export function defaultModelsFor(baseUrl: string): { fast: string; strong: strin
 }
 
 /**
+ * The name each address transcribes under when none is typed. OpenAI's name is
+ * also what most local servers accept or ignore, so it is the one for the rest.
+ */
+export function defaultVoiceModelFor(baseUrl: string): string {
+  try {
+    if (new URL(baseUrl).hostname.toLowerCase().includes('groq.com')) return 'whisper-large-v3-turbo'
+  } catch {
+    // Address may still be incomplete while typing.
+  }
+  return 'whisper-1'
+}
+
+/**
  * What the student chose, layered over what the developer put in .env. A field
  * they have never touched falls through to the environment, so a checkout with
  * a .env still works with nothing configured in the window.
@@ -112,7 +127,7 @@ export class SettingsStore {
   }
 
   private fromEnv(which: Secret): string {
-    return which === 'apiKey' ? configFromEnv(this.env).apiKey : ''
+    return which === 'apiKey' ? configFromEnv(this.env).apiKey : (this.env['VOICE_API_KEY'] ?? '')
   }
 
   private resolve(which: Secret): { value: string; fromEnv: boolean } {
@@ -138,9 +153,40 @@ export class SettingsStore {
     }
   }
 
+  /** A voice address typed here or in .env, shaped the OpenAI way, or nothing. */
+  private ownVoiceUrl(): string {
+    return normaliseBaseUrl(this.saved.voiceUrl || this.env['VOICE_BASE_URL'] || '')
+  }
+
+  /**
+   * Where speech goes. Left blank it goes where the model is, where that
+   * address speaks the OpenAI API: OpenAI's and Groq's transcribe beside
+   * chat, and Anthropic's does not. An address typed here is sent its own key,
+   * or the model's only where it is the model's own service, so a whisper
+   * server on a spare machine is never handed a secret meant for somebody
+   * else. Whether an address wants a key at all is the address's to say.
+   */
+  voiceConfig(llm: LlmConfig = this.llmConfig()): VoiceConfig {
+    const own = this.ownVoiceUrl()
+    const baseUrl = own || (llm.protocol === 'openai' ? llm.baseUrl : '')
+    const apiKey = !baseUrl
+      ? ''
+      : !own
+        ? llm.apiKey
+        : this.resolve('voiceKey').value || (sameHost(own, llm.baseUrl) ? llm.apiKey : '')
+    return {
+      baseUrl,
+      apiKey,
+      model: this.saved.voiceModel || this.env['VOICE_MODEL'] || defaultVoiceModelFor(baseUrl)
+    }
+  }
+
   view(): SettingsView {
     const config = this.llmConfig()
     const key = this.resolve('apiKey')
+    const own = this.ownVoiceUrl()
+    const voice = this.voiceConfig(config)
+    const voiceKey = this.resolve('voiceKey')
     return {
       protocol: config.protocol,
       baseUrl: config.baseUrl,
@@ -148,7 +194,13 @@ export class SettingsStore {
       modelStrong: config.strong,
       apiKey: { ...maskKey(key.value), fromEnv: key.fromEnv && key.value.length > 0 },
       encrypted: this.keychain.available,
-      local: isLocal(config.baseUrl)
+      local: isLocal(config.baseUrl),
+      voiceUrl: own,
+      voiceModel: voice.model,
+      voiceKey: { ...maskKey(voiceKey.value), fromEnv: voiceKey.fromEnv && voiceKey.value.length > 0 },
+      // True only when speech really goes to the model's address, not merely when none was typed.
+      voiceShared: own.length === 0 && voice.baseUrl.length > 0,
+      voiceLocal: isLocal(voice.baseUrl)
     }
   }
 
@@ -157,7 +209,9 @@ export class SettingsStore {
     if (patch.baseUrl !== undefined) next.baseUrl = patch.baseUrl.trim()
     if (patch.modelFast !== undefined) next.modelFast = patch.modelFast.trim()
     if (patch.modelStrong !== undefined) next.modelStrong = patch.modelStrong.trim()
-    for (const which of ['apiKey'] as const) {
+    if (patch.voiceUrl !== undefined) next.voiceUrl = patch.voiceUrl.trim()
+    if (patch.voiceModel !== undefined) next.voiceModel = patch.voiceModel.trim()
+    for (const which of ['apiKey', 'voiceKey'] as const) {
       const value = patch[which]
       if (value === undefined) continue
       // An empty string means "forget mine", which falls back to .env.
@@ -180,6 +234,15 @@ export class SettingsStore {
   /** Wipes everything this window can set, leaving .env untouched. */
   forget(): void {
     this.prefs.settings = {}
+  }
+}
+
+/** One service under two addresses, which is the only time a key may follow. */
+function sameHost(a: string, b: string): boolean {
+  try {
+    return new URL(a).host === new URL(b).host
+  } catch {
+    return false
   }
 }
 
@@ -216,17 +279,6 @@ export async function testConnection(
   } catch (error) {
     return { ok: false, detail: reasonFor(error), ms: Date.now() - started }
   }
-}
-
-/** Turns the endpoint's own wording into something worth reading. */
-export function reasonFor(error: unknown): string {
-  const message = error instanceof Error ? error.message : String(error)
-  if (/model_gated|gated/i.test(message)) return 'That model is gated to your account. Pick another.'
-  if (/401|403|unauthor|invalid.*key/i.test(message)) return 'That key was refused.'
-  if (/404|not found|does not exist/i.test(message)) return 'No model by that name at that address.'
-  if (/timeout|ETIMEDOUT|aborted/i.test(message)) return 'It did not answer in time.'
-  if (/ECONNREFUSED|fetch failed|ENOTFOUND/i.test(message)) return 'Nothing answered at that address.'
-  return message.slice(0, 200)
 }
 
 /**

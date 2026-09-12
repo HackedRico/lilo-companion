@@ -14,6 +14,9 @@ export interface Settings {
   baseUrl: string
   modelFast: string
   modelStrong: string
+  /** Where speech is sent. Blank means the model's own address. */
+  voiceUrl: string
+  voiceModel: string
 }
 
 /** A key as the renderer is allowed to see it: whether it is set, and its tail. */
@@ -32,11 +35,16 @@ export interface SettingsView extends Settings {
   encrypted: boolean
   /** True when the address is on this machine, so no key is wanted. */
   local: boolean
+  voiceKey: KeyState
+  /** True when speech goes where the model is, because no voice address is set. */
+  voiceShared: boolean
+  voiceLocal: boolean
 }
 
 /** An absent field is left alone. An empty string for a key clears it. */
 export interface SettingsPatch extends Partial<Settings> {
   apiKey?: string
+  voiceKey?: string
 }
 
 export interface ConnectionResult {

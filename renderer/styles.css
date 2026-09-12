@@ -352,6 +352,40 @@ button {
   background: var(--well);
 }
 
+.lecture-button svg {
+  color: var(--dim);
+}
+
+.lecture-button .meta {
+  white-space: nowrap;
+}
+
+/* The head gives up words before it wraps, one step at a time: Settings keeps
+   its gear, then voice mode says only on or off, then only its mic and its
+   colour. Each step keeps what the one before it dropped. */
+.panel[data-room='snug'] [data-below='snug'],
+.panel[data-room='tight'] :is([data-below='snug'], [data-below='tight']),
+.panel[data-room='bare'] [data-below] {
+  display: none;
+}
+
+/* At the floor, with nothing left to drop, the lecture button wraps to two
+   lines rather than running under the gear. */
+.panel[data-room='bare'] .lecture-button .meta {
+  white-space: normal;
+}
+
+/* Voice mode, beside the lecture button. On is the accent; off is the same
+   quiet pill as its neighbour, so the header does not shout. */
+.lecture-button[data-on='true'] {
+  background: var(--accent-soft);
+}
+
+.lecture-button[data-on='true'] .meta,
+.lecture-button[data-on='true'] svg {
+  color: var(--accent);
+}
+
 /* The panel's free corner. Tactile grip ridges in the corner away from the orb,
    because the orb is what the layout is measured from and the panel grows in the
    other direction. */
@@ -949,6 +983,10 @@ button {
   align-items: flex-end;
   gap: 8px;
   padding: 8px 16px 14px;
+  /* One line of the field: its padding, its border and one line of body
+     text. The buttons beside it stand exactly this tall, so the row reads as
+     one piece, and when the field grows they stay at its foot. */
+  --field-line: calc(var(--step-body) * 1.55 + 22px);
 }
 
 /* The field owns its own height, in the composer rather than in here: it is
@@ -1030,10 +1068,10 @@ button {
   display: grid;
   place-items: center;
   flex: none;
-  width: 29px;
-  height: 29px;
+  width: var(--field-line);
+  height: var(--field-line);
   border: 0;
-  border-radius: 9px;
+  border-radius: 10px;
   background: var(--ink);
   color: var(--surface);
   transition: opacity 140ms var(--ease), transform 140ms var(--ease);
@@ -1048,13 +1086,74 @@ button {
 }
 
 .send svg {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.9;
+  stroke-width: 1.8;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+/* The mic, beside the field when voice mode is on, set like the field itself
+   so the two read as one input. Quiet until it is listening, and then
+   unmistakably live: a student should never wonder whether it is. */
+.mic {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: var(--field-line);
+  height: var(--field-line);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  background: var(--well);
+  color: var(--dim);
+  transition: border-color 140ms var(--ease), color 140ms var(--ease), background 140ms var(--ease);
+}
+
+.mic:enabled:hover {
+  border-color: var(--rule-strong);
+  color: var(--ink);
+}
+
+.mic svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.5;
+}
+
+.mic[data-ear='listening'] {
+  border-color: var(--live);
+  background: color-mix(in srgb, var(--live) 12%, transparent);
+  color: var(--live);
+  animation: listening 1.4s ease-in-out infinite;
+}
+
+.mic[data-ear='opening'],
+.mic[data-ear='writing'] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+@keyframes listening {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--live) 45%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 5px transparent;
+  }
+}
+
+/* Why there are no words: the mic would not open, or nothing answered. One line
+   above the field, where the aim line sits, and gone at the next press. */
+.voice-note {
+  margin: 0;
+  padding: 9px 16px 0;
+  font-size: var(--step-fine);
+  line-height: 1.5;
+  color: var(--live);
+  text-wrap: pretty;
 }
 
 .empty {
@@ -1422,7 +1521,8 @@ button {
   .orb-ring,
   .dots span,
   .arriving,
-  .caret::after {
+  .caret::after,
+  .mic[data-ear='listening'] {
     animation: none !important;
   }
 
