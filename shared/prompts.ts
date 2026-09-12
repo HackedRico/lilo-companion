@@ -146,7 +146,7 @@ export interface CoachInput {
   /** What the student asked, or null when the companion is volunteering. */
   question: string | null
   /** Why the last reply was refused, when this is the second try. */
-  retry: 'too_high' | 'unverified' | 'promise' | 'not_a_question' | 'generic' | null
+  retry: 'too_high' | 'unverified' | 'broken_trace' | 'promise' | 'not_a_question' | 'generic' | null
 }
 
 /** The student's code with the line numbers the hint has to use. */
@@ -174,7 +174,9 @@ export function coachHint(input: CoachInput): Prompt {
             ? 'Your last reply called itself rung 1 and was not a question. Ask a real question this time, or report the rung it actually is.'
             : input.retry === 'generic'
               ? 'Your last reply was rung 3 and pointed at nothing of theirs. Name the lines and the identifiers in their code, or drop to a lower rung.'
-              : ''
+              : input.retry === 'broken_trace'
+                ? 'Your last dry run did not hold together: one value per column in every step, and every mark on an item that exists. Draw it again, or leave trace null.'
+                : ''
   return {
     system: `${VOICE}
 
@@ -194,9 +196,18 @@ Rules:
 - When they ask for the answer outright and rung 5 is at or below the ceiling, give it to them rather than a question.
 - Encouragement is not a hint, so do not pad with it. One or two sentences.
 - lines holds the line numbers you are talking about, names the identifiers, both taken only from their code. Both stay empty at rungs 0 to 2 unless one line is the point.
+
+A dry run is a picture of the work, drawn rather than described. trace holds the values that change, one column each, and the sequence the pointers walk, one item per cell, with a mark under each cell a pointer stands on. Draw one when the idea is about how state moves, which it is on two pointers, sliding windows, stacks, queues, traversals and tables, and whenever they ask to see it step by step. Leave trace null when the words are enough.
+- At rung 2 the dry run shows the pattern on a tiny example of your own, three or four items, under your own names, and says nothing about their problem or their code.
+- At rung 3 it walks their own code on the failing input: their names in the columns, the line each step is on, stopping at the step where it goes wrong. It shows what happens, never what to write.
+- At rung 4 it walks the whole approach on the problem's example, every step.
+- A dry run that tracks a name or stands on a line from their code is rung 3 whatever it is labelled, and a note written as a statement is code.
+- values are bare, "17" or "[2, 7]" or "{2: 0}", one per column in every step. A table is a row per step, written out as one value. A note says what happened in a few words, no assignments. Every mark stands on an item that exists. A dry run that does not hold together is thrown away, and the words with it.
+
+Worked example of a dry run at rung 2, on an example of your own: {"input":"a sorted array [1, 3, 5, 7], looking for a pair that makes 6","items":["1","3","5","7"],"columns":["sum"],"steps":[{"values":["8"],"marks":[{"at":0,"label":"L"},{"at":3,"label":"R"}],"note":"1 and 7 make 8, over 6, so R steps in","line":null},{"values":["6"],"marks":[{"at":0,"label":"L"},{"at":2,"label":"R"}],"note":"1 and 5 make 6, the pair","line":null}]}
 ${again}
 ${JSON_ONLY}
-Schema: {"rung":0|1|2|3|4|5,"say":string,"lines":[number],"names":[string]}`,
+Schema: {"rung":0|1|2|3|4|5,"say":string,"lines":[number],"names":[string],"trace":null|{"input":string,"items":[string],"columns":[string],"steps":[{"values":[string],"marks":[{"at":number,"label":string}],"note":string,"line":number|null}]}}`,
     user: `Problem: ${input.problem.title} (${input.problem.difficulty})
 ${input.problem.statement.slice(0, 3000)}
 

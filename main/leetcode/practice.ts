@@ -1,4 +1,4 @@
-import { TIER_CEILING, TIER_LABEL, type Mark, type Rung, type Tier, type WorkEvent } from '../../shared/leetcode.ts'
+import { TIER_CEILING, TIER_LABEL, type Mark, type Rung, type Tier, type Trace, type WorkEvent } from '../../shared/leetcode.ts'
 import type { OrbState, Suggestion, ThreadItem } from '../../shared/types.ts'
 import type { LlmLike } from '../llm/service.ts'
 import { coach } from './coach.ts'
@@ -28,13 +28,15 @@ export interface PracticeDeps {
 /** What the student is asking for when they press the button rather than typing. */
 export const HELP_QUESTION = 'Give me a hint.'
 export const BETTER_QUESTION = 'It passes now. Is there a better approach, and why?'
+export const TRACE_QUESTION = 'Walk me through it step by step.'
 
 /** What a chip says, which is also what goes in the thread when it is pressed. */
 export const ASKS = {
   hint: 'Give me a hint',
   state: 'How am I doing?',
   quiet: 'Quiet for a bit',
-  better: 'Is there a better way?'
+  better: 'Is there a better way?',
+  trace: 'Walk me through it'
 } as const
 
 /**
@@ -157,7 +159,7 @@ export class LeetCodePractice {
       const result = await coach(this.deps.llm, this.work, rung, null, now)
       // Counted as a climb even when nothing was said, so silence is not retried every tick.
       this.last = { rung, at: now, codeAt: this.work.changedAt }
-      if (result.kind === 'hint') await this.speak(result.hint.say, result.hint.rung, result.hint.lines)
+      if (result.kind === 'hint') await this.speak(result.hint)
       if (result.kind === 'withheld') await this.deps.voice.say(result.say)
     } catch {
       // A hint that fails to arrive is a hint not given, which is allowed. The
@@ -197,7 +199,7 @@ export class LeetCodePractice {
         // answered. The rung it would volunteer is left alone: what they asked
         // for is theirs, and the ladder still climbs from where it had got to.
         this.last = { rung: this.last?.rung ?? 0, at: this.now, codeAt: this.work.changedAt }
-        await this.speak(result.hint.say, result.hint.rung, result.hint.lines)
+        await this.speak(result.hint)
       }
       if (result.kind === 'withheld') await voice.say(result.say)
       if (result.kind === 'silent') await voice.say('I have nothing specific enough to say about that yet.')
@@ -215,15 +217,20 @@ export class LeetCodePractice {
     }
   }
 
-  private async speak(say: string, rung: Rung, lines: number[]): Promise<void> {
-    await this.deps.voice.say(say, { rung })
-    if (lines.length > 0) this.deps.voice.mark({ lines })
+  /** The words, the rung they reached, and the picture when there is one; then the mark. */
+  private async speak(hint: { say: string; rung: Rung; lines: number[]; trace?: Trace }): Promise<void> {
+    await this.deps.voice.say(hint.say, hint.trace ? { rung: hint.rung, trace: hint.trace } : { rung: hint.rung })
+    if (hint.lines.length > 0) this.deps.voice.mark({ lines: hint.lines })
   }
 
   private offer(): void {
     const id = this.deps.nextId
+    // A picture of the idea is the idea drawn, which hands off may not give.
+    const walk: Suggestion[] =
+      this.deps.tier() === 'hands_off' ? [] : [{ id: id(), text: ASKS.trace, intent: { kind: 'trace' } }]
     this.deps.voice.suggest([
       { id: id(), text: ASKS.hint, intent: { kind: 'hint' } },
+      ...walk,
       { id: id(), text: ASKS.state, intent: { kind: 'state' } },
       { id: id(), text: ASKS.quiet, intent: { kind: 'quiet' } }
     ])

@@ -1,5 +1,5 @@
 import type { Hint, Rung } from '../../shared/leetcode.ts'
-import { hintOut } from '../../shared/schemas.ts'
+import { hintOut, type HintOut } from '../../shared/schemas.ts'
 import { coachHint } from '../../shared/prompts.ts'
 import type { LlmLike } from '../llm/service.ts'
 import { gate } from './ladder.ts'
@@ -15,7 +15,7 @@ export type Coached =
 export const WITHHELD = 'I have a thought, but it is above the level you set. Raise it in settings if you want it.'
 
 /** Why the first reply was refused, in the words the prompt answers to. */
-type Retry = 'too_high' | 'unverified' | 'promise' | 'not_a_question' | 'generic' | null
+type Retry = 'too_high' | 'unverified' | 'broken_trace' | 'promise' | 'not_a_question' | 'generic' | null
 
 /**
  * One hint, gated. The model is asked once, checked, asked once more under a
@@ -36,8 +36,9 @@ export async function coach(
       // Nobody asked for a volunteered hint, so it never makes a student wait.
       unasked: question === null,
       temperature: 0.4,
-      // The steps and the answer are long, and a truncated reply is no reply at all.
-      maxTokens: ceiling >= 4 ? 900 : 300,
+      // The steps and the answer are long, a dry run is longer than its words,
+      // and a truncated reply is no reply at all.
+      maxTokens: ceiling >= 4 ? 1800 : 1000,
       ...coachHint({
         problem: work.problem!,
         state: describe(work, now),
@@ -63,6 +64,9 @@ export async function coach(
   return { kind: 'silent' }
 }
 
-function asHint(out: { rung: number; say: string; lines: number[]; names: string[] }): Hint {
-  return { rung: out.rung as Rung, say: out.say.trim(), lines: out.lines, names: out.names }
+function asHint(out: HintOut): Hint {
+  const hint: Hint = { rung: out.rung as Rung, say: out.say.trim(), lines: out.lines, names: out.names }
+  // A dry run with no steps is no dry run, so it is not carried as one.
+  if (out.trace && out.trace.steps.length > 0) hint.trace = out.trace
+  return hint
 }
