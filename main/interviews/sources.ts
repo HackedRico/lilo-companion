@@ -1,4 +1,5 @@
-import { htmlToText, splitSentences } from '../ikb/tag.ts'
+import { z } from 'zod'
+import { escapeRegExp, htmlToText, splitSentences } from '../ikb/tag.ts'
 import type { Sentence } from '../../shared/types.ts'
 
 /**
@@ -16,29 +17,72 @@ export const SOURCE_LABEL: Record<Source, string> = {
   hn: 'Hacker News'
 }
 
-export interface Account {
-  id: string
-  source: Source
-  title: string
-  text: string
-  url: string
+/** An account as it is kept on disk, so a cache file is checked before it is believed. */
+export const account = z.object({
+  id: z.string().min(1),
+  source: z.enum(['leetcode', 'hn']),
+  title: z.string(),
+  text: z.string(),
+  url: z.string().url(),
   /** When it was posted, milliseconds since the epoch. */
-  at: number
-}
+  at: z.number().positive()
+})
+
+export type Account = z.infer<typeof account>
 
 export type Fetch = (url: string, init?: RequestInit) => Promise<Response>
 
 /** Accounts older than this are not what a recent interview looked like. */
 export const RECENT_MS = 365 * 24 * 60 * 60 * 1000
+/** With too few recent ones, older accounts are read too, and the brief says how old. */
+const STALE_MS = 3 * RECENT_MS
+const ENOUGH_RECENT = 4
 
-/** Enough to read across, few enough to fit a prompt. */
-const MAX_ACCOUNTS = 12
-const SENTENCES_PER_ACCOUNT = 8
+/** Enough to read across, few enough that a small model keeps its head. */
+const MAX_ACCOUNTS = 8
+const SENTENCES_PER_ACCOUNT = 6
+const MAX_PROMPT_CHARS = 6000
 const TIMEOUT_MS = 15000
 
+/** Threads where a company is named because someone is hiring or wants hiring, not interviewing. */
+const NOT_AN_ACCOUNT = /who is hiring|who wants to be hired|seeking (work|freelancer)|freelancer\?/i
+
+function pattern(company: string): RegExp {
+  return new RegExp(`(?<![A-Za-z0-9_-])${escapeRegExp(company)}(?![A-Za-z0-9_-])`, 'gi')
+}
+
 function mentions(text: string, company: string): boolean {
-  const escaped = company.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  return new RegExp(`(?<![A-Za-z0-9])${escaped}(?![A-Za-z0-9])`, 'i').test(text)
+  return pattern(company).test(text)
+}
+
+/**
+ * Seconds, milliseconds or a date string, whichever the board sends, as
+ * milliseconds. Null when it is none of those: an account with no date
+ * cannot be called recent, so it is not read.
+ */
+export function dateOf(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value) && value > 0) return value > 1e12 ? value : value * 1000
+  if (typeof value === 'string') {
+    const asNumber = Number(value)
+    if (Number.isFinite(asNumber) && asNumber > 0) return dateOf(asNumber)
+    const parsed = Date.parse(value)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+  return null
+}
+
+/**
+ * Whether the company is named near the word interview, rather than both
+ * turning up somewhere in a long comment about something else.
+ */
+export function aboutInterviewingAt(text: string, company: string, within = 250): boolean {
+  const interviews = [...text.matchAll(/interview/gi)].map((match) => match.index ?? 0)
+  if (interviews.length === 0) return false
+  for (const match of text.matchAll(pattern(company))) {
+    const at = match.index ?? 0
+    if (interviews.some((index) => Math.abs(index - at) <= within)) return true
+  }
+  return false
 }
 
 /** Enough markdown stripping that a sentence reads as prose. */
@@ -70,14 +114,15 @@ export function parseLeetCode(body: unknown, company: string): Account[] {
     const title = typeof node.title === 'string' ? node.title : ''
     const text = plain(typeof node.post?.content === 'string' ? node.post.content : '')
     if (!mentions(`${title}\n${text.slice(0, 300)}`, company)) continue
-    const seconds = Number(node.post?.creationDate)
+    const at = dateOf(node.post?.creationDate)
+    if (at === null) continue
     out.push({
       id: `leetcode:${node.id}`,
       source: 'leetcode',
       title: title || `${company} interview`,
       text,
       url: `https://leetcode.com/discuss/post/${node.id}/`,
-      at: Number.isFinite(seconds) ? seconds * 1000 : 0
+      at
     })
   }
   return out
@@ -99,16 +144,18 @@ export function parseHn(body: unknown, company: string): Account[] {
     const hit = raw as HnHit
     if (typeof hit.objectID !== 'string' || typeof hit.comment_text !== 'string') continue
     const text = htmlToText(hit.comment_text)
-    if (/SEEKING (WORK|FREELANCER)/i.test(text)) continue
-    if (!mentions(text, company) || !/\binterview/i.test(text)) continue
-    const seconds = Number(hit.created_at_i)
+    const story = typeof hit.story_title === 'string' ? hit.story_title : ''
+    if (NOT_AN_ACCOUNT.test(text) || NOT_AN_ACCOUNT.test(story)) continue
+    if (!aboutInterviewingAt(text, company)) continue
+    const at = dateOf(hit.created_at_i)
+    if (at === null) continue
     out.push({
       id: `hn:${hit.objectID}`,
       source: 'hn',
-      title: typeof hit.story_title === 'string' && hit.story_title ? hit.story_title : 'Hacker News comment',
+      title: story || 'Hacker News comment',
       text,
       url: `https://news.ycombinator.com/item?id=${hit.objectID}`,
-      at: Number.isFinite(seconds) ? seconds * 1000 : 0
+      at
     })
   }
   return out
@@ -149,25 +196,39 @@ export async function fetchHn(company: string, fetchFn: Fetch, now = Date.now())
 }
 
 /**
- * Everything the sources have from the last year, newest first. A source that
- * fails is skipped rather than failing the brief, and the brief says how many
- * accounts it had.
+ * What the sources have, newest first: the last year where that is enough,
+ * and back to three years where it is not, which the brief says. One source
+ * failing is skipped; every source failing throws, so an outage is never
+ * mistaken for a company nobody has written about.
  */
 export async function gather(company: string, fetchFn: Fetch = fetch, now = Date.now()): Promise<Account[]> {
   const settled = await Promise.allSettled([fetchLeetCode(company, fetchFn), fetchHn(company, fetchFn, now)])
-  const accounts = settled.flatMap((result) => (result.status === 'fulfilled' ? result.value : []))
-  return accounts
-    .filter((account) => account.at >= now - RECENT_MS)
+  if (settled.every((result) => result.status === 'rejected')) {
+    throw new Error('none of the boards answered')
+  }
+  const accounts = settled
+    .flatMap((result) => (result.status === 'fulfilled' ? result.value : []))
+    .filter((account) => account.at >= now - STALE_MS)
     .sort((a, b) => b.at - a.at)
-    .slice(0, MAX_ACCOUNTS)
+  const recent = accounts.filter((account) => account.at >= now - RECENT_MS)
+  return (recent.length >= ENOUGH_RECENT ? recent : accounts).slice(0, MAX_ACCOUNTS)
 }
 
-/** The accounts as sentences with ids, which is the only form the model may cite. */
-export function sentencesOf(accounts: Account[]): Sentence[] {
+/**
+ * The accounts as sentences with ids, which is the only form the model may
+ * cite. Capped by characters as well as count, because a small model handed
+ * a long prompt stops answering and starts repeating.
+ */
+export function sentencesOf(accounts: Account[], maxChars = MAX_PROMPT_CHARS): Sentence[] {
   const out: Sentence[] = []
+  let used = 0
   for (const account of accounts) {
     const pieces = splitSentences(account.text).slice(0, SENTENCES_PER_ACCOUNT)
-    pieces.forEach((text, index) => out.push({ id: `${account.id}#${index}`, postingId: account.id, text, tags: [] }))
+    for (const [index, text] of pieces.entries()) {
+      if (used + text.length > maxChars) return out
+      used += text.length
+      out.push({ id: `${account.id}#${index}`, postingId: account.id, text, tags: [] })
+    }
   }
   return out
 }

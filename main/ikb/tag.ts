@@ -163,7 +163,7 @@ export function classifySeniority(title: string): Seniority {
   return 'mid'
 }
 
-function escapeRegExp(input: string): string {
+export function escapeRegExp(input: string): string {
   return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 

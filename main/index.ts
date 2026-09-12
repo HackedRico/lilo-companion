@@ -67,7 +67,7 @@ app.whenReady().then(async () => {
   const recorder = new Recorder(
     join(app.getPath('userData'), 'leetcode', `${new Date().toISOString().slice(0, 10)}.jsonl`)
   )
-  // What was read about a company's interviews, so the second ask is instant and offline.
+  // On disk rather than in memory alone, so an ask survives a restart and works on a plane.
   const interviews = new AccountCache(join(app.getPath('userData'), 'interviews'))
   const settings = new SettingsStore(prefs, osKeychain(safeStorage))
   const catalogue = new ModelCatalogue(providerFor)
@@ -109,7 +109,6 @@ app.whenReady().then(async () => {
     },
     record: (event) => recorder.write(event),
     mark: (mark) => bridge.send({ mark }),
-    companies: [...new Set([...ikb.postings.values()].map((posting) => posting.company))],
     gatherInterviews: async (company) => {
       const held = await interviews.read(company)
       if (held) return held

@@ -103,9 +103,10 @@ function harness(
         const line = thread.find((item) => item.id === id)
         if (line) line.text += token
       },
+      // The renderer's store does the same: an ended line stops streaming.
       end: (id, patch) => {
         const line = thread.find((item) => item.id === id)
-        if (line && patch) Object.assign(line, patch)
+        if (line) Object.assign(line, patch, { streaming: false })
       },
       card: () => undefined,
       recap: () => undefined
@@ -277,7 +278,6 @@ test('asking about an interview at a company reads the accounts, not the posting
   const llm = new ScriptedLlm()
   const asked: string[] = []
   const { session, thread } = harness(llm, ikb, {
-    companies: ['Stripe'],
     gatherInterviews: async (company) => {
       asked.push(company)
       return [
@@ -295,16 +295,31 @@ test('asking about an interview at a company reads the accounts, not the posting
   await session.chat("what's the stripe interview like")
   assert.deepEqual(asked, ['Stripe'])
   assert.ok(llm.lastAsk('first-hand account'), 'the brief was asked for')
-  assert.ok(!llm.lastAsk('Posting sentences you may cite'), 'and companion chat was not')
+  assert.ok(!llm.lastAsk("never do a student's homework"), 'and companion chat was not')
   const answer = thread.at(-1)!
   assert.doesNotMatch(answer.text, /\[S:/)
   assert.deepEqual(answer.citations, [], 'an invented id is not credited')
 })
 
-test('with nothing recent to read, the companion says so rather than inventing an interview', async () => {
+test('with nothing to read, the companion says so and still answers the question', async () => {
   const llm = new ScriptedLlm()
-  const { session, thread } = harness(llm, ikb, { companies: ['Stripe'], gatherInterviews: async () => [] })
-  await session.chat('I have an interview at Stripe on Monday')
-  assert.match(thread.at(-1)!.text, /nothing first-hand about a Stripe interview/)
-  assert.ok(!llm.lastAsk('first-hand account'), 'no model call with nothing to cite')
+  const { session, thread } = harness(llm, ikb, { gatherInterviews: async () => [] })
+  await session.chat('I have an interview at Stripe on Monday, does my profile fit their backend postings?')
+  assert.ok(thread.some((item) => /nothing first-hand about a Stripe interview/.test(item.text)))
+  assert.ok(!llm.lastAsk('first-hand account'), 'no brief with nothing to cite')
+  assert.ok(llm.lastAsk("never do a student's homework"), 'the question itself still reaches the companion')
+})
+
+test('a line that breaks off mid-stream is closed as it stands', async () => {
+  const llm = new ScriptedLlm()
+  llm.stream = async (_ask, onToken) => {
+    onToken('Half a ')
+    throw new Error('the endpoint went away')
+  }
+  const { session, thread } = harness(llm, ikb)
+  await session.chat('what do teams use for testing')
+  const broken = thread.find((item) => item.text === 'Half a ')
+  assert.ok(broken, 'what was said stays in the thread')
+  assert.equal(broken.streaming, false, 'and the caret stops')
+  assert.match(thread.at(-1)!.text, /could not answer that/)
 })
