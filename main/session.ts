@@ -23,7 +23,7 @@ import { EMPTY_PROFILE, profileFromChat, summarise, withHeardTerms, withSignal }
 import { Transcript } from './transcript.ts'
 import { firstMatch } from './watch.ts'
 import type { Mark, WorkEvent } from '../shared/leetcode.ts'
-import { ASKS, BETTER_QUESTION, LeetCodePractice } from './leetcode/practice.ts'
+import { ASKS, BETTER_QUESTION, LeetCodePractice, TRACE_QUESTION } from './leetcode/practice.ts'
 import { interviewAsk } from './interviews/ask.ts'
 import { briefInterview, firstSentences } from './interviews/brief.ts'
 import type { Account } from './interviews/sources.ts'
@@ -634,6 +634,10 @@ export class Session {
         this.suggest([])
         this.heardFromStudent(ASKS.better)
         return this.observe({ kind: 'asked', at: Date.now(), text: BETTER_QUESTION })
+      case 'trace':
+        this.suggest([])
+        this.heardFromStudent(ASKS.trace)
+        return this.observe({ kind: 'asked', at: Date.now(), text: TRACE_QUESTION })
       case 'reonboard':
         this.onboardingTurns.length = 0
         this.suggest([])

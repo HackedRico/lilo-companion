@@ -116,6 +116,12 @@ Whatever the level, the companion says what it sees first, in plain words, and
 a hint it volunteers is earned: one rung higher a minute at a time, and only
 after your code changed. Every hint says which rung it reached.
 
+Ask to be walked through it, or press "Walk me through it", and the hint
+comes with a dry run: the pointers on the array, the values that change, one
+row per step, stepped through at your own pace. Coach draws the idea on an
+example of its own, or your own code on the input that failed. Tutor walks
+the whole approach. The same ceiling applies to the picture as to the words.
+
 Every session is written to a file under the app's data folder, one event per
 line, and played back with `--work-recording path/to/session.jsonl` or
 `WORK_RECORDING=` in `.env`, so the companion's manners can be tuned with no

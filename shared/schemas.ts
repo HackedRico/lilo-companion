@@ -39,6 +39,28 @@ export const profileOut = z.object({
 })
 
 /**
+ * A dry run beside a hint. Only the shape is checked here. Whether it holds
+ * together, one value per column, every mark on an item, every line in the
+ * code, is the gate's to decide, so a loose reply is refused with a reason
+ * rather than thrown away as unparseable.
+ */
+export const traceOut = z.object({
+  input: z.string().max(240),
+  items: z.array(z.string().max(24)).max(32),
+  columns: z.array(z.string().max(24)).max(8),
+  steps: z
+    .array(
+      z.object({
+        values: z.array(z.string().max(60)).max(8),
+        marks: z.array(z.object({ at: z.number().int(), label: z.string().max(12) })).max(6),
+        note: z.string().max(200),
+        line: z.number().int().nullable().optional()
+      })
+    )
+    .max(20)
+})
+
+/**
  * A hint from the coach. The rung is the model's own claim about how much it
  * gave away; the gate in main/leetcode/ladder.ts is what decides whether the
  * hint is said, so the bounds here only keep the shape honest.
@@ -50,11 +72,14 @@ export const hintOut = z.object({
   // produce, so the schema is never the thing that refuses an answer.
   say: z.string().max(6000),
   lines: z.array(z.number().int()).max(6),
-  names: z.array(z.string().max(40)).max(6)
+  names: z.array(z.string().max(40)).max(6),
+  // Absent as well as null, because a small model leaves out what it has nothing for.
+  trace: traceOut.nullable().optional()
 })
 
 export type ConceptsOut = z.infer<typeof conceptsOut>
 export type TermsOut = z.infer<typeof termsOut>
 export type RuntimeSkillOut = z.infer<typeof runtimeSkillOut>
 export type ProfileOut = z.infer<typeof profileOut>
+export type TraceOut = z.infer<typeof traceOut>
 export type HintOut = z.infer<typeof hintOut>
