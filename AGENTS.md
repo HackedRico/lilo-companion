@@ -13,6 +13,8 @@ every change has to hold on both.
   settings, the evidence base, and every model call. `main/leetcode/` is the
   LeetCode practice, and `main/host.ts` is the native messaging host Chrome
   runs, bundled on its own with no Electron in it.
+- `main/interviews/` reads first-hand interview accounts from public boards
+  and briefs the student with a citation on every claim.
 - `extension/` is the Chrome extension, three plain files loaded unpacked.
 - `preload/` is the one door between main and a renderer. It exposes exactly
   the channels named in `shared/api.ts`.
@@ -45,7 +47,8 @@ examples name software engineering rather than a stand-in from another field.
 the model returns survives only where `resolveTerms` finds it in the base, and
 a citation survives only where the retriever returned it
 (`main/chat/citations.ts`). Every claim about industry traces to a sentence
-with a posting URL.
+with a posting URL. An interview brief lives under the same rule: it cites
+only sentences from accounts fetched this turn (`main/interviews/`).
 
 **The ladder is enforced by code.** A LeetCode hint carries a rung, and
 `gate` in `main/leetcode/ladder.ts` checks the rung against the tier's ceiling

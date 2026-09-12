@@ -30,6 +30,8 @@ import { readLecture } from './lecture.ts'
 import { Bridge, bridgePath } from './leetcode/bridge.ts'
 import { installNativeHost } from './leetcode/connect.ts'
 import { Recorder, readRecording, replay } from './leetcode/recording.ts'
+import { AccountCache } from './interviews/cache.ts'
+import { gather } from './interviews/sources.ts'
 import { Session } from './session.ts'
 import { installTray } from './tray.ts'
 
@@ -65,6 +67,8 @@ app.whenReady().then(async () => {
   const recorder = new Recorder(
     join(app.getPath('userData'), 'leetcode', `${new Date().toISOString().slice(0, 10)}.jsonl`)
   )
+  // On disk rather than in memory alone, so an ask survives a restart and works on a plane.
+  const interviews = new AccountCache(join(app.getPath('userData'), 'interviews'))
   const settings = new SettingsStore(prefs, osKeychain(safeStorage))
   const catalogue = new ModelCatalogue(providerFor)
   const llm = new ModelService(settings.llmConfig(), providerFor)
@@ -104,7 +108,14 @@ app.whenReady().then(async () => {
       prefs.profile = profile
     },
     record: (event) => recorder.write(event),
-    mark: (mark) => bridge.send({ mark })
+    mark: (mark) => bridge.send({ mark }),
+    gatherInterviews: async (company) => {
+      const held = await interviews.read(company)
+      if (held) return held
+      const fresh = await gather(company)
+      await interviews.write(company, fresh)
+      return fresh
+    }
   })
 
   // Chrome's native host connects here. Failing to listen costs the LeetCode
