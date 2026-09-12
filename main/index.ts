@@ -37,8 +37,12 @@ import { installTray } from './tray.ts'
 
 if (!app.requestSingleInstanceLock()) app.quit()
 
-/** How often the LeetCode practice is asked whether a hint is earned. */
-const TICK = 15000
+/**
+ * How often the LeetCode practice is asked whether a hint is earned. The answer
+ * is a handful of comparisons in `nextRung`, so asking often costs nothing, and
+ * asking rarely means a hint the ladder has earned arrives up to a tick late.
+ */
+const TICK = 2000
 
 /** A file named on the command line or in .env, so a change can be tried without clicking. */
 function fileArgument(flag: string, variable: string): string | null {

@@ -69,7 +69,12 @@ export async function briefInterview(
 
   const attempt = async (sentences: Sentence[], temperature: number): Promise<Brief | null> => {
     const raw = await llm.text({
-      lane: 'strong',
+      // Prose, like companion chat, which is also on this lane. The careful lane
+      // is for the coach's judgement; measured against the configured endpoint
+      // the bigger model collapsed into a run of one character on this prompt
+      // four times out of four, and the quick one wrote it every time in a third
+      // of the wire time.
+      lane: 'fast',
       temperature,
       maxTokens: 700,
       ...interviewBrief({ company, sentences, ...span })

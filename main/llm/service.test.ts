@@ -48,7 +48,7 @@ function service(provider: Provider, config: LlmConfig = CONFIG): ModelService {
   return new ModelService(config, () => provider)
 }
 
-test('the lane picks the model, and a json ask says so to the provider', async () => {
+test('the lane picks the model', async () => {
   const fake = new FakeProvider()
   fake.replies = ['{"ok":true}', '{"ok":true}']
   const llm = service(fake)
@@ -58,8 +58,22 @@ test('the lane picks the model, and a json ask says so to the provider', async (
     fake.turns.map((turn) => turn.model),
     ['quick', 'careful']
   )
-  assert.equal(fake.turns[0]?.json, true)
   assert.equal(fake.turns[0]?.system, 's')
+})
+
+test('json mode is what the retry buys, not what every call pays for', async () => {
+  const fake = new FakeProvider()
+  fake.replies = ['{"ok":true}']
+  const llm = service(fake)
+  await llm.json(OK, { lane: 'fast', system: 's', user: 'u' })
+  assert.equal(fake.turns[0]?.json, false, 'the first try is plain, which is several times faster')
+
+  // A reply the schema refuses is asked for again, and that one is constrained.
+  const again = new FakeProvider()
+  again.replies = ['not json at all', '{"ok":true}']
+  const second = service(again)
+  assert.deepEqual(await second.json(OK, { lane: 'fast', system: 's', user: 'u' }), { ok: true })
+  assert.deepEqual(again.turns.map((turn) => turn.json), [false, true])
 })
 
 test('plain text is asked for without json, and streams hand every token over', async () => {

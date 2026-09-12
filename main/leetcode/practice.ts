@@ -29,6 +29,14 @@ export interface PracticeDeps {
 export const HELP_QUESTION = 'Give me a hint.'
 export const BETTER_QUESTION = 'It passes now. Is there a better approach, and why?'
 
+/** What a chip says, which is also what goes in the thread when it is pressed. */
+export const ASKS = {
+  hint: 'Give me a hint',
+  state: 'How am I doing?',
+  quiet: 'Quiet for a bit',
+  better: 'Is there a better way?'
+} as const
+
 /**
  * The LeetCode practice: folds what the page reports, says the state in words
  * that need no model, and climbs the ladder on effort. Every hint goes
@@ -39,6 +47,8 @@ export class LeetCodePractice {
   work: Work = EMPTY_WORK
   private last: Climb | null = null
   private busy = false
+  /** What is on the wire. A question waits for it; a volunteered hint stands down. */
+  private inFlight: Promise<unknown> | null = null
   private readonly deps: PracticeDeps
 
   constructor(deps: PracticeDeps) {
@@ -103,7 +113,7 @@ export class LeetCodePractice {
               text: 'Where does this turn up at work?',
               intent: { kind: 'chat', text: `Where does ${this.work.problem?.title ?? 'this problem'} turn up in real work?` }
             },
-            { id: this.deps.nextId(), text: 'Is there a better way?', intent: { kind: 'better' } }
+            { id: this.deps.nextId(), text: ASKS.better, intent: { kind: 'better' } }
           ])
           return
         }
@@ -156,7 +166,18 @@ export class LeetCodePractice {
       await voice.say('Nothing open on LeetCode.')
       return
     }
-    if (this.busy) return
+    // Never dropped. Whatever the timer has on the wire is already paid for, so
+    // the question waits it out rather than vanishing after the student has
+    // watched their own words go into the thread.
+    const ahead = this.inFlight
+    if (ahead) await ahead.catch(() => undefined)
+    const run = this.ask(question)
+    this.inFlight = run.catch(() => undefined)
+    return run
+  }
+
+  private async ask(question: string): Promise<void> {
+    const { voice } = this.deps
     this.busy = true
     voice.orb('thinking')
     try {
@@ -193,9 +214,9 @@ export class LeetCodePractice {
   private offer(): void {
     const id = this.deps.nextId
     this.deps.voice.suggest([
-      { id: id(), text: 'Give me a hint', intent: { kind: 'hint' } },
-      { id: id(), text: 'How am I doing?', intent: { kind: 'state' } },
-      { id: id(), text: 'Quiet for a bit', intent: { kind: 'quiet' } }
+      { id: id(), text: ASKS.hint, intent: { kind: 'hint' } },
+      { id: id(), text: ASKS.state, intent: { kind: 'state' } },
+      { id: id(), text: ASKS.quiet, intent: { kind: 'quiet' } }
     ])
   }
 }

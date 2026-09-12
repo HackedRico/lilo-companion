@@ -206,3 +206,16 @@ test('what is already in the editor is waited for before the state is read back'
   await opened
   assert.match(h.said[0]!.text, /5 lines of python/, 'not "nothing written yet" over a screen of code')
 })
+
+test('a question asked while the timer is thinking waits, and is never dropped', async () => {
+  const h = harness('coach')
+  await h.start()
+  // The timer takes a hint, and the student presses the chip while it is out.
+  h.llm.queue.push({ rung: 1, say: 'What do you need to have seen before n?', lines: [], names: [] })
+  h.at(CLIMB_EVERY)
+  const volunteering = h.practice.tick()
+  await h.practice.observe({ kind: 'help', at: CLIMB_EVERY })
+  await volunteering
+  assert.equal(h.llm.asks.length, 2, 'the question was asked, not swallowed')
+  assert.match(h.llm.asks[1]!.system, /ceiling right now is rung 3/, 'and at the tier the student set')
+})

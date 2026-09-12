@@ -376,3 +376,15 @@ test('a whisper is one sentence, and never a wall of code', () => {
   assert.equal(firstSentence('What resets count between windows?'), 'What resets count between windows?')
   assert.ok(firstSentence('x'.repeat(200)).length <= 90)
 })
+
+test('a line typed while the companion is busy is shown at once and answered after', async () => {
+  const llm = new ScriptedLlm()
+  llm.delayMs = 40
+  const { session, thread } = harness(llm, ikb)
+  const first = session.chat('what do teams use for testing')
+  await session.chat('and what about code review')
+  await first
+  const mine = thread.filter((item) => item.speaker === 'user').map((item) => item.text)
+  assert.deepEqual(mine, ['what do teams use for testing', 'and what about code review'], 'neither line vanished')
+  assert.equal(thread.filter((item) => item.speaker === 'companion').length, 2, 'and both were answered')
+})

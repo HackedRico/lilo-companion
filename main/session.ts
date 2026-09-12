@@ -23,7 +23,7 @@ import { EMPTY_PROFILE, profileFromChat, summarise, withHeardTerms, withSignal }
 import { Transcript } from './transcript.ts'
 import { firstMatch } from './watch.ts'
 import type { Mark, WorkEvent } from '../shared/leetcode.ts'
-import { BETTER_QUESTION, LeetCodePractice } from './leetcode/practice.ts'
+import { ASKS, BETTER_QUESTION, LeetCodePractice } from './leetcode/practice.ts'
 import { interviewAsk } from './interviews/ask.ts'
 import { briefInterview, firstSentences } from './interviews/brief.ts'
 import type { Account } from './interviews/sources.ts'
@@ -103,6 +103,8 @@ export class Session {
   /** The second practice, beside the lecture. It speaks through the same thread. */
   readonly leetcode: LeetCodePractice
   private knownCompanies: string[] | null = null
+  /** The turn on the wire, so a second question queues behind it rather than being dropped. */
+  private working: Promise<unknown> | null = null
 
   constructor(deps: SessionDeps) {
     this.deps = deps
@@ -118,7 +120,8 @@ export class Session {
       voice: {
         say: (text, extra) => this.saidWhileWorking(text, extra),
         suggest: (suggestions) => this.suggest(suggestions),
-        orb: (orb) => this.patch({ orb }),
+        // The dots are what says work is happening; the orb alone is easy to miss.
+        orb: (orb) => this.patch({ orb, composing: orb === 'thinking' }),
         mark: (mark) => deps.mark?.(mark),
         focus: (problem) => this.focusProblem(problem)
       }
@@ -135,9 +138,8 @@ export class Session {
     text: string,
     extra?: Omit<Partial<ThreadItem>, 'id' | 'text' | 'at'>
   ): Promise<unknown> {
-    const said = await this.say(text, extra)
     this.whisper(firstSentence(text))
-    return said
+    return this.say(text, extra)
   }
 
   /** A LeetCode problem in view takes the composer; leaving it hands it back. */
@@ -195,7 +197,9 @@ export class Session {
     this.patch({ composing: false })
     for (const word of words(text)) {
       this.deps.emit.token(item.id, word)
-      await sleep(this.pace.word)
+      // words() keeps the separators so the line reads as it will finally look.
+      // Sleeping on those as well charged the pace twice per word.
+      if (word.trim()) await sleep(this.pace.word)
     }
     this.deps.emit.end(item.id)
     const done: ThreadItem = { ...item, text, streaming: false }
@@ -321,7 +325,7 @@ export class Session {
     if (this.busy) return
     this.busy = true
     try {
-      this.patch({ orb: 'thinking' })
+      this.patch({ orb: 'thinking', composing: true })
       if (this.transcript.empty) {
         await this.say('Nothing has come through yet. Upload a lecture or paste your notes and I will read it back.')
         return
@@ -336,7 +340,7 @@ export class Session {
       await this.apologise('read that back', error)
     } finally {
       this.busy = false
-      this.patch({ orb: 'idle' })
+      this.patch({ orb: 'idle', composing: false })
     }
   }
 
@@ -438,7 +442,7 @@ export class Session {
   }
 
   async chat(text: string): Promise<void> {
-    if (this.busy || !text.trim()) return
+    if (!text.trim()) return
     const company = interviewAsk(text, this.companies)
     return this.turn(text, 'answer that', async () => {
       if (company && this.deps.gatherInterviews && (await this.interviews(company))) return
@@ -475,17 +479,25 @@ export class Session {
    * of what was being attempted. The busy flag lives here and nowhere else.
    */
   private async turn(text: string, attempting: string, body: () => Promise<void>): Promise<void> {
-    this.busy = true
-    try {
-      this.heardFromStudent(text)
-      this.patch({ orb: 'thinking' })
-      await body()
-    } catch (error) {
-      await this.apologise(attempting, error)
-    } finally {
-      this.busy = false
-      this.patch({ orb: 'idle' })
-    }
+    // Said first, before any waiting: the composer has already cleared what they
+    // typed, so a line that is not put in the thread now is a line they lose.
+    this.heardFromStudent(text)
+    const ahead = this.working
+    if (ahead) await ahead.catch(() => undefined)
+    const run = (async () => {
+      this.busy = true
+      try {
+        this.patch({ orb: 'thinking', composing: true })
+        await body()
+      } catch (error) {
+        await this.apologise(attempting, error)
+      } finally {
+        this.busy = false
+        this.patch({ orb: 'idle', composing: false })
+      }
+    })()
+    this.working = run.catch(() => undefined)
+    return run
   }
 
   /**
@@ -534,10 +546,12 @@ export class Session {
     await sleep(this.pace.turn)
     const item: ThreadItem = { id: nextId(), speaker: 'companion', text: '', at: Date.now(), streaming: true }
     this.deps.emit.add(item)
-    this.patch({ composing: false })
     let full = ''
     try {
       const { citations, sources } = await produce((token) => {
+        // Not before: the dots are the only sign of life while the model thinks,
+        // and an empty line with no dots reads as the companion having given up.
+        if (!full) this.patch({ composing: false })
         full += token
         this.deps.emit.token(item.id, token)
       })
@@ -592,18 +606,23 @@ export class Session {
         ])
         return
       }
+      // A chip is the student asking, so the thread shows them asking it. Without
+      // this the answer arrives with nothing above it saying what was asked.
       case 'hint':
         this.suggest([])
+        this.heardFromStudent(ASKS.hint)
         return this.observe({ kind: 'help', at: Date.now() })
       case 'quiet':
         this.suggest([])
+        this.heardFromStudent(ASKS.quiet)
         return this.observe({ kind: 'quiet', at: Date.now() })
       case 'state':
+        this.heardFromStudent(ASKS.state)
         await this.say(this.leetcode.state())
         return
       case 'better':
         this.suggest([])
-        this.heardFromStudent(BETTER_QUESTION)
+        this.heardFromStudent(ASKS.better)
         return this.observe({ kind: 'asked', at: Date.now(), text: BETTER_QUESTION })
       case 'reonboard':
         this.onboardingTurns.length = 0
