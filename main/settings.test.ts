@@ -5,6 +5,7 @@ import type { LlmConfig } from './llm/service.ts'
 import {
   ModelCatalogue,
   SettingsStore,
+  defaultModelsFor,
   testConnection,
   type Keychain,
   type SettingsHome
@@ -56,6 +57,20 @@ test('with neither, nothing is configured and nothing is invented', () => {
   const store = new SettingsStore(home(), vault, NOTHING)
   const config = store.llmConfig()
   assert.deepEqual(config, { protocol: 'openai', baseUrl: '', apiKey: '', fast: '', strong: '' })
+})
+
+test('known providers supply default fast and strong models when none are set', () => {
+  assert.equal(defaultModelsFor('https://api.featherless.ai/v1').fast, 'Qwen/Qwen2.5-Coder-7B-Instruct')
+  assert.equal(defaultModelsFor('https://api.featherless.ai/v1').strong, 'Qwen/Qwen2.5-Coder-14B-Instruct')
+  assert.equal(defaultModelsFor('https://api.anthropic.com').fast, 'claude-3-5-haiku-20241022')
+  assert.equal(defaultModelsFor('https://api.groq.com/openai/v1').fast, 'llama-3.1-8b-instant')
+  assert.equal(defaultModelsFor('https://openrouter.ai/api/v1').fast, 'meta-llama/llama-3.1-8b-instruct')
+  assert.equal(defaultModelsFor('http://localhost:11434').fast, 'qwen2.5-coder:7b')
+
+  const store = new SettingsStore(home(), vault, NOTHING)
+  store.apply({ baseUrl: 'https://api.featherless.ai' })
+  assert.equal(store.llmConfig().fast, 'Qwen/Qwen2.5-Coder-7B-Instruct')
+  assert.equal(store.llmConfig().strong, 'Qwen/Qwen2.5-Coder-14B-Instruct')
 })
 
 test('the protocol is decided from the address and shown, never chosen', () => {

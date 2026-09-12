@@ -32,6 +32,53 @@ function configFromEnv(env: NodeJS.ProcessEnv): Omit<LlmConfig, 'protocol'> {
 }
 
 /**
+ * Sensible default models when an address is configured without explicit model
+ * choices. If no address is set, nothing is invented.
+ */
+export function defaultModelsFor(baseUrl: string): { fast: string; strong: string } {
+  if (!baseUrl) return { fast: '', strong: '' }
+  try {
+    const host = new URL(baseUrl).hostname.toLowerCase()
+    if (host.includes('featherless.ai')) {
+      return {
+        fast: 'Qwen/Qwen2.5-Coder-7B-Instruct',
+        strong: 'Qwen/Qwen2.5-Coder-14B-Instruct'
+      }
+    }
+    if (host.includes('anthropic.com')) {
+      return {
+        fast: 'claude-3-5-haiku-20241022',
+        strong: 'claude-3-5-sonnet-20241022'
+      }
+    }
+    if (host.includes('groq.com')) {
+      return {
+        fast: 'llama-3.1-8b-instant',
+        strong: 'llama-3.3-70b-versatile'
+      }
+    }
+    if (host.includes('openrouter.ai')) {
+      return {
+        fast: 'meta-llama/llama-3.1-8b-instruct',
+        strong: 'meta-llama/llama-3.3-70b-instruct'
+      }
+    }
+    if (isLocal(baseUrl)) {
+      return {
+        fast: 'qwen2.5-coder:7b',
+        strong: 'qwen2.5-coder:7b'
+      }
+    }
+  } catch {
+    // Address may still be incomplete while typing.
+  }
+  return {
+    fast: 'Qwen/Qwen2.5-Coder-7B-Instruct',
+    strong: 'Qwen/Qwen2.5-Coder-14B-Instruct'
+  }
+}
+
+/**
  * What the student chose, layered over what the developer put in .env. A field
  * they have never touched falls through to the environment, so a checkout with
  * a .env still works with nothing configured in the window.
@@ -81,12 +128,13 @@ export class SettingsStore {
   llmConfig(): LlmConfig {
     const env = configFromEnv(this.env)
     const baseUrl = normaliseBaseUrl(this.saved.baseUrl || env.baseUrl)
+    const defaults = defaultModelsFor(baseUrl)
     return {
       protocol: protocolFor(baseUrl),
       baseUrl,
       apiKey: this.apiKey,
-      fast: this.saved.modelFast || env.fast,
-      strong: this.saved.modelStrong || env.strong
+      fast: this.saved.modelFast || env.fast || defaults.fast,
+      strong: this.saved.modelStrong || env.strong || defaults.strong
     }
   }
 
