@@ -176,3 +176,23 @@ test('asking for a hint informs the user if model is not configured', async () =
   await h.practice.observe({ kind: 'asked', at: 10, text: 'Give me a hint' })
   assert.match(h.said.at(-1)!.text, /cannot coach you until a model is configured/i)
 })
+
+test('answering stops the timer piling on, and does not push the ladder up', async () => {
+  const h = harness('tutor')
+  await h.start()
+  h.llm.queue.push({ rung: 5, say: 'Walk the array once, storing each value against its index.', lines: [], names: [] })
+  await h.practice.observe({ kind: 'asked', at: 10, text: 'show me the answer' })
+  assert.equal(h.llm.asks.length, 1)
+
+  // The same code a minute later earns nothing, however high the answer was.
+  h.at(CLIMB_EVERY * 2)
+  await h.practice.tick()
+  assert.equal(h.llm.asks.length, 1, 'nothing is volunteered on top of what was just answered')
+
+  // An edit, and a minute, starts the climb at the bottom rather than at the ceiling.
+  await h.practice.observe({ kind: 'changed', at: CLIMB_EVERY * 2, code: `${CODE}\n# hmm`, language: 'python' })
+  h.llm.queue.push({ rung: 1, say: 'What do you need to have seen before n?', lines: [], names: [] })
+  h.at(CLIMB_EVERY * 3 + 1)
+  await h.practice.tick()
+  assert.match(h.llm.asks[1]!.system, /ceiling right now is rung 1/, 'the ladder starts again from the bottom')
+})

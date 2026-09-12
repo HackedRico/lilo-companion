@@ -102,3 +102,12 @@ test('a statement about their code cannot arrive labelled as a question', () => 
   const owned: Hint = { ...mislabelled, rung: 3, names: ['seen'] }
   assert.deepEqual(gate(owned, 2, working), { ok: false, reason: 'too_high' }, 'reported honestly, the ceiling catches it')
 })
+
+test('a verdict with a question tagged on the end is not a question', () => {
+  const tagged: Hint = { rung: 1, say: 'Your loop never resets count after each window. See it?', lines: [], names: [] }
+  assert.deepEqual(gate(tagged, 1, working), { ok: false, reason: 'not_a_question' })
+  const real: Hint = { rung: 1, say: 'What resets count between windows?', lines: [], names: [] }
+  assert.deepEqual(gate(real, 1, working), { ok: true })
+  const quoted: Hint = { rung: 1, say: 'So what happens at the end of a window?"', lines: [], names: [] }
+  assert.deepEqual(gate(quoted, 1, working), { ok: true }, 'a closing quote is still the end of a question')
+})

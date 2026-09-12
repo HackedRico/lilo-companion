@@ -30,7 +30,10 @@ for that they have not.
 claim about industry traces to a sentence in `data/ikb.json`, and every sentence
 traces to a posting with a URL. `citations.ts` strips any `[S:id]` the retriever
 did not return, so a model that invents a citation loses it rather than the
-student believing it.
+student believing it. A marker may carry several ids, and a run of sentences
+from one source arrives written short as `#0-#2`; both are taken apart and
+every piece is checked against what the retriever returned, so the shorthand
+is read and never believed on its own.
 
 **The ladder is enforced by code.** A hint carries a rung, 0 to 5, by how much
 of the answer it gives away. The tier the student picks is a ceiling on that
@@ -179,7 +182,8 @@ query, going to two columns once there is room. It has two tabs, because it
 holds two unrelated things, and the tab is remembered in the window's own
 storage.
 
-What you are aiming at is typed, not picked. The eight tracks are what every
+What you are aiming at is yours to type, and onboarding writes down the track
+it heard so the window and the filter say the same thing. The eight tracks are what every
 posting is tagged with, and evidence and gap statistics both filter on them, so
 free text alone would match nothing. The phrase is searched against real job
 titles and resolves to the track those titles carry, with "nothing like it"

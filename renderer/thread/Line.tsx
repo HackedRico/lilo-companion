@@ -27,25 +27,27 @@ export function Line({ item }: { item: ThreadItem }): ReactElement {
  * block reads as code rather than as prose with backticks in it.
  */
 function Said({ item }: { item: ThreadItem }): ReactElement {
-  const parts = item.text.split(/```[a-zA-Z]*\n?/)
+  // Any language tag, not only letters: python3 and c++ are tags too.
+  const parts = item.text.split(/```[^\n]*\n?/)
   const caret = item.streaming ? ' caret' : ''
   if (parts.length < 2) return <p className={`said${caret}`}>{item.text}</p>
+  const spoken = parts.map((part, index) => ({ part, code: index % 2 === 1 })).filter((piece) => piece.part.trim())
   return (
     <>
-      {parts.map((part, index) =>
+      {spoken.map((piece, index) =>
         // The fences alternate, so every odd part is what sat between them.
-        index % 2 === 1 ? (
+        piece.code ? (
           <pre key={index} className="scroller code">
-            {part.replace(/\n$/, '')}
+            {piece.part.replace(/\n$/, '')}
           </pre>
         ) : (
-          part.trim() && (
-            <p key={index} className={`said${index === parts.length - 1 ? caret : ''}`}>
-              {part.trim()}
-            </p>
-          )
+          <p key={index} className={`said${index === spoken.length - 1 ? caret : ''}`}>
+            {piece.part.trim()}
+          </p>
         )
       )}
+      {/* A block still arriving keeps the caret, which a pre cannot carry. */}
+      {item.streaming && spoken.at(-1)?.code && <p className="said caret" />}
     </>
   )
 }

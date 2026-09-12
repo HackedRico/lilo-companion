@@ -49,17 +49,26 @@ function singular(word: string): string {
   return word
 }
 
+/**
+ * Only a phrase is stemmed. A one word trigger is matched as written, because
+ * "sets" and "pointers" are aliases of real concepts and also ordinary words:
+ * stemming them makes "set a flag when the loop finishes" a lecture on hash tables.
+ */
 function stemPhrase(input: string): string {
-  return normalise(input).split(' ').map(singular).join(' ')
+  const words = normalise(input).split(' ')
+  return words.length > 1 ? words.map(singular).join(' ') : words.join(' ')
 }
 
 /** Whether the concept text reaches any of a rule's trigger phrases. */
 function triggered(text: string, rule: ConceptMapRule): boolean {
+  const plain = normalise(text)
   const stemmed = stemPhrase(text)
-  return [rule.concept, ...rule.aliases]
-    .map(stemPhrase)
-    .filter(Boolean)
-    .some((trigger) => includesPhrase(stemmed, trigger))
+  return [rule.concept, ...rule.aliases].filter(Boolean).some((raw) => {
+    const trigger = stemPhrase(raw)
+    return normalise(raw).split(' ').length > 1
+      ? includesPhrase(stemmed, trigger)
+      : includesPhrase(plain, normalise(raw))
+  })
 }
 
 function pushSupported(

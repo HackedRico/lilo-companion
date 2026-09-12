@@ -65,7 +65,8 @@ test('a range is the sentences of one account written short', () => {
   assert.deepEqual(expand('leetcode:99#1-3'), ['leetcode:99#1', 'leetcode:99#2', 'leetcode:99#3'])
   assert.deepEqual(expand('leetcode:99#0'), ['leetcode:99#0'], 'a plain id is left alone')
   assert.deepEqual(expand('leetcode:99#5-#0'), ['leetcode:99#5-#0'], 'backwards is not a range')
-  assert.deepEqual(expand('leetcode:99#0-#900'), ['leetcode:99#0-#900'], 'nor is a wave at a whole source')
+  assert.equal(expand('leetcode:99#0-#900').length, 12, 'a wave at a whole source is narrowed to the cap')
+  assert.deepEqual(expand('leetcode:99#0-#900')[0], 'leetcode:99#0')
 })
 
 test('a range credits the sentences it named that were actually retrieved', () => {
@@ -77,4 +78,15 @@ test('a range credits the sentences it named that were actually retrieved', () =
 test('prose in brackets is let go at once rather than held to the end', () => {
   const { text } = run(['An array [of integers] and [S:a#1] a citation'], ['a#1'])
   assert.equal(text, 'An array [of integers] and  a citation')
+})
+
+test('a range no retriever could have made is left alone rather than counted up to', () => {
+  const started = Date.now()
+  assert.deepEqual(expand('a#9007199254740993-#9007199254740993'), ['a#9007199254740993-#9007199254740993'])
+  assert.ok(Date.now() - started < 500, 'and nothing spins')
+})
+
+test('a range wider than the cap still credits the ids it named', () => {
+  const { citations } = run(['x [S:a#0-#40] y'], ['a#0', 'a#5', 'a#30'])
+  assert.deepEqual(citations, ['a#0', 'a#5'], 'up to the cap, and no further')
 })

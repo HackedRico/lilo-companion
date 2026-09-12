@@ -4,8 +4,11 @@
  */
 const MAX_MARKER = 400
 
-/** A range wider than this is the model waving at a source, not citing it. */
+/** A range wider than this is the model waving at a source, so only its start counts. */
 const MAX_SPAN = 12
+
+/** No retriever numbers a sentence this high, so nothing above it is an index. */
+const MAX_INDEX = 10000
 
 /**
  * "a#0-#2" is three sentences of one account written short. Expanded here and
@@ -17,9 +20,13 @@ export function expand(id: string): string[] {
   if (!range) return [id]
   const from = Number(range[2])
   const to = Number(range[3])
-  if (to < from || to - from >= MAX_SPAN) return [id]
+  // A sentence index is small. Anything else is not a range a retriever made,
+  // and counting up to it would never finish.
+  if (!Number.isSafeInteger(from) || !Number.isSafeInteger(to) || from > MAX_INDEX || to < from) return [id]
   const out: string[] = []
-  for (let index = from; index <= to; index++) out.push(`${range[1]}${index}`)
+  // A wide range is narrowed rather than dropped, so the ids it did name still count.
+  const last = Math.min(to, from + MAX_SPAN - 1)
+  for (let index = from; index <= last; index++) out.push(`${range[1]}${index}`)
   return out
 }
 

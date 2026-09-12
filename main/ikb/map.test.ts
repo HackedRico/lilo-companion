@@ -116,3 +116,12 @@ test('a concept said in the singular reaches a rule written in the plural', () =
     'and reaches the same terms the plural does'
   )
 })
+
+test('an alias that is also an ordinary word is matched as written, not stemmed', () => {
+  const flag = mapConceptTerms(ikb, {
+    name: 'Loop invariants',
+    summary: 'The lecturer will set a flag when the loop finishes, and the invariant still holds.',
+    confidence: 'high'
+  })
+  assert.deepEqual(flag, [], 'setting a flag is not a lecture on hash tables')
+})

@@ -116,3 +116,23 @@ test('what counts as fallen apart', () => {
   assert.ok(degenerate('!!! ??? ... --- ,,, ;;; ::: ***'))
   assert.ok(!degenerate('The onsite was four rounds over one day and the debugging round was the hard one.'))
 })
+
+test('a period inside a number or an abbreviation is not the end of a sentence', () => {
+  assert.equal(
+    tidy('The onsite runs four rounds in one day. People mention e.g. a debugging round that most found harder than the'),
+    'The onsite runs four rounds in one day.'
+  )
+  assert.equal(
+    tidy('The screen took roughly 2.5 hours in total. They then went quiet for about'),
+    'The screen took roughly 2.5 hours in total.'
+  )
+})
+
+test('a first reply that cites nothing is replaced by a second that does', async () => {
+  const llm = new Scripted()
+  llm.queue.push('Four rounds, nothing to point at.', 'Four rounds over one day, and a debugging round. [S:leetcode:1#0]')
+  const brief = await briefInterview(llm, 'Stripe', ACCOUNTS, NOW)
+  assert.equal(brief.kind, 'brief')
+  if (brief.kind !== 'brief') return
+  assert.deepEqual(brief.citations, ['leetcode:1#0'])
+})

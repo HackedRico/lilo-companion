@@ -35,3 +35,16 @@ test('no interview, or no company, is not an ask', () => {
   assert.equal(interviewAsk('My interview is tomorrow', KNOWN), null)
   assert.equal(interviewAsk('prep for Monday interview', KNOWN), null)
 })
+
+test('a question about the problem in front of them is not an interview ask', () => {
+  const known = ['Stripe', 'Coinbase', 'Linear', 'Notion', 'Meta']
+  for (const line of [
+    'is my loop wrong for Two Sum',
+    'should the loop start at Line 4',
+    'why does this fail for Python but not Java',
+    'my loop is off by one for Example 2',
+    'does the loop need to run for N iterations'
+  ]) {
+    assert.equal(interviewAsk(line, known), null, line)
+  }
+})

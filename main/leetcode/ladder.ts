@@ -60,8 +60,17 @@ export function gate(hint: Hint, ceiling: Rung, work: Work): Gate {
   // a shape worth checking is checked: rung 1 is a question or it is not rung 1.
   // Without this, "your code never matches the brackets" arrives labelled as
   // something to think about, and the lowest tiers quietly give more than they say.
-  if (hint.rung === 1 && !hint.say.includes('?')) return { ok: false, reason: 'not_a_question' }
+  // One question, not a verdict with a question tagged on the end: "your loop
+  // never resets it. See it?" is rung 3 wearing rung 1, and ends in a question
+  // mark all the same. A rung 1 hint asks and does not tell.
+  if (hint.rung === 1 && !isOneQuestion(hint.say)) return { ok: false, reason: 'not_a_question' }
   return { ok: true }
+}
+
+/** Ends by asking, and says nothing before it that finished with a full stop. */
+export function isOneQuestion(say: string): boolean {
+  const body = say.trim()
+  return /\?["')\]]?$/.test(body) && !/[.!]\s/.test(body)
 }
 
 /** Whether a name appears in the code as a whole word. */

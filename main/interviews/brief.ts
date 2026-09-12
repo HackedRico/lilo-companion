@@ -29,9 +29,17 @@ export function tidy(text: string): string {
     .trim()
   if (/[.!?]["')\]]?$/.test(closed)) return closed
   // The reply ran out of room mid-sentence. Half a sentence reads as a bug, so
-  // it is cut back to the last one that finished.
-  const end = Math.max(closed.lastIndexOf('.'), closed.lastIndexOf('!'), closed.lastIndexOf('?'))
-  return end > 40 ? closed.slice(0, end + 1) : closed
+  // it is cut back to the last one that finished. A period inside a number, an
+  // initial or "e.g." is not one, so the end has to be a capital or nothing.
+  let end = -1
+  for (const match of closed.matchAll(/[.!?]["')\]]?\s+(?=[A-Z])/g)) {
+    const at = (match.index ?? 0) + match[0].trimEnd().length
+    const before = closed.slice(Math.max(0, at - 4), at - 1)
+    if (/\d$/.test(before) || /\b[a-z]$/.test(before) || /\b(e\.g|i\.e|etc|vs|Mr|Dr)$/i.test(before)) continue
+    end = at
+  }
+  // Long enough to read as a sentence rather than a stub.
+  return end > 24 ? closed.slice(0, end) : closed
 }
 
 function evidenceOf(sentence: Sentence, account: Account): Evidence {
