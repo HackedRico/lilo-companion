@@ -4,17 +4,13 @@ import { RUNG_LABEL } from '../../shared/leetcode.ts'
 import { api } from '../api.ts'
 
 /**
- * Four treatments, because four different things are speaking. The companion is
- * a voice in the margin. The student's own words come back quieter. Anything
- * from the working world arrives as a document on warm paper. A review is a
- * proof mark: a rule down the side, in the colour of its verdict.
+ * The companion is a voice in the margin. The student's own words come back
+ * quieter on the right. Evidence and sources appear as chips below.
  */
 export function Line({ item }: { item: ThreadItem }): ReactElement {
   if (item.speaker === 'user') {
     return <p className="mine arriving">{item.text}</p>
   }
-  if (item.speaker === 'stakeholder') return <Dispatch item={item} />
-  if (item.speaker === 'reviewer') return <Review item={item} />
   return (
     <div className="arriving">
       <p className={`said${item.streaming ? ' caret' : ''}`}>{item.text}</p>
@@ -22,46 +18,6 @@ export function Line({ item }: { item: ThreadItem }): ReactElement {
       {item.rung !== undefined && <span className="meta">{RUNG_LABEL[item.rung]}</span>}
       <Evidence item={item} />
       <Sources item={item} />
-    </div>
-  )
-}
-
-function Dispatch({ item }: { item: ThreadItem }): ReactElement {
-  const attachment = item.attachment
-  return (
-    <article className="dispatch arriving">
-      {item.from && (
-        <header className="dispatch-head">
-          <span className="dispatch-from">{item.from.name}</span>
-          <span className="dispatch-role">{item.from.role}</span>
-        </header>
-      )}
-      <p className={`dispatch-body${item.streaming ? ' caret' : ''}`}>{item.text}</p>
-      {attachment && attachment.type !== 'none' && (
-        <pre className="scroller">{attachment.content}</pre>
-      )}
-    </article>
-  )
-}
-
-function Review({ item }: { item: ThreadItem }): ReactElement {
-  return (
-    <div className="arriving">
-      {item.priorAnswer && <p className="prior">{item.priorAnswer.text}</p>}
-      <div
-        className="review"
-        data-verdict={item.verdict === 'ship_it' ? 'ship' : item.verdict ? 'not-yet' : undefined}
-      >
-        {item.from && (
-          <div className="review-who">
-            <span className="dispatch-from" style={{ color: 'var(--ink)' }}>
-              {item.from.name}
-            </span>
-            <span className="meta">{item.from.role}</span>
-          </div>
-        )}
-        <p className={`said said-quiet${item.streaming ? ' caret' : ''}`}>{item.text}</p>
-      </div>
     </div>
   )
 }

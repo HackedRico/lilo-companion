@@ -68,39 +68,6 @@ export interface Card {
   oneLiner: string
 }
 
-export interface HiddenFact {
-  id: string
-  fact: string
-  revealWhen: string
-}
-
-export interface Scenario {
-  id: string
-  title: string
-  format: 'jira' | 'slack' | 'email'
-  from: { name: string; role: string }
-  persona: string
-  visibleMessage: string
-  attachment: { type: 'table' | 'code' | 'none'; content: string }
-  /** Never sent to the renderer, and never sent to the persona until uncovered. */
-  hiddenFacts: HiddenFact[]
-  deliverable: string
-  classVersion: string
-  /** Never sent to the renderer. Written before the student answers. */
-  rubric: string[]
-  citedSentenceId: string
-}
-
-/** What the renderer is allowed to know about a scenario. */
-
-export interface Review {
-  verdict: 'ship_it' | 'needs_changes'
-  strengths: string[]
-  gaps: string[]
-  missedTopics: string[]
-  seniorQuestion: string
-}
-
 export interface Gap {
   practice: string
   pctOfPostings: number
@@ -110,7 +77,7 @@ export interface Gap {
 export interface ChatMessage {
   id: string
   thread: 'companion' | string
-  role: 'user' | 'assistant' | 'stakeholder'
+  role: 'user' | 'assistant'
   text: string
   citations: string[]
 }
@@ -141,7 +108,7 @@ export interface Recap {
 
 // The thread -------------------------------------------------------------
 
-export type Speaker = 'companion' | 'user' | 'stakeholder' | 'reviewer'
+export type Speaker = 'companion' | 'user'
 
 /** Evidence rides along with a line. It is never rendered as a labelled field. */
 export interface Evidence {
@@ -157,29 +124,17 @@ export interface ThreadItem {
   text: string
   at: number
   streaming?: boolean
-  /** Set when the speaker is a person, so the thread can attribute the line. */
-  from?: { name: string; role: string }
-  /** Set on a review, so the thread can show which way it went. */
-  verdict?: Review['verdict']
   evidence?: Evidence
-  attachment?: { type: 'table' | 'code' | 'none'; content: string }
   citations?: string[]
   /** Resolved citations, rendered as chips under a chat answer. */
   sources?: Evidence[]
-  /** An earlier answer shown beside a new one, after a lock-in. */
-  priorAnswer?: { text: string; at: number }
   /** Set on a LeetCode hint, so the thread can say how much it gave away. */
   rung?: Rung
 }
 
 export type Intent =
   | { kind: 'why' }
-  | { kind: 'scenario'; cardId?: string; gap?: string }
-  | { kind: 'ask'; scenarioId: string; question: string }
-  | { kind: 'submit'; scenarioId: string }
-  | { kind: 'revise'; scenarioId: string }
   | { kind: 'watch'; concept: string }
-  | { kind: 'reopen'; scenarioId: string }
   | { kind: 'chat'; text: string }
   | { kind: 'recap' }
   | { kind: 'affinity'; cardId: string }
@@ -208,15 +163,11 @@ export interface Whisper {
 export type OrbState = 'idle' | 'thinking' | 'alert' | 'cheering'
 
 /**
- * Where what the student types goes next. A question during a scenario reaches
- * the coworker; the answer itself only goes in once they say they are ready.
+ * Where what the student types goes next: onboarding, leetcode, or general chat.
  */
 export interface ComposerMode {
-  mode: 'chat' | 'ask' | 'reply' | 'onboarding' | 'leetcode'
+  mode: 'chat' | 'onboarding' | 'leetcode'
   hint: string
-  /** Who is being written to, named rather than parsed back out of the hint. */
-  who: string | null
-  scenarioId: string | null
 }
 
 export interface CompanionState {
@@ -228,7 +179,6 @@ export interface CompanionState {
   composing: boolean
   /** Concepts the student asked to be tapped on when class reaches them. */
   watching: string[]
-  activeScenarioId: string | null
   composer: ComposerMode
   onboarded: boolean
 }

@@ -10,7 +10,6 @@ export interface ChatContext {
   transcript: string
   card: Card | null
   history: { role: string; text: string }[]
-  inScenario: boolean
 }
 
 export interface ChatAnswer {
@@ -39,8 +38,7 @@ export async function askCompanion(
         context.card,
         sources,
         context.history.slice(-10),
-        question,
-        context.inScenario
+        question
       )
     },
     (token) => {

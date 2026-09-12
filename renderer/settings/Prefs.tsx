@@ -334,10 +334,10 @@ function ModelTab({
             onSet={(apiKey) => change({ apiKey })}
           />
         </Field>
-        <Field label="Quick model" hint="Reads the lecture and plays the coworker.">
+        <Field label="Quick model" hint="Reads the lecture and answers questions.">
           <ModelField value={settings.modelFast} onPick={(modelFast) => change({ modelFast })} />
         </Field>
-        <Field label="Careful model" hint="Writes the work and reviews your answer.">
+        <Field label="Careful model" hint="Coaches on LeetCode and inspects your code.">
           <ModelField value={settings.modelStrong} onPick={(modelStrong) => change({ modelStrong })} />
         </Field>
       </div>

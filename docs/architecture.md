@@ -17,30 +17,26 @@ concept are retrieved first and handed over, and it is told to copy one exactly.
 Anything it returns that the retriever cannot find is dropped. What survives
 becomes a card with three sentences quoted from three different companies.
 
-**Do.** A card can become a scenario: a vague request from a coworker, with
-three or four hidden facts that each change what the right answer is. The
-student asks questions, submits an answer, and a senior reviews it.
-
-**Lock in.** A review names a topic in three words or fewer. `watch.ts` looks
+**Lock in.** A concept can be watched for future lectures. `watch.ts` looks
 for those exact words on every line of the next lecture that arrives, and turns
-the orb gold when it finds them.
+the orb alert when it finds them.
 
 **Recap.** What the student met, and what the postings for their track ask
 for that they have not.
 
 ## Two rules
 
-**The LLM translates, role-plays and explains. Real postings prove.** Every
+**The LLM translates and explains. Real postings prove.** Every
 claim about industry traces to a sentence in `data/ikb.json`, and every sentence
 traces to a posting with a URL. `citations.ts` strips any `[S:id]` the retriever
 did not return, so a model that invents a citation loses it rather than the
 student believing it.
 
-**The coworker is only ever told what the student has already uncovered.**
-`revealFacts` is a separate call that decides which hidden facts a question
-reaches. The persona is then written with only those facts in its prompt, so it
-cannot leak what it never had. Gating in the prompt alone would be a request;
-gating by what is passed in is a fact about the call.
+**The ladder is enforced by code.** A hint carries a rung, 0 to 5, by how much
+of the answer it gives away. The tier the student picks is a ceiling on that
+ladder, and `gate` in `main/leetcode/ladder.ts` checks the rung against the ceiling
+and every line and name against the student's code before it is said. The
+model is told the ceiling and never trusted with it.
 
 ## The evidence base
 
@@ -179,15 +175,13 @@ surfaces, and the split carries the whole idea:
 
 - **The app** is cool ink on a cool ground, in the system sans.
 - **The working world** is warm paper in `ui-serif`, which is New York on macOS
-  and Georgia elsewhere. Anything quoted from a posting, and anything a coworker
-  sends, arrives on it. It should look like it came from somewhere else.
+  and Georgia elsewhere. Anything quoted from a posting arrives on it. It should look like it came from somewhere else.
 
 The companion's own voice is neither: no bubble, no avatar, no name, flush left.
-It is marginalia, the thing written in the margin of your notes. Four things
-speak in the thread and each gets its own treatment rather than a variant of a
-chat bubble: the companion, the student's own words coming back quieter on the
-right, a request from the working world as a document, and a review as a proof
-mark with a rule down the side in the colour of its verdict.
+It is marginalia, the thing written in the margin of your notes. Everything
+in the thread gets its own treatment rather than a variant of a chat bubble:
+the companion's marginalia, the student's own words coming back quieter on the
+right, and cited evidence cards from real postings.
 
 No font files are bundled. `ui-serif` and `ui-monospace` reach the platform's
 own optically sized faces. Swapping in a licensed face is two lines in

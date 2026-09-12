@@ -2,9 +2,8 @@
 
 Lilo is an Electron companion for software engineering students, there to
 keep them going toward the job. It reads a lecture the student hands it and
-says where the concept turns up in real software engineering postings. It
-hands them a vague request from a coworker to answer, the way it would land on
-the engineer on a team. And it sits beside them on LeetCode, with help at a
+says where the concept turns up in real software engineering postings with
+verifiable evidence. And it sits beside them on LeetCode, with help at a
 level they set, so the effort stays theirs. It ships on macOS and Windows, and
 every change has to hold on both.
 
@@ -40,18 +39,13 @@ other title and the ingest drops it. The role families are engineering tracks,
 every prompt says who the student is, and copy, placeholders and worked
 examples name software engineering rather than a stand-in from another field.
 
-## Three rules the code keeps
+## Two rules the code keeps
 
-**The model translates, role-plays and explains. Real postings prove.** A term
+**The model translates and explains. Real postings prove.** A term
 the model returns survives only where `resolveTerms` finds it in the base, and
 a citation survives only where the retriever returned it
 (`main/chat/citations.ts`). Every claim about industry traces to a sentence
 with a posting URL.
-
-**The coworker knows only what the student has uncovered.** `revealFacts`
-decides which hidden facts a question reaches, and the persona prompt is built
-from those alone (`main/scenario/stakeholder.ts`). Hidden facts and the rubric
-stay in main; a thread item carries the visible message.
 
 **The ladder is enforced by code.** A LeetCode hint carries a rung, and
 `gate` in `main/leetcode/ladder.ts` checks the rung against the tier's ceiling

@@ -1,14 +1,21 @@
 # Lilo
 
-A companion for the computer science student who wants the job.
+A desktop companion for the software engineering student who wants the job.
 
 Lilo sits in the corner of your screen while you do the hard parts of getting
-there, and it stays on your side. Hand it a lecture and it shows you where that
-idea turns up in real software engineering postings, so "I will never use
-this" stops being true. Ask it for work and a coworker sends you a vague
-request, the way one lands on the engineer on a team, and a senior reviews
-what you send back. Open a problem on LeetCode and it sits beside you, says
-what it sees, and helps only as much as you let it, so the effort stays yours.
+there. It stays on your side through the grind, keeps you honest, and never
+robs you of the effort that builds real skill.
+
+Open a problem on LeetCode and it sits beside you. It notices when you change
+your code, tells you what it sees in plain words, and steps in with hints only
+up to a ceiling you control—coaching you through roadblocks without giving away
+the answer. When your solution is accepted, the orb cheers.
+
+Bring it your coursework or lecture notes and it connects the concepts to
+reality, showing you where that exact idea turns up in real engineering job
+postings with cited proof from real teams, so "I will never use this" stops
+being true. Ask it how any concept works in production, or see what postings
+for your track look for that your classes have not covered yet.
 
 It cheers when you get there. It does not do the work for you.
 
@@ -55,6 +62,19 @@ never reach the renderer, which only ever learns whether a key is set and its
 last four characters. An address on this machine is recognised as local and
 stops asking for one. Anything left blank falls through to `.env`, so a
 developer checkout needs no clicking.
+
+To run completely offline with Ollama:
+
+1. Pull a model, e.g. `ollama pull qwen2.5-coder:7b` or `ollama pull llama3.2`.
+2. Enter `http://localhost:11434` as the endpoint URL in preferences. Lilo
+   detects the local server, marks the API key as not needed, and populates the
+   model menus directly from your local Ollama library.
+3. Or configure it in `.env`:
+   ```bash
+   LLM_BASE_URL=http://localhost:11434
+   MODEL_FAST=qwen2.5-coder:7b
+   MODEL_STRONG=qwen2.5-coder:7b
+   ```
 
 ## Lectures
 
@@ -128,8 +148,7 @@ reply.
 
 | | |
 |---|---|
-| `main/session.ts` | the loop: hear, see, do, review, lock in, recap |
-| `main/scenario/stakeholder.ts` | the coworker, and why they cannot leak |
+| `main/session.ts` | the loop: hear, see, lock in, recap |
 | `main/leetcode/` | the LeetCode practice: state, ladder, coach, bridge, recordings |
 | `main/host.ts` | the native messaging host Chrome runs |
 | `extension/` | the Chrome extension, loaded unpacked |
@@ -146,12 +165,10 @@ reply.
 | `shared/prompts.ts` | every prompt, and the companion's voice |
 | `scripts/ingest-ikb.ts` | the job board ingest |
 
-## Three rules the code keeps
+## Two rules the code keeps
 
-The model translates, role-plays and explains; real postings prove. The
-coworker is only ever told what the student has already uncovered. And a
-LeetCode hint is checked against the level you set and against your own code
-before it is said.
+The model translates and explains; real postings prove. And a LeetCode hint is
+checked against the level you set and against your own code before it is said.
 [docs/architecture.md](docs/architecture.md) says how each is enforced and why
 the rest of the app is shaped the way it is.
 

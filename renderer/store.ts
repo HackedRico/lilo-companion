@@ -10,8 +10,7 @@ const EMPTY_COMPANION: CompanionState = {
   whisper: null,
   composing: false,
   watching: [],
-  activeScenarioId: null,
-  composer: { mode: 'chat', hint: 'Ask me anything', who: null, scenarioId: null },
+  composer: { mode: 'chat', hint: 'Ask me anything' },
   onboarded: true
 }
 

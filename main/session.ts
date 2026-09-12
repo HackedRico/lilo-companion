@@ -17,9 +17,6 @@ import { evidenceOf, profileRoles } from './ikb/search.ts'
 import { computeGaps } from './ikb/gaps.ts'
 import { extractConcepts } from './pipeline/extract.ts'
 import { buildCard } from './pipeline/evidence.ts'
-import { generateScenario } from './scenario/generate.ts'
-import { ScenarioRun } from './scenario/stakeholder.ts'
-import { reviewAnswer } from './scenario/review.ts'
 import { askCompanion } from './chat/companion.ts'
 import { EMPTY_PROFILE, profileFromChat, summarise, withHeardTerms, withSignal } from './profile.ts'
 import { Transcript } from './transcript.ts'
@@ -30,9 +27,6 @@ import { BETTER_QUESTION, LeetCodePractice } from './leetcode/practice.ts'
 /** How fast the companion talks, and how long it pauses between turns. */
 const WORD_MS = 26
 const TURN_PAUSE = 420
-
-/** The senior whose review the student gets. Fictional, and always the same. */
-const REVIEWER = { name: 'Sam', role: 'senior engineer' }
 
 export interface Emitter {
   patch(patch: Partial<CompanionState>): void
@@ -68,9 +62,6 @@ function words(text: string): string[] {
   return text.split(/(\s+)/).filter(Boolean)
 }
 
-/** How long a ship-it is cheered before the face settles. */
-const CHEER_MS = 2500
-
 export class Session {
   readonly transcript = new Transcript()
   state: CompanionState = {
@@ -81,14 +72,12 @@ export class Session {
     whisper: null,
     composing: false,
     watching: [],
-    activeScenarioId: null,
-    composer: { mode: 'chat', hint: 'Ask me anything', who: null, scenarioId: null },
+    composer: { mode: 'chat', hint: 'Ask me anything' },
     onboarded: false
   }
 
   private readonly deps: SessionDeps
   private readonly cards = new Map<string, Card>()
-  private readonly runs = new Map<string, ScenarioRun>()
   private readonly seen: { concept: Concept; terms: string[] }[] = []
   private profile: Profile = EMPTY_PROFILE
   private busy = false
@@ -122,11 +111,11 @@ export class Session {
   /** A LeetCode problem in view takes the composer; leaving it hands it back. */
   private focusProblem(problem: string | null): void {
     if (problem) {
-      this.patch({ composer: { mode: 'leetcode', hint: `Ask about ${problem}`, who: null, scenarioId: null } })
+      this.patch({ composer: { mode: 'leetcode', hint: `Ask about ${problem}` } })
       return
     }
     if (this.state.composer.mode === 'leetcode') {
-      this.patch({ composer: { mode: 'chat', hint: 'Ask me anything', who: null, scenarioId: null } })
+      this.patch({ composer: { mode: 'chat', hint: 'Ask me anything' } })
     }
   }
 
@@ -204,7 +193,7 @@ export class Session {
   async startOnboarding(): Promise<void> {
     if (this.state.onboarded) return
     this.patch({
-      composer: { mode: 'onboarding', hint: 'Tell me in your own words', who: null, scenarioId: null }
+      composer: { mode: 'onboarding', hint: 'Tell me in your own words' }
     })
     await this.say('Before we start. What are you studying, and what kind of engineering are you after?')
   }
@@ -242,7 +231,7 @@ export class Session {
     this.onboardingTurns.length = 0
     this.patch({
       onboarded: true,
-      composer: { mode: 'chat', hint: 'Ask me anything', who: null, scenarioId: null }
+      composer: { mode: 'chat', hint: 'Ask me anything' }
     })
     this.deps.saveProfile(this.profile)
   }
@@ -272,19 +261,10 @@ export class Session {
       orb: 'alert'
     })
     this.whisper('This is it.')
-    const waiting = [...this.runs.values()].find((run) => run.submitted !== null)
-    await this.say(`This lecture gets to ${concept}. This is the piece you were missing.`)
+    await this.say(`This lecture gets to ${concept}. Here is where it fits in at work.`)
     this.suggest([
-      ...(waiting
-        ? [
-            {
-              id: nextId(),
-              text: `Let me answer ${waiting.scenario.from.name} again`,
-              intent: { kind: 'reopen', scenarioId: waiting.scenario.id } as Intent
-            }
-          ]
-        : []),
-      { id: nextId(), text: 'Why do I need this?', intent: { kind: 'why' } }
+      { id: nextId(), text: 'Why do I need this?', intent: { kind: 'why' } },
+      { id: nextId(), text: 'Tell me more', intent: { kind: 'chat', text: `Tell me more about ${concept} at work` } }
     ])
   }
 
@@ -347,202 +327,16 @@ export class Session {
     )
 
     this.suggest([
-      { id: nextId(), text: 'Try it like work', intent: { kind: 'scenario', cardId: card.id } },
+      { id: nextId(), text: 'Tell me more about this at work', intent: { kind: 'chat', text: `Tell me more about ${concept.name} at work` } },
       { id: nextId(), text: 'Sounds like me', intent: { kind: 'affinity', cardId: card.id } },
-      { id: nextId(), text: 'Go on then', intent: { kind: 'chat', text: `Tell me more about ${concept.name} at work` } }
+      { id: nextId(), text: 'Show me the gaps', intent: { kind: 'recap' } }
     ])
-  }
-
-  // Do -------------------------------------------------------------------
-
-  async startScenario(cardId?: string, gapPractice?: string): Promise<void> {
-    if (this.busy) return
-    this.busy = true
-    try {
-      this.patch({ orb: 'thinking' })
-      const card = cardId ? this.cards.get(cardId) : this.latestCard()
-      const source = card ?? (gapPractice ? await this.cardForGap(gapPractice) : undefined)
-      if (!source || source.sentences.length === 0) {
-        await this.say('I need something with real postings behind it before I can hand you work.')
-        return
-      }
-      // Writing the request is the longest wait in the whole loop, so the
-      // student gets told it is happening rather than watching a pulsing orb.
-      await this.say('Give me a second, I am writing this up the way it would actually arrive.')
-      this.patch({ composing: true })
-      const scenario = await generateScenario(this.deps.llm, this.deps.ikb, source, this.profile)
-      this.patch({ composing: false })
-      const run = new ScenarioRun(scenario)
-      this.runs.set(scenario.id, run)
-      this.patch({
-        activeScenarioId: scenario.id,
-        composer: {
-          mode: 'ask',
-          hint: `Ask ${scenario.from.name} something`,
-          who: scenario.from.name,
-          scenarioId: scenario.id
-        }
-      })
-
-      const posting = this.deps.ikb.postings.get(
-        this.deps.ikb.sentences.find((s) => s.id === scenario.citedSentenceId)?.postingId ?? ''
-      )
-      await this.say(
-        `${scenario.from.name}, ${scenario.from.role}, just sent you this. Inspired by a real ${posting?.company ?? 'company'} posting.`
-      )
-      await this.say(
-        scenario.visibleMessage,
-        {
-          from: scenario.from,
-          ...(scenario.attachment.type === 'none' ? {} : { attachment: scenario.attachment })
-        },
-        'stakeholder'
-      )
-      await this.say(
-        'She left out half of what you need. That is not her being careless, that is just how requests arrive. Ask her something before you answer.'
-      )
-      this.suggestScenarioQuestions(scenario.id)
-    } catch (error) {
-      await this.apologise('write that up as work', error)
-    } finally {
-      this.busy = false
-      this.patch({ orb: 'idle' })
-    }
-  }
-
-  private suggestScenarioQuestions(scenarioId: string): void {
-    this.suggest([
-      {
-        id: nextId(),
-        text: 'Anything unusual about that period?',
-        intent: { kind: 'ask', scenarioId, question: 'Was there anything unusual going on during that period?' }
-      },
-      {
-        id: nextId(),
-        text: 'Who is this actually for?',
-        intent: { kind: 'ask', scenarioId, question: 'Who is going to read this, and what do they need to decide?' }
-      },
-      { id: nextId(), text: 'I am ready to answer', intent: { kind: 'submit', scenarioId } }
-    ])
-  }
-
-  async askStakeholder(scenarioId: string, question: string): Promise<void> {
-    const run = this.runs.get(scenarioId)
-    if (!run || this.busy) return
-    this.busy = true
-    try {
-      this.heardFromStudent(question)
-      this.patch({ orb: 'thinking' })
-      const { reply, uncovered } = await run.ask(this.deps.llm, question)
-      await this.say(reply, { from: run.scenario.from }, 'stakeholder')
-      if (uncovered.length > 0) {
-        await this.say('That changes things. Worth knowing before you answer.')
-      }
-      this.suggestScenarioQuestions(scenarioId)
-    } catch (error) {
-      await this.apologise('get an answer out of her', error)
-    } finally {
-      this.busy = false
-      this.patch({ orb: 'idle' })
-    }
-  }
-
-  async submitScenario(scenarioId: string, reply: string): Promise<void> {
-    const run = this.runs.get(scenarioId)
-    if (!run || this.busy) return
-    this.busy = true
-    let cheer = false
-    try {
-      this.heardFromStudent(reply)
-      this.patch({ orb: 'thinking' })
-      await this.say(`${REVIEWER.name} had a look.`)
-      const review = await reviewAnswer(this.deps.llm, run, reply)
-      const prior = run.submitted
-      run.submitted = reply
-      cheer = review.verdict === 'ship_it'
-
-      const verdict = review.verdict === 'ship_it' ? 'Ship it.' : 'Not yet.'
-      const mark = { from: REVIEWER, verdict: review.verdict }
-      await this.say(
-        `${verdict} ${review.strengths[0] ?? ''}`.trim(),
-        { ...mark, ...(prior ? { priorAnswer: { text: prior, at: Date.now() } } : {}) },
-        'reviewer'
-      )
-      if (review.gaps[0]) await this.say(review.gaps[0], mark, 'reviewer')
-      await this.say(review.seniorQuestion, mark, 'reviewer')
-
-      this.patch({
-        composer: { mode: 'chat', hint: 'Ask me anything', who: null, scenarioId: null },
-        activeScenarioId: null
-      })
-      const topic = review.missedTopics[0]
-      if (review.verdict === 'needs_changes' && topic) {
-        await this.say(`You have not been taught ${topic} yet. It is coming.`)
-        this.suggest([
-          { id: nextId(), text: 'Nudge me when it comes up', intent: { kind: 'watch', concept: topic } },
-          { id: nextId(), text: 'Let me try again now', intent: { kind: 'reopen', scenarioId } }
-        ])
-        return
-      }
-      this.suggest([
-        { id: nextId(), text: "Show me what class won't teach me", intent: { kind: 'recap' } },
-        { id: nextId(), text: 'Back to the lecture', intent: { kind: 'chat', text: '' } }
-      ])
-    } catch (error) {
-      await this.apologise('get that reviewed', error)
-    } finally {
-      this.busy = false
-      // A ship-it is the one thing worth a hop. It settles on its own, unless
-      // something else has already moved the face on.
-      this.patch({ orb: cheer ? 'cheering' : 'idle' })
-      if (cheer) {
-        setTimeout(() => {
-          if (this.state.orb === 'cheering') this.patch({ orb: 'idle' })
-        }, CHEER_MS).unref()
-      }
-    }
-  }
-
-  async reopen(scenarioId: string): Promise<void> {
-    const run = this.runs.get(scenarioId)
-    if (!run) return
-    run.priorAnswer = run.submitted ? { text: run.submitted, at: Date.now() } : null
-    this.patch({
-      activeScenarioId: scenarioId,
-      composer: {
-        mode: 'ask',
-        hint: `Ask ${run.scenario.from.name} something`,
-        who: run.scenario.from.name,
-        scenarioId
-      }
-    })
-    await this.say(`Here is what ${run.scenario.from.name} asked, again.`)
-    await this.say(run.scenario.visibleMessage, { from: run.scenario.from }, 'stakeholder')
-    if (run.priorAnswer) {
-      await this.say('This is what you told her last time. Have another go.', {
-        priorAnswer: run.priorAnswer
-      })
-    }
-    this.suggestScenarioQuestions(scenarioId)
   }
 
   // Gaps and recap -------------------------------------------------------
 
   private latestCard(): Card | undefined {
     return [...this.cards.values()].at(-1)
-  }
-
-  private async cardForGap(practice: string): Promise<Card | undefined> {
-    const sentences = this.deps.ikb.byTag.get(practice) ?? []
-    const sentence = sentences[0]
-    if (!sentence) return undefined
-    return {
-      id: `card_gap_${nextId()}`,
-      concept: { name: practice, summary: `An industry practice: ${practice}`, confidence: 'high' },
-      terms: [{ term: practice, hits: sentences.length }],
-      sentences: sentences.slice(0, 3),
-      oneLiner: `${practice} is asked for constantly and taught almost nowhere.`
-    }
   }
 
   async showRecap(): Promise<void> {
@@ -571,27 +365,30 @@ export class Session {
       )
     }
 
-    this.suggest(
-      gaps.map((gap) => ({
+    this.suggest([
+      ...gaps.map((gap) => ({
         id: nextId(),
-        text: `Try ${gap.practice} like work`,
-        intent: { kind: 'scenario', gap: gap.practice } as Intent
+        text: `Tell me about ${gap.practice}`,
+        intent: { kind: 'chat', text: `How is ${gap.practice} used at work?` } as Intent
+      })),
+      ...gaps.map((gap) => ({
+        id: nextId(),
+        text: `Nudge me when ${gap.practice} comes up in class`,
+        intent: { kind: 'watch', concept: gap.practice } as Intent
       }))
-    )
+    ])
   }
 
   // Chat -----------------------------------------------------------------
 
   /** Whatever the student typed, routed by what they are in the middle of. */
   async typed(text: string): Promise<void> {
-    const { mode, scenarioId } = this.state.composer
+    const { mode } = this.state.composer
     if (mode === 'onboarding') return this.onboardingTurn(text)
     if (mode === 'leetcode') {
       this.heardFromStudent(text)
       return this.observe({ kind: 'asked', at: Date.now(), text })
     }
-    if (mode === 'ask' && scenarioId) return this.askStakeholder(scenarioId, text)
-    if (mode === 'reply' && scenarioId) return this.submitScenario(scenarioId, text)
     return this.chat(text)
   }
 
@@ -619,8 +416,7 @@ export class Session {
           profile: this.profile,
           transcript: this.transcript.window(),
           card: this.latestCard() ?? null,
-          history: this.state.thread.slice(-10).map((line) => ({ role: line.speaker, text: line.text })),
-          inScenario: this.state.activeScenarioId !== null
+          history: this.state.thread.slice(-10).map((line) => ({ role: line.speaker, text: line.text }))
         },
         text,
         (token) => {
@@ -656,29 +452,6 @@ export class Session {
     switch (intent.kind) {
       case 'why':
         return this.why()
-      case 'scenario':
-        return this.startScenario(intent.cardId, intent.gap)
-      case 'ask':
-        return this.askStakeholder(intent.scenarioId, intent.question)
-      case 'submit': {
-        const run = this.runs.get(intent.scenarioId)
-        this.suggest([])
-        this.patch({
-          composer: {
-            mode: 'reply',
-            hint: `Write your reply to ${run?.scenario.from.name ?? 'them'}`,
-            who: run?.scenario.from.name ?? 'them',
-            scenarioId: intent.scenarioId
-          }
-        })
-        await this.say(
-          `Go on then, write ${run?.scenario.from.name ?? 'them'} the reply. ${REVIEWER.name} will look it over.`
-        )
-        return
-      }
-      case 'revise':
-      case 'reopen':
-        return this.reopen(intent.scenarioId)
       case 'watch':
         this.patch({ watching: [...new Set([...this.state.watching, intent.concept])] })
         await this.say(`I will tap you when a lecture gets to ${intent.concept}.`)
@@ -728,7 +501,7 @@ export class Session {
         this.onboardingTurns.length = 0
         this.suggest([])
         this.patch({
-          composer: { mode: 'onboarding', hint: 'Tell me in your own words', who: null, scenarioId: null }
+          composer: { mode: 'onboarding', hint: 'Tell me in your own words' }
         })
         await this.say('Go on then, say it again and I will listen properly this time.')
         return

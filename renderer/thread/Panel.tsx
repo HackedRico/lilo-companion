@@ -160,15 +160,14 @@ function Handle({ corner, rect }: { corner: Placement; rect: Rect }): ReactEleme
 
 /** Where what you type is going, whenever that is not the companion. */
 function Aim({ state }: { state: CompanionState }): ReactElement | null {
-  const { mode, who } = state.composer
+  const { mode } = state.composer
   if (mode === 'chat') return null
   return (
     <div className="aim arriving">
       <Arrow />
       <span className="meta">
-        {mode === 'reply' ? 'Answering' : mode === 'ask' ? 'Asking' : mode === 'leetcode' ? 'On the problem' : 'About you'}
+        {mode === 'leetcode' ? 'On the problem' : 'About you'}
       </span>
-      {who && <span className="aim-who">{who}</span>}
     </div>
   )
 }
