@@ -88,6 +88,18 @@ bring.
 To start with a lecture already read, put `LECTURE_FILE=path/to/lecture.txt`
 in `.env`, or pass `--lecture path/to/lecture.txt` to a packaged build.
 
+## Before an interview
+
+Ask the companion what an interview at a company is like, in your own words:
+"what's the Stripe interview like", "I have an onsite with Coinbase". It reads
+what people posted first-hand in the last year on LeetCode's interview
+experience board and on Hacker News, and says what the process looked like
+with a citation on every claim, each one a chip that opens the account. When
+there is nothing recent to read it says so, rather than inventing one.
+Glassdoor, Blind and Reddit are not read: they want a login or refuse the
+request. What was read is kept for a day under the app's data folder, so the
+second ask is instant and works offline.
+
 ## On LeetCode
 
 Lilo reads the editor on leetcode.com through a small Chrome extension you
@@ -150,6 +162,7 @@ reply.
 |---|---|
 | `main/session.ts` | the loop: hear, see, lock in, recap |
 | `main/leetcode/` | the LeetCode practice: state, ladder, coach, bridge, recordings |
+| `main/interviews/` | first-hand interview accounts, read from public boards and cited |
 | `main/host.ts` | the native messaging host Chrome runs |
 | `extension/` | the Chrome extension, loaded unpacked |
 | `main/ikb/` | job postings: tagging, search, gap statistics |

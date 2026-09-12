@@ -190,3 +190,37 @@ ${numbered(input.code) || '(nothing written yet)'}
 ${input.question ? `They asked: "${input.question}"` : 'Nobody asked. You are volunteering, so the lowest rung that moves them is the right one.'}`
   }
 }
+
+// Interviews -------------------------------------------------------------
+
+export interface BriefInput {
+  company: string
+  sentences: Sentence[]
+  accounts: number
+  newestDaysAgo: number | null
+  oldestDaysAgo: number | null
+}
+
+/**
+ * What a recent interview at a company looked like, from first-hand accounts
+ * and nothing else. The accounts are the only thing that may be cited, and
+ * the citation filter drops any id that is not in the list.
+ */
+export function interviewBrief(input: BriefInput): Prompt {
+  const span =
+    input.newestDaysAgo === null
+      ? 'undated'
+      : `posted between ${input.oldestDaysAgo} and ${input.newestDaysAgo} days ago`
+  return {
+    system: `${VOICE}
+For this one answer, up to six short sentences rather than two.
+
+A software engineering student asked what interviewing at ${input.company} is like. Below are sentences from ${input.accounts} first-hand account${input.accounts === 1 ? '' : 's'} people posted publicly, ${span}.
+Say what the process looked like: how many rounds, what kind of questions, what people wished they had known. Address the student as "you".
+Every claim comes from a sentence below, cited as [S:id] right after it. Never cite an id that is not listed. If nothing below supports a claim, do not make it.
+If the accounts are few, old, or about a different role than the student is aiming at, say so in one plain sentence first.
+No headings, no bullet points, no advice about how to feel.`,
+    user: `Sentences you may cite:
+${input.sentences.map((sentence) => `[S:${sentence.id}] ${sentence.text}`).join('\n')}`
+  }
+}

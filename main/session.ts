@@ -4,6 +4,7 @@ import type {
   Card,
   CompanionState,
   Concept,
+  Evidence,
   Intent,
   Profile,
   Recap,
@@ -23,6 +24,9 @@ import { Transcript } from './transcript.ts'
 import { firstMatch } from './watch.ts'
 import type { Mark, WorkEvent } from '../shared/leetcode.ts'
 import { BETTER_QUESTION, LeetCodePractice } from './leetcode/practice.ts'
+import { interviewAsk } from './interviews/ask.ts'
+import { briefInterview } from './interviews/brief.ts'
+import type { Account } from './interviews/sources.ts'
 
 /** How fast the companion talks, and how long it pauses between turns. */
 const WORD_MS = 26
@@ -49,6 +53,10 @@ export interface SessionDeps {
   mark?(mark: Mark): void
   /** Every LeetCode event, written down so a session can be replayed. */
   record?(event: WorkEvent): Promise<void> | void
+  /** Companies the base knows, so an ask about one of them is recognised. */
+  companies?: readonly string[]
+  /** First-hand interview accounts for a company. Absent in a checkout with no network. */
+  gatherInterviews?(company: string): Promise<Account[]>
 }
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
@@ -406,56 +414,83 @@ export class Session {
 
   async chat(text: string): Promise<void> {
     if (this.busy || !text.trim()) return
+    const company = interviewAsk(text, this.deps.companies ?? [])
+    if (company && this.deps.gatherInterviews) return this.interviews(company, text)
     this.busy = true
     try {
       this.heardFromStudent(text)
-      this.patch({ orb: 'thinking', composing: true })
-      await sleep(this.pace.turn)
-      const item: ThreadItem = {
-        id: nextId(),
-        speaker: 'companion',
-        text: '',
-        at: Date.now(),
-        streaming: true
-      }
-      this.deps.emit.add(item)
-      this.patch({ composing: false })
-      let full = ''
-      const answer = await askCompanion(
-        this.deps.llm,
-        this.deps.ikb,
-        {
-          profile: this.profile,
-          transcript: this.transcript.window(),
-          card: this.latestCard() ?? null,
-          history: this.state.thread.slice(-10).map((line) => ({ role: line.speaker, text: line.text }))
-        },
-        text,
-        (token) => {
-          full += token
-          this.deps.emit.token(item.id, token)
-        }
-      )
-      const sources = answer.sources
-        .map((sentence) => evidenceOf(this.deps.ikb, sentence))
-        .filter((found): found is NonNullable<typeof found> => found !== undefined)
-      // The citations only exist once the stream is done, so they ride out with
-      // the end of the line rather than getting lost behind it.
-      this.deps.emit.end(item.id, { citations: answer.citations, sources })
-      const done: ThreadItem = {
-        ...item,
-        text: full,
-        streaming: false,
-        citations: answer.citations,
-        sources
-      }
-      this.state.thread.push(done)
+      this.patch({ orb: 'thinking' })
+      await this.streamAnswer(async (onToken) => {
+        const answer = await askCompanion(
+          this.deps.llm,
+          this.deps.ikb,
+          {
+            profile: this.profile,
+            transcript: this.transcript.window(),
+            card: this.latestCard() ?? null,
+            history: this.state.thread.slice(-10).map((line) => ({ role: line.speaker, text: line.text }))
+          },
+          text,
+          onToken
+        )
+        const sources = answer.sources
+          .map((sentence) => evidenceOf(this.deps.ikb, sentence))
+          .filter((found): found is NonNullable<typeof found> => found !== undefined)
+        return { citations: answer.citations, sources }
+      })
     } catch (error) {
       await this.apologise('answer that', error)
     } finally {
       this.busy = false
       this.patch({ orb: 'idle' })
     }
+  }
+
+  /**
+   * What people wrote about interviewing at a company, read from public
+   * accounts and said with a citation on every claim. Nothing is said about
+   * a company the sources have nothing recent on.
+   */
+  private async interviews(company: string, text: string): Promise<void> {
+    this.busy = true
+    try {
+      this.heardFromStudent(text)
+      this.patch({ orb: 'thinking' })
+      await this.say(`Give me a moment. I am reading what people wrote about interviewing at ${company}.`)
+      const accounts = await this.deps.gatherInterviews!(company)
+      if (accounts.length === 0) {
+        await this.say(
+          `I found nothing first-hand about a ${company} interview from the last year on the boards I read. I would rather say that than make one up.`
+        )
+        return
+      }
+      await this.streamAnswer((onToken) => briefInterview(this.deps.llm, company, accounts, onToken))
+    } catch (error) {
+      await this.apologise('read up on that', error)
+    } finally {
+      this.busy = false
+      this.patch({ orb: 'idle' })
+    }
+  }
+
+  /** One streamed line, with its citations riding out on the end of it. */
+  private async streamAnswer(
+    produce: (onToken: (token: string) => void) => Promise<{ citations: string[]; sources: Evidence[] }>
+  ): Promise<void> {
+    this.patch({ composing: true })
+    await sleep(this.pace.turn)
+    const item: ThreadItem = { id: nextId(), speaker: 'companion', text: '', at: Date.now(), streaming: true }
+    this.deps.emit.add(item)
+    this.patch({ composing: false })
+    let full = ''
+    const { citations, sources } = await produce((token) => {
+      full += token
+      this.deps.emit.token(item.id, token)
+    })
+    // The citations only exist once the stream is done, so they ride out with
+    // the end of the line rather than getting lost behind it.
+    this.deps.emit.end(item.id, { citations, sources })
+    this.state.thread.push({ ...item, text: full, streaming: false, citations, sources })
   }
 
   // Wiring ---------------------------------------------------------------

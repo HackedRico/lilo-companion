@@ -58,6 +58,24 @@ so the companion can say so.
 A tagger rule reads `data scien\w*` rather than `data scien\b`, because a word
 boundary after a prefix can never match the letter that follows it.
 
+## The interview brief
+
+A question about interviewing at a company is recognised in `interviewAsk`,
+a heuristic kept small on purpose: the word interview or onsite, and a company
+the base already knows or a capitalised name beside the word. `gather` reads
+what people posted first-hand in the last year on LeetCode's interview
+experience board and in Hacker News comments, the two places that publish
+such accounts without a login, and skips a source that fails rather than
+failing the brief. Reddit and Glassdoor refuse the request, so they are not
+read.
+
+The rule is the same one postings live under. The accounts are split into
+sentences with ids, the model is handed those and nothing else, and
+`CitationFilter` drops any id the list does not carry, so a claim about an
+interview traces to a sentence with a URL or is not made. With nothing recent
+to read, no model is called and the companion says so. What was read is kept
+for a day in `AccountCache`, so the second ask is instant and offline.
+
 ## The LeetCode practice
 
 A second practice beside the lecture, in the same thread. A Chrome extension

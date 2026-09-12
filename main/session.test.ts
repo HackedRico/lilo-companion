@@ -83,7 +83,11 @@ class ScriptedLlm implements LlmLike {
   }
 }
 
-function harness(llm: ScriptedLlm, ikb: Ikb): { session: Session; thread: ThreadItem[]; states: Partial<CompanionState>[] } {
+function harness(
+  llm: ScriptedLlm,
+  ikb: Ikb,
+  extra: Partial<ConstructorParameters<typeof Session>[0]> = {}
+): { session: Session; thread: ThreadItem[]; states: Partial<CompanionState>[] } {
   const thread: ThreadItem[] = []
   const states: Partial<CompanionState>[] = []
   let profile: Profile = { ...EMPTY_PROFILE, targetRoles: ['backend'] }
@@ -109,7 +113,8 @@ function harness(llm: ScriptedLlm, ikb: Ikb): { session: Session; thread: Thread
     loadProfile: () => profile,
     saveProfile: (next) => {
       profile = next
-    }
+    },
+    ...extra
   })
   return { session, thread, states }
 }
@@ -266,4 +271,40 @@ test('onboarding turn informs user if model is not configured', async () => {
   await session.typed('Web development')
   assert.match(thread.at(-1)!.text, /no model is configured/i)
   assert.equal(session.state.onboarded, true)
+})
+
+test('asking about an interview at a company reads the accounts, not the postings', async () => {
+  const llm = new ScriptedLlm()
+  const asked: string[] = []
+  const { session, thread } = harness(llm, ikb, {
+    companies: ['Stripe'],
+    gatherInterviews: async (company) => {
+      asked.push(company)
+      return [
+        {
+          id: 'hn:1',
+          source: 'hn',
+          title: 'Ask HN',
+          text: 'The Stripe interview was four rounds and the debugging round was the hard one for me.',
+          url: 'https://news.ycombinator.com/item?id=1',
+          at: Date.now()
+        }
+      ]
+    }
+  })
+  await session.chat("what's the stripe interview like")
+  assert.deepEqual(asked, ['Stripe'])
+  assert.ok(llm.lastAsk('first-hand account'), 'the brief was asked for')
+  assert.ok(!llm.lastAsk('Posting sentences you may cite'), 'and companion chat was not')
+  const answer = thread.at(-1)!
+  assert.doesNotMatch(answer.text, /\[S:/)
+  assert.deepEqual(answer.citations, [], 'an invented id is not credited')
+})
+
+test('with nothing recent to read, the companion says so rather than inventing an interview', async () => {
+  const llm = new ScriptedLlm()
+  const { session, thread } = harness(llm, ikb, { companies: ['Stripe'], gatherInterviews: async () => [] })
+  await session.chat('I have an interview at Stripe on Monday')
+  assert.match(thread.at(-1)!.text, /nothing first-hand about a Stripe interview/)
+  assert.ok(!llm.lastAsk('first-hand account'), 'no model call with nothing to cite')
 })
