@@ -82,21 +82,36 @@ export function gate(hint: Hint, ceiling: Rung, work: Work): Gate {
 /** A line that opens with a statement, where the line start is the giveaway. */
 const OPENS_CODE = /^\s*(def |class |for |while |if |elif |else:|return |import |[A-Za-z_]\w*\s*(=[^=]|\[))/
 
-/** A statement written into a sentence: an assignment, or a loop header with its colon. */
-const INLINE_STATEMENT = [/[A-Za-z_]\w*(?:\[[^\]\n]*\])?\s*=[^=]/g, /\bfor\b[^\n]*?\bin\b[^\n]*?:/g]
+/** What a statement looks like where one follows something else on the same line. */
+const A_STATEMENT = String.raw`(?:return\b|[A-Za-z_]\w*\s*(?:=[^=]|\[|\.\w+\s*\())`
+
+/**
+ * Code run together on one line. A block header carrying its body past the
+ * colon, or two statements with a semicolon between them: "for i, n in
+ * enumerate(nums): d[target - n] = i" and "d = {}; return d" are the answer
+ * however they are punctuated.
+ *
+ * What this deliberately does not catch is a sentence that happens to contain
+ * two assignments. "You set left = 0 and right = len(nums) - 1, but nothing
+ * moves them" is the plainest rung three hint there is, and counting
+ * assignments read it as handing over the solution and refused it.
+ */
+const INLINE_BLOCK = new RegExp(String.raw`\b(?:for|while|if|elif|else)\b[^\n:]*:\s*` + A_STATEMENT, 'i')
+const RUN_TOGETHER = new RegExp(String.raw`;\s*` + A_STATEMENT)
+
+/** Writing into a structure. No sentence about someone's code says d[k] = v. */
+const SUBSCRIPT_ASSIGNMENT = /[A-Za-z_]\w*\s*\[[^\]\n]+\]\s*=[^=]/
 
 /**
  * A fenced block, or the code written out in the words. Code usually arrives
- * on its own lines and two of those is enough. It also arrives run together on
- * one line, where the line start gives nothing away, so what a single line is
- * carrying is counted wherever it begins: "wrote d = {}; for i, n in
- * enumerate(nums): d[target - n] = i" is the answer however it is punctuated.
+ * on its own lines and two of those is enough; it also arrives run together on
+ * one line, where the line start gives nothing away.
  */
 export function handsOverCode(say: string): boolean {
   if (say.includes('```')) return true
   const lines = say.split('\n')
   if (lines.filter((line) => OPENS_CODE.test(line)).length >= 2) return true
-  return lines.some((line) => INLINE_STATEMENT.reduce((count, shape) => count + (line.match(shape)?.length ?? 0), 0) >= 2)
+  return lines.some((line) => INLINE_BLOCK.test(line) || RUN_TOGETHER.test(line) || SUBSCRIPT_ASSIGNMENT.test(line))
 }
 
 /**

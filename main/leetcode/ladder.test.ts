@@ -225,3 +225,20 @@ test('code in the steps of a dry run is the top of the ladder, whatever the rung
   const intro: Hint = { rung: 4, say: 'Watch the two ends walk in:', lines: [], names: [], trace: WALK }
   assert.deepEqual(gate(intro, 4, working), { ok: true })
 })
+
+test('a hint that names two of their own values is a hint, not the answer', () => {
+  // Counting assignments anywhere on a line read the plainest rung three hint
+  // there is as handing over the solution, so the student asked for help and
+  // was told to raise the level instead.
+  assert.equal(handsOverCode('You set left = 0 and right = len(nums) - 1, but nothing moves them.'), false)
+  assert.equal(handsOverCode('Right now right = len(nums) - 1 and nothing ever decrements it.'), false)
+  assert.equal(handsOverCode('Set the left pointer to 0 and the right pointer to the last index.'), false)
+  assert.equal(handsOverCode('Here is the idea: walk the array once and remember what you saw.'), false)
+})
+
+test('code run together on one line is code however it is punctuated', () => {
+  assert.equal(handsOverCode('What if you wrote d = {}; for i, n in enumerate(nums): d[target-n] = i?'), true)
+  assert.equal(handsOverCode('What if you wrote if target - n in seen: return [seen[target-n], i]?'), true)
+  assert.equal(handsOverCode('Try d = {}; return d'), true)
+  assert.equal(handsOverCode('You could do seen[target - n] = i on the way past.'), true)
+})
