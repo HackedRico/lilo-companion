@@ -1,29 +1,29 @@
-/** The rolling window the pipeline reads. Nothing here is ever written to disk. */
+/**
+ * The lecture in front of the student. A lecture arrives whole, as a file or a
+ * paste, and a new one replaces the last: it is a document they are working
+ * from, not a stream they are part way through. Nothing here is ever written
+ * to disk.
+ */
 export class Transcript {
-  private readonly lines: { at: number; text: string }[] = []
+  private current: { at: number; text: string } | null = null
 
-  append(text: string, at = Date.now()): void {
+  /** A lecture handed over. Whatever came before it is no longer what they mean. */
+  take(text: string, at = Date.now()): void {
     const trimmed = text.trim()
-    if (trimmed) this.lines.push({ at, text: trimmed })
+    if (trimmed) this.current = { at, text: trimmed }
   }
 
-  /** The last few minutes, which is what a concept is extracted from. */
-  window(ms = 180000, now = Date.now()): string {
-    const cutoff = now - ms
-    const recent = this.lines.filter((line) => line.at >= cutoff)
-    return (recent.length > 0 ? recent : this.lines.slice(-6)).map((line) => line.text).join(' ')
-  }
-
-  get all(): string {
-    return this.lines.map((line) => line.text).join(' ')
+  /** What a concept is extracted from, and what chat reads for context. */
+  window(): string {
+    return this.current?.text ?? ''
   }
 
   get empty(): boolean {
-    return this.lines.length === 0
+    return this.current === null
   }
 
   /** Called when a session ends. Transcripts do not outlive the recap. */
   clear(): void {
-    this.lines.length = 0
+    this.current = null
   }
 }

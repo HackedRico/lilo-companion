@@ -303,7 +303,7 @@ export class Session {
       await this.say('There were no words in that one. If it is scanned slides or an image, I cannot read it yet.')
       return
     }
-    this.transcript.append(text)
+    this.transcript.take(text)
     // The tap waits for the line where the lecturer says it, not for the words
     // scattered across a whole lecture.
     for (const line of text.split('\n')) {

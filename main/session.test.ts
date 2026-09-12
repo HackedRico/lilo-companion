@@ -501,3 +501,25 @@ test('the opening questions are not asked again after a launch with no model', a
   const second = harness(llm, ikb, { loadProfile: () => saved, saveProfile: () => undefined })
   assert.equal(second.session.state.onboarded, true)
 })
+
+test('a second lecture is what the companion reads, not the first one again', async () => {
+  // The window was the last few minutes of everything handed over, and the
+  // concept is named from the top of it, so uploading a second lecture inside
+  // three minutes answered about the first.
+  const llm = new ScriptedLlm()
+  const { session } = harness(llm, ikb)
+  await teach(session)
+  await session.useNotes(
+    [
+      'Right, processes and threads. A process gets its own address space and a thread does not.',
+      'That is why two threads in one process can stamp on each other through a shared counter.',
+      'We fixed it with a mutex, then broke it again by taking two locks in the wrong order.',
+      'Hold and wait, no preemption, circular wait. That is a deadlock and you will meet one.'
+    ].join('\n')
+  )
+
+  const reads = llm.asks.filter((ask) => ask.system.includes('name what is being taught'))
+  assert.equal(reads.length, 2)
+  assert.match(reads[1]!.user, /deadlock/)
+  assert.doesNotMatch(reads[1]!.user, /Sampling variability/)
+})
