@@ -186,6 +186,74 @@ button {
   height: 100%;
 }
 
+/*
+ * The face is drawn over the mark, not instead of it. At rest the orb is the
+ * logo. While the companion is doing something the mark drops to a tint and
+ * the face comes up in full ink over it, because blue over blue would not read
+ * at 56 points.
+ */
+.orb-mark,
+.orb-face {
+  transition: opacity 320ms var(--ease);
+}
+
+.orb-face {
+  opacity: 0;
+}
+
+.orb[data-face='true'] .orb-face {
+  opacity: 1;
+}
+
+.orb[data-face='true'] .orb-mark {
+  opacity: 0.16;
+}
+
+/*
+ * The face moves between states rather than cutting, because a companion that
+ * snaps between expressions reads as a status light. Chromium animates SVG
+ * geometry and a path's d, so every state is one transition away from the last.
+ */
+.orb-eye,
+.orb-mouth {
+  transition:
+    cx 320ms var(--ease),
+    cy 320ms var(--ease),
+    rx 320ms var(--ease),
+    ry 320ms var(--ease),
+    d 320ms var(--ease),
+    stroke-width 320ms var(--ease);
+}
+
+.orb-eye {
+  /* Scaled rather than flattened by ry, which the transition above already owns. */
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: blink 7s var(--ease) infinite;
+}
+
+/* Eyes already wide for the lock-in do not then blink through it. */
+.orb[data-state='alert'] .orb-eye {
+  animation: none;
+}
+
+@keyframes blink {
+  0%,
+  93%,
+  100% {
+    transform: scaleY(1);
+  }
+  96% {
+    transform: scaleY(0.08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orb-eye {
+    animation: none;
+  }
+}
+
 .orb[data-state='thinking'] .orb-body {
   animation: breathe 1.15s var(--ease) infinite alternate;
 }

@@ -8,7 +8,7 @@ function pixel(buffer: Buffer, size: number, x: number, y: number): number[] {
   return [buffer[at] ?? 0, buffer[at + 1] ?? 0, buffer[at + 2] ?? 0, buffer[at + 3] ?? 0]
 }
 
-/** Where the stem is solid, at any size. */
+/** Where the D's stem is solid, at any size. */
 function onStem(size: number): { x: number; y: number } {
   return { x: Math.round(size * 0.2), y: Math.round(size * 0.5) }
 }

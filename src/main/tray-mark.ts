@@ -84,14 +84,38 @@ function spread(mark: Uint8Array, size: number, radius: number): Uint8Array {
   return out
 }
 
-/** An L in a unit box: a stem, and a foot that runs out to the right. */
+/** A bold D in a unit box: a stem joined to a bowl, with the counter cut out. */
 function inMark(u: number, v: number): boolean {
   const left = 0.14
   const right = 0.86
   const top = 0.1
   const bottom = 0.9
-  // One weight for both strokes, so the corner where they meet reads as one.
-  const weight = 0.235
-  if (v < top || v > bottom || u < left || u > right) return false
-  return u <= left + weight || v >= bottom - weight
+  const t = 0.185
+  const spine = left + 0.26
+  const cy = (top + bottom) / 2
+  return (
+    outside(u, v, left, right, top, bottom, spine, cy) &&
+    !outside(u, v, left + t, right - t, top + t, bottom - t, spine, cy)
+  )
+}
+
+/** Inside the D's outer silhouette: a rectangle to the spine, a half ellipse past it. */
+function outside(
+  u: number,
+  v: number,
+  left: number,
+  right: number,
+  top: number,
+  bottom: number,
+  spine: number,
+  cy: number
+): boolean {
+  if (v < top || v > bottom || u < left) return false
+  if (u <= spine) return true
+  const rx = right - spine
+  const ry = (bottom - top) / 2
+  if (rx <= 0 || ry <= 0) return false
+  const dx = (u - spine) / rx
+  const dy = (v - cy) / ry
+  return dx * dx + dy * dy <= 1
 }
