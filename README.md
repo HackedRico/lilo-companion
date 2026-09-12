@@ -4,16 +4,17 @@
 
 > "I will never use this."
 
-Every student has thought it, halfway through a lecture. It is the moment the
-motivation goes. The slides keep moving, the concept stays abstract, and the
-job it was all supposed to lead to feels further away, not closer. Nobody in
-the room says which of this week's ideas a Stripe or a Cloudflare posting asks
-for by name, so the student is asked to take it on faith. The gap between the
-classroom and the job is real, and the student is the one left to close it
-alone.
+You have thought it. Week six, a lecture on amortized analysis, and the
+thought arrives: this has nothing to do with the job I want. Nobody up front
+tells you that a company you have heard of asks for exactly this, by name, on
+its own careers page. So you stop listening, and a little of the reason you
+enrolled goes with it. Later it is midnight and LeetCode, and you are stuck
+with nobody beside you. Later still it is an interview you know nothing about.
 
-Lilo stays with the student through all of it, from that lecture to the
-LeetCode grind to the interview to the offer.
+That is the gap. It is real, and you are closing it alone.
+
+Lilo is a companion for that whole stretch: the lecture, the grind, the
+interview, the offer.
 
 - **Hand it a lecture.** It names the concept, says what industry calls the
   same thing, and quotes a real job posting to prove it, with the URL behind
@@ -25,8 +26,11 @@ LeetCode grind to the interview to the offer.
 
 It cheers when you get there. It never does the work for you.
 
-Runs on macOS and Windows from one codebase. Built for the LILO Summer Academy
-Hackathon, Track 01: DSA practice and interviewing.
+> [!IMPORTANT]
+> **Built for the LILO Summer Academy Hackathon, September 2026.**
+> Track 01, LILO Behind the Scenes: DSA practice and interviewing.
+> Runs on macOS and Windows from one codebase.
+> The three minute demo is scripted in [docs/demo-script.md](docs/demo-script.md).
 
 ## Why it matters
 
