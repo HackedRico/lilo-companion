@@ -8,7 +8,7 @@ robs you of the effort that builds real skill.
 
 Open a problem on LeetCode and it sits beside you. It notices when you change
 your code, tells you what it sees in plain words, and steps in with hints only
-up to a ceiling you control—coaching you through roadblocks without giving away
+up to a ceiling you control, coaching you through roadblocks without giving away
 the answer. When your solution is accepted, the orb cheers.
 
 Bring it your coursework or lecture notes and it connects the concepts to
@@ -78,12 +78,13 @@ To run completely offline with Ollama:
 
 ## Lectures
 
-A lecture is a file you hand over: a transcript, captions or your own notes,
-one line per thing said. Pick one from the menu bar mark under "Upload a
-lecture", press the button at the top of the panel, or paste notes into the
-composer. It is read whole, and the companion says what is being taught and
-where it turns up at work. Nothing is bundled, so the first one is yours to
-bring.
+A lecture is a file you hand over: a transcript, captions, slides or your own
+notes. Text, Markdown, WebVTT, PDF and PowerPoint all read. Pick one from the
+menu bar mark under "Upload a lecture", press the button at the top of the
+panel, or paste notes into the composer. The companion names what is being
+taught and says where it turns up at work. A long lecture is read from the top,
+because that is where a deck says what it is about. Nothing is bundled, so the
+first one is yours to bring.
 
 To start with a lecture already read, put `LECTURE_FILE=path/to/lecture.txt`
 in `.env`, or pass `--lecture path/to/lecture.txt` to a packaged build.
@@ -92,10 +93,12 @@ in `.env`, or pass `--lecture path/to/lecture.txt` to a packaged build.
 
 Ask the companion what an interview at a company is like, in your own words:
 "what's the Stripe interview like", "I have an onsite with Coinbase". It reads
-what people posted first-hand in the last year on LeetCode's interview
-experience board and on Hacker News, and says what the process looked like
-with a citation on every claim, each one a chip that opens the account. When
-there is nothing recent to read it says so, rather than inventing one.
+what people posted first-hand on LeetCode's interview experience board and on
+Hacker News, and says what the process looked like with a citation on every
+claim, each one a chip that opens the account. It also says how old the newest
+account is, because that board has not been busy lately and a write-up from
+last year is worth reading differently. When there is nothing to read it says
+so, rather than inventing one.
 Glassdoor, Blind and Reddit are not read: they want a login or refuse the
 request. What was read is kept for a day under the app's data folder, so the
 second ask is instant and works offline.
