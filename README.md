@@ -2,13 +2,19 @@
 
 A desktop companion for the software engineering student who wants the job.
 
-Every student has said "I will never use this." Lilo is built to answer that
-sentence. Hand it a lecture and it names the concept, says what industry calls
-the same thing, and quotes a real job posting to prove it, with the URL behind
-the quote. Open a problem on LeetCode and it sits beside you, reads your
-editor, and helps only up to a ceiling you set, so the effort stays yours. Ask
-what an interview at a company is like and it reads what people posted
-first-hand, with a citation on every claim.
+Every student has sat in a lecture and thought "I will never use this." That
+is the moment the motivation goes: the slides keep moving, the concept stays
+abstract, and the job it was all supposed to lead to feels further away, not
+closer. Lilo is a companion that stays with the student through all of it,
+from that lecture to the LeetCode grind to the interview to the offer.
+
+Hand it a lecture and it names the concept, says what industry calls the same
+thing, and quotes a real job posting to prove it, with the URL behind the
+quote. Open a problem on LeetCode and it sits beside you, reads your editor,
+and helps only up to a ceiling you set, so the effort stays yours. Ask what an
+interview at a company is like and it reads what people posted first-hand,
+with a citation on every claim. It cheers when you get there. It does not do
+the work for you.
 
 It runs on macOS and Windows from one codebase. Built for the LILO Summer
 Academy Hackathon, Track 01: DSA practice and interviewing.
