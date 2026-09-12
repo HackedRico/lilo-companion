@@ -79,3 +79,47 @@ test('every phrasing a student would use routes the way it reads', () => {
   ]
   for (const line of notAsks) assert.equal(interviewAsk(line, known), null, line)
 })
+
+test('a company with more than one word in its name arrives whole', () => {
+  const asks: [string, string][] = [
+    ['I have an interview with Jane Street', 'Jane Street'],
+    ['what is the Two Sigma onsite like', 'Two Sigma'],
+    ['I have an interview at Goldman Sachs', 'Goldman Sachs'],
+    ['what is a Capital One interview like', 'Capital One'],
+    ['I have an onsite with Bank of America', 'Bank of America'],
+    ['what is the Palo Alto Networks interview like', 'Palo Alto Networks']
+  ]
+  for (const [line, company] of asks) assert.equal(interviewAsk(line, KNOWN), company, line)
+})
+
+test('a person, a role or a word from the sentence is not a company to read about', () => {
+  const notAsks = [
+    'interview with Sarah from recruiting',
+    'phone screen with John tomorrow',
+    'interview with HR next week',
+    'I have an interview for Software Engineer roles',
+    'I have an interview for Backend next week',
+    'what do I need for Leetcode interviews',
+    'any advice for This interview',
+    'prepping for OA then interview',
+    'is the interview at Berkeley career fair worth it',
+    'I keep my interview prep in Notion'
+  ]
+  for (const line of notAsks) assert.equal(interviewAsk(line, KNOWN), null, line)
+})
+
+test('a name the base knows is read wherever it sits, and one it does not has to sit where a company sits', () => {
+  // The base knowing the name is the evidence; without it the sentence has to be.
+  assert.equal(interviewAsk('I have an onsite with Coinbase next Tuesday', KNOWN), 'Coinbase')
+  assert.equal(interviewAsk('I have an onsite with Datadog next Tuesday', KNOWN), null)
+  // You interview at a company and with a person, so when follows only the first.
+  assert.equal(interviewAsk('I have an interview at Datadog next week', KNOWN), 'Datadog')
+  assert.equal(interviewAsk('I have an interview at Datadog on Friday', KNOWN), 'Datadog')
+  assert.equal(interviewAsk('I have an interview at Datadog, any tips?', KNOWN), 'Datadog')
+})
+
+test('a run of capitalised words is a sentence, not a name a cache can hold', () => {
+  const long = `I have an interview at ${'Ableton Bandcamp Cloudera Datadog Elastic '.repeat(4).trim()}`
+  assert.equal(interviewAsk(long, KNOWN), null, 'nothing that long is a company')
+  assert.equal(interviewAsk('I have an interview at Datadog I think', KNOWN), null, 'the run stops before the sentence')
+})

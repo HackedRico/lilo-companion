@@ -19,6 +19,12 @@ export function degenerate(text: string): boolean {
   return words.length < 4 || /(.)\1{11,}/.test(text) || !/[a-z]{3}/i.test(text)
 }
 
+/** A full stop inside a number, an initial or "e.g." ends an abbreviation, not a sentence. */
+function endsSentence(text: string, at: number): boolean {
+  const before = text.slice(Math.max(0, at - 4), at - 1)
+  return !/\d$/.test(before) && !/\b[a-z]$/.test(before) && !/\b(e\.g|i\.e|etc|vs|Mr|Dr)$/i.test(before)
+}
+
 /** The chip reads as the account, so six citations are six different chips, and the source is the small print. */
 /** A marker pulled out of a sentence leaves a gap before the full stop; the prose closes over it. */
 export function tidy(text: string): string {
@@ -34,12 +40,53 @@ export function tidy(text: string): string {
   let end = -1
   for (const match of closed.matchAll(/[.!?]["')\]]?\s+(?=[A-Z])/g)) {
     const at = (match.index ?? 0) + match[0].trimEnd().length
-    const before = closed.slice(Math.max(0, at - 4), at - 1)
-    if (/\d$/.test(before) || /\b[a-z]$/.test(before) || /\b(e\.g|i\.e|etc|vs|Mr|Dr)$/i.test(before)) continue
-    end = at
+    if (endsSentence(closed, at)) end = at
   }
   // Long enough to read as a sentence rather than a stub.
   return end > 24 ? closed.slice(0, end) : closed
+}
+
+/** The model writes the marker after the claim it backs, so a marker belongs to the sentence in front of it. */
+const AFTER_THE_CLAIM = /^(?:\s*\[S:[^\]]*\])+/
+
+/**
+ * The reply as separate claims: one sentence each, carrying the markers
+ * written after it. Cut this way, a claim can be checked on its own citation,
+ * so the one id the model got right cannot vouch for the four sentences
+ * around it.
+ */
+export function claims(text: string): string[] {
+  const out: string[] = []
+  let from = 0
+  for (const match of text.matchAll(/[.!?]["')\]]?(?=\s)|\n/g)) {
+    const at = (match.index ?? 0) + match[0].length
+    if (at <= from || !endsSentence(text, at)) continue
+    const end = at + (AFTER_THE_CLAIM.exec(text.slice(at))?.[0].length ?? 0)
+    out.push(text.slice(from, end))
+    from = end
+  }
+  out.push(text.slice(from))
+  return out.map((claim) => claim.trim()).filter(Boolean)
+}
+
+/** Where "recent" stops meaning anything, and the student should hear how old the accounts are. */
+const OLD_AFTER_DAYS = 180
+
+/** Years the way a person says them, because the student is being told, not shown a figure. */
+const YEARS = new Map([
+  [1, 'a year'],
+  [1.5, 'a year and a half'],
+  [2, 'two years'],
+  [2.5, 'two and a half years'],
+  [3, 'three years']
+])
+
+/** How old an account is, in words. Null while it is recent enough that saying so is noise. */
+export function ageOf(daysAgo: number): string | null {
+  if (daysAgo < OLD_AFTER_DAYS) return null
+  if (daysAgo < 365) return `about ${Math.round(daysAgo / 30)} months old`
+  const said = YEARS.get(Math.round((daysAgo / 365) * 2) / 2)
+  return said ? `about ${said} old` : 'over three years old'
 }
 
 function evidenceOf(sentence: Sentence, account: Account): Evidence {
@@ -47,11 +94,14 @@ function evidenceOf(sentence: Sentence, account: Account): Evidence {
 }
 
 /**
- * What a recent interview at the company looked like, said from the accounts
- * and nothing else. The same gate as companion chat: a citation survives only
+ * What an interview at the company looked like, said from the accounts and
+ * nothing else. The same gate as companion chat: a citation survives only
  * where the retriever returned it, and here the retriever is the account list.
- * The reply arrives whole rather than streamed, so a reply that fell apart is
- * retried on a shorter prompt and never shown.
+ * The gate is per claim rather than per reply, because one id the model got
+ * right is not evidence for the sentences beside it. How old the accounts are
+ * is said first, from their dates, with no model in it. The reply arrives
+ * whole rather than streamed, so a reply that fell apart is retried on a
+ * shorter prompt and never shown.
  */
 export async function briefInterview(
   llm: LlmLike,
@@ -67,6 +117,12 @@ export async function briefInterview(
     oldestDaysAgo: Math.round((now - Math.min(...dates)) / 86400000)
   }
 
+  // The boards have gone quiet, so a brief written today can be about a loop that
+  // ran two years ago. The prompt asks the model to say so and the model does not,
+  // and the dates are here to be read, so the code says it instead.
+  const age = ageOf(span.newestDaysAgo)
+  const note = age === null ? '' : `${accounts.length === 1 ? 'This account is' : 'The newest of these is'} ${age}. `
+
   const attempt = async (sentences: Sentence[], temperature: number): Promise<Brief | null> => {
     const raw = await llm.text({
       // Prose, like companion chat, which is also on this lane. The careful lane
@@ -80,18 +136,33 @@ export async function briefInterview(
       ...interviewBrief({ company, sentences, ...span })
     })
     if (degenerate(raw)) return null
-    const filter = new CitationFilter(new Set(sentences.map((sentence) => sentence.id)))
-    const text = tidy(`${filter.push(raw)}${filter.flush()}`)
-    // Prose about an interview with nothing behind it is the one thing this
-    // must not write, so it counts as a reply that did not work out.
-    if (filter.citations.length === 0) return null
-    const cited = new Set(filter.citations)
+    const valid = new Set(sentences.map((sentence) => sentence.id))
+    const kept: string[] = []
+    const cited = new Set<string>()
+    for (const claim of claims(raw)) {
+      const filter = new CitationFilter(valid)
+      const prose = `${filter.push(claim)}${filter.flush()}`
+      // Prose about an interview with nothing behind it is the one thing this
+      // must not write, and a reply is a handful of claims rather than one. A
+      // claim the accounts cannot back is dropped where it stands, so the
+      // student is never told what people were paid by a sentence that sat
+      // next to a cited one.
+      if (filter.citations.length === 0) continue
+      kept.push(prose)
+      for (const id of filter.citations) cited.add(id)
+    }
+    const text = tidy(kept.join(' '))
+    // What is left of a reply mostly made up is a stub, and half a thought about
+    // an interview is worse than saying the accounts could not be written up.
+    if (cited.size === 0 || degenerate(text)) return null
     // One chip per account: two sentences from one write-up are one place to go.
     const seen = new Set<string>()
     const sources = sentences
       .filter((sentence) => cited.has(sentence.id) && !seen.has(sentence.postingId) && seen.add(sentence.postingId))
       .map((sentence) => evidenceOf(sentence, byId.get(sentence.postingId)!))
-    return { kind: 'brief', text, citations: filter.citations, sources }
+    // The note is not a claim about the interview, it is what the code knows about
+    // the accounts, so it is written on rather than put through the gate.
+    return { kind: 'brief', text: `${note}${text}`, citations: [...cited], sources }
   }
 
   const sentences = sentencesOf(accounts)

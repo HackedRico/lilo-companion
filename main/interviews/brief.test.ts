@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { ZodType } from 'zod'
 import type { Ask, LlmLike } from '../llm/service.ts'
-import { briefInterview, degenerate, tidy } from './brief.ts'
+import { ageOf, briefInterview, claims, degenerate, tidy } from './brief.ts'
 import type { Account } from './sources.ts'
 
 const ACCOUNTS: Account[] = [
@@ -88,7 +88,8 @@ test('the prose closes over where a marker was, and one account is one chip', as
   const brief = await briefInterview(llm, 'Stripe', ACCOUNTS, NOW)
   assert.equal(brief.kind, 'brief')
   if (brief.kind !== 'brief') return
-  assert.equal(brief.text, 'Four rounds. A real codebase to fix. That is the shape of it.')
+  // "That is the shape of it" cites nothing, so it is not part of the brief.
+  assert.equal(brief.text, 'Four rounds. A real codebase to fix.')
   assert.deepEqual(brief.citations, ['leetcode:1#0', 'leetcode:1#1'])
   assert.equal(brief.sources.length, 1)
 })
@@ -135,4 +136,71 @@ test('a first reply that cites nothing is replaced by a second that does', async
   assert.equal(brief.kind, 'brief')
   if (brief.kind !== 'brief') return
   assert.deepEqual(brief.citations, ['leetcode:1#0'])
+})
+
+test('one citation does not license the sentences around it', async () => {
+  const llm = new Scripted()
+  llm.queue.push(
+    'Stripe pays 400k, always rejects new grads, and requires a PhD. The onsite was four rounds and the debugging round was the hard one. [S:leetcode:1#0] They also ask about system design.'
+  )
+  const brief = await briefInterview(llm, 'Stripe', ACCOUNTS, NOW)
+  assert.equal(brief.kind, 'brief')
+  if (brief.kind !== 'brief') return
+  assert.equal(brief.text, 'The onsite was four rounds and the debugging round was the hard one.')
+  assert.doesNotMatch(brief.text, /400k|PhD|new grads|system design/, 'a claim with no marker is not said')
+  assert.deepEqual(brief.citations, ['leetcode:1#0'])
+})
+
+test('a marker the accounts cannot back does not carry the sentence it sits on', async () => {
+  const llm = new Scripted()
+  llm.queue.push(
+    'The onsite was four rounds and the debugging round was the hard one. [S:leetcode:1#0] Everyone there works eighty hour weeks. [S:made-up]',
+    'Nothing to point at here either.'
+  )
+  const brief = await briefInterview(llm, 'Stripe', ACCOUNTS, NOW)
+  assert.equal(brief.kind, 'brief')
+  if (brief.kind !== 'brief') return
+  assert.doesNotMatch(brief.text, /eighty hour/)
+})
+
+test('a reply where only a stub survives the gate is not shown as a brief', async () => {
+  const llm = new Scripted()
+  // One cited fragment and a paragraph of invention leaves nothing worth reading.
+  llm.queue.push('Yes. [S:leetcode:1#0] They pay 400k and reject everyone from a state school.', 'Still nothing to point at.')
+  const brief = await briefInterview(llm, 'Stripe', ACCOUNTS, NOW)
+  assert.equal(llm.asks.length, 2, 'it is tried again before being given up on')
+  assert.equal(brief.kind, 'unwritable')
+})
+
+test('a claim is a sentence with the markers written after it', () => {
+  assert.deepEqual(claims('Four rounds. [S:a] A real codebase. [S:b,c] Done.'), [
+    'Four rounds. [S:a]',
+    'A real codebase. [S:b,c]',
+    'Done.'
+  ])
+  assert.deepEqual(claims('The screen ran 2.5 hours. Then silence.'), ['The screen ran 2.5 hours.', 'Then silence.'])
+  assert.deepEqual(claims('- four rounds [S:a]\n- two hours each'), ['- four rounds [S:a]', '- two hours each'])
+})
+
+test('the brief says how old the accounts are, from the dates and not from the model', async () => {
+  const llm = new Scripted()
+  llm.queue.push('The onsite was four rounds and the debugging round was the hard one. [S:leetcode:1#0]')
+  const stale = 1_800_000_000_000 + 86_400_000 * 541
+  const brief = await briefInterview(llm, 'Stripe', ACCOUNTS, stale)
+  assert.equal(brief.kind, 'brief')
+  if (brief.kind !== 'brief') return
+  assert.equal(
+    brief.text,
+    'This account is about a year and a half old. The onsite was four rounds and the debugging round was the hard one.'
+  )
+})
+
+test('how old an account is, said the way a person says it', () => {
+  assert.equal(ageOf(3), null, 'a fresh account needs no note')
+  assert.equal(ageOf(179), null)
+  assert.equal(ageOf(210), 'about 7 months old')
+  assert.equal(ageOf(541), 'about a year and a half old')
+  assert.equal(ageOf(730), 'about two years old')
+  assert.equal(ageOf(900), 'about two and a half years old')
+  assert.equal(ageOf(1400), 'over three years old')
 })
