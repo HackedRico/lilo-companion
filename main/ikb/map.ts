@@ -34,8 +34,14 @@ function normalise(input: string): string {
     .trim()
 }
 
+/**
+ * Whole words only, so "set" does not match "offset". A full stop is kept by
+ * `normalise` because .NET and node.js need theirs, but the one that ends a
+ * sentence is not part of the word in front of it: without this, a trigger
+ * that fell at the end of a sentence never matched at all.
+ */
 function includesPhrase(haystack: string, needle: string): boolean {
-  return haystack === needle || haystack.startsWith(`${needle} `) || haystack.endsWith(` ${needle}`) || haystack.includes(` ${needle} `)
+  return ` ${haystack.replace(/\.+(?=\s|$)/g, '')} `.includes(` ${needle} `)
 }
 
 /**

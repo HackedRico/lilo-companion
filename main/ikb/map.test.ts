@@ -183,3 +183,22 @@ test('the term said out loud is the one the lecture names, not one in passing', 
   assert.equal(mapped[0]?.term, 'Pandas')
   assert.ok(mapped.some((hit) => hit.term === 'Python'))
 })
+
+test('a trigger at the end of a sentence still counts', () => {
+  // normalise keeps a full stop because .NET and node.js need theirs, so a
+  // phrase that finished a sentence was compared against "address space." and
+  // never matched anything.
+  const mapped = mapConceptTerms(
+    ikb,
+    concept('Process', 'A process is a program in execution with its own address space.')
+  )
+  assert.ok(mapped.some((hit) => hit.term === 'Linux'))
+})
+
+test('an ordinary sentence about a process is not a lecture on Linux', () => {
+  const mapped = mapConceptTerms(
+    ikb,
+    concept('Design process', 'How a team goes from a requirements document to a shipped feature.')
+  )
+  assert.ok(!mapped.some((hit) => hit.term === 'Linux'))
+})

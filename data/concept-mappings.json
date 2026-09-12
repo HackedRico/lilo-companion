@@ -169,7 +169,15 @@
       "threads",
       "race conditions",
       "locks",
-      "deadlocks"
+      "deadlocks",
+      "thread",
+      "deadlock",
+      "mutex",
+      "race condition",
+      "semaphore",
+      "concurrent",
+      "synchronization",
+      "thread safety"
     ],
     "terms": [
       "performance optimization",
@@ -251,7 +259,15 @@
       "processes",
       "memory management",
       "scheduling",
-      "file systems"
+      "file systems",
+      "address space",
+      "context switch",
+      "context switching",
+      "virtual memory",
+      "system calls",
+      "kernel",
+      "process scheduling",
+      "paging"
     ],
     "terms": [
       "Linux",
