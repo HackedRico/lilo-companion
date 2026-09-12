@@ -88,6 +88,34 @@ bring.
 To start with a lecture already read, put `LECTURE_FILE=path/to/lecture.txt`
 in `.env`, or pass `--lecture path/to/lecture.txt` to a packaged build.
 
+## Voice
+
+Voice mode is the switch beside "Upload a lecture" at the top of the panel:
+a mic that says off, and says on and turns blue when pressed, with the word
+"voice" in front of it where the panel is wide enough. On, a second mic
+appears beside the field. Press it, or Cmd+Shift+M on macOS and Ctrl+Shift+M
+on Windows, say it, and press again. The words land in the field for you to
+read before you send them: a misheard word is yours to fix, not the model's
+to answer. Off, voice mode never asks for the microphone; the first press
+asks the OS once.
+
+Speech is sent where the model is unless you say otherwise. OpenAI and Groq
+transcribe at the same address they answer chat from, so on either nothing
+more is needed. To keep it on this machine, run a whisper server and put its
+address under Settings, Model, Voice, or in `.env`:
+
+```bash
+VOICE_BASE_URL=http://localhost:8000
+VOICE_MODEL=Systran/faster-whisper-small.en
+```
+
+[speaches](https://github.com/speaches-ai/speaches) serves faster-whisper at
+that address with `/v1/audio/transcriptions` built in. whisper.cpp's server
+answers at whatever path its `--inference-path` flag names, so give it
+`/v1/audio/transcriptions`. The app sends 16 kHz mono WAV, which every one of
+them reads without ffmpeg. `VOICE_API_KEY` is for a hosted transcriber that is
+not the model's own service; a local one wants none.
+
 ## Before an interview
 
 Ask the companion what an interview at a company is like, in your own words:
@@ -175,6 +203,7 @@ reply.
 | `main/pipeline/` | transcript to concept to posting terms to evidence |
 | `main/panel.ts` | the window: placement, dragging, click-through |
 | `main/settings.ts` | what you chose, layered over .env, keys sealed |
+| `main/voice.ts` | speech to words, over the same address shape as the model |
 | `main/llm/` | the service layer: one queue and one schema check over a provider per protocol |
 | `main/guards.ts` | nothing from a renderer reaches a window unchecked |
 | `preload/index.ts` | the one door between main and a renderer |

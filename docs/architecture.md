@@ -8,7 +8,8 @@ from reading them.
 `main/session.ts` holds one loop and every state it can be in.
 
 **Hear.** A lecture arrives whole: a transcript or captions uploaded from the
-tray or the panel, or notes pasted into the composer. There is no microphone.
+tray or the panel, or notes pasted into the composer. The microphone, in voice
+mode, only ever fills that composer: what it hears is read before it is sent.
 One call over what arrived names at most three concepts.
 
 **See.** A concept is translated into what postings call the same thing. The
@@ -223,6 +224,21 @@ preferences window only ever receives whether a key is set and its last four
 characters. Where there is no keychain the key is stored as written and the
 window says so rather than pretending. A setting left blank falls through to
 `.env`.
+
+Voice is the same shape, and mostly the same address. `main/voice.ts` posts
+one WAV to `/audio/transcriptions`, which OpenAI's and Groq's addresses answer
+beside chat, so a student on either has voice with nothing more typed. A
+whisper server on this machine is an address typed under Voice, wants no key,
+and keeps the audio here. The renderer owns the microphone: Chromium records
+webm, and no two servers agree on reading it, so `renderer/thread/dictation.ts`
+decodes what was heard and resamples it to 16 kHz mono WAV, the one format
+every server reads with no ffmpeg beside it, and silence is dropped before it
+is sent, because whisper hears words in it. What comes back lands in the
+composer and not in the loop: a misheard word is read and fixed before it is
+sent, rather than answered. Voice mode is the master switch, remembered by the
+renderer alone, and off, the app never asks for the microphone. The
+transcriber does not wait in the model's queue: the student is standing there
+with a sentence in the air.
 
 Preferences are a second window rather than part of the thread. The companion is
 one conversation, and typing an API key into a conversation would be absurd. It
