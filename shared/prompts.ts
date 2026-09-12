@@ -146,7 +146,7 @@ export interface CoachInput {
   /** What the student asked, or null when the companion is volunteering. */
   question: string | null
   /** Why the last reply was refused, when this is the second try. */
-  retry: 'too_high' | 'unverified' | 'promise' | 'not_a_question' | null
+  retry: 'too_high' | 'unverified' | 'promise' | 'not_a_question' | 'generic' | null
 }
 
 /** The student's code with the line numbers the hint has to use. */
@@ -172,7 +172,9 @@ export function coachHint(input: CoachInput): Prompt {
           ? 'Your last reply announced help and then gave none. Put the whole of it in say this time, the code included.'
           : input.retry === 'not_a_question'
             ? 'Your last reply called itself rung 1 and was not a question. Ask a real question this time, or report the rung it actually is.'
-            : ''
+            : input.retry === 'generic'
+              ? 'Your last reply was rung 3 and pointed at nothing of theirs. Name the lines and the identifiers in their code, or drop to a lower rung.'
+              : ''
   return {
     system: `${VOICE}
 

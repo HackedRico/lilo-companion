@@ -15,7 +15,7 @@ export type Coached =
 export const WITHHELD = 'I have a thought, but it is above the level you set. Raise it in settings if you want it.'
 
 /** Why the first reply was refused, in the words the prompt answers to. */
-type Retry = 'too_high' | 'unverified' | 'promise' | 'not_a_question' | null
+type Retry = 'too_high' | 'unverified' | 'promise' | 'not_a_question' | 'generic' | null
 
 /**
  * One hint, gated. The model is asked once, checked, asked once more under a
@@ -52,10 +52,8 @@ export async function coach(
   if (verdict.ok) return { kind: 'hint', hint: first }
   if (verdict.reason === 'empty') return { kind: 'silent' }
 
-  const retry: Retry =
-    verdict.reason === 'too_high' || verdict.reason === 'promise' || verdict.reason === 'not_a_question'
-      ? verdict.reason
-      : 'unverified'
+  // 'empty' already returned above, so whatever is left names the fault plainly.
+  const retry: Retry = verdict.reason
   const second = asHint(await ask(retry))
   const again = gate(second, ceiling, work)
   if (again.ok) return { kind: 'hint', hint: second }

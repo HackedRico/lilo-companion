@@ -181,10 +181,12 @@ export class Session {
   private async say(
     text: string,
     extra: Omit<Partial<ThreadItem>, 'id' | 'text' | 'at'> = {},
-    speaker: ThreadItem['speaker'] = 'companion'
+    speaker: ThreadItem['speaker'] = 'companion',
+    /** False for a line that carries on the turn already in progress. */
+    pause = true
   ): Promise<ThreadItem> {
     this.patch({ composing: true })
-    await sleep(this.pace.turn)
+    if (pause) await sleep(this.pace.turn)
     const item: ThreadItem = {
       id: nextId(),
       speaker,
@@ -323,8 +325,9 @@ export class Session {
   /** The student asked, so extract from the window and say what it is worth. */
   async why(): Promise<void> {
     if (this.busy) return
-    this.busy = true
-    try {
+    return this.hold(async () => {
+      this.busy = true
+      try {
       this.patch({ orb: 'thinking', composing: true })
       if (this.transcript.empty) {
         await this.say('Nothing has come through yet. Upload a lecture or paste your notes and I will read it back.')
@@ -335,13 +338,14 @@ export class Session {
         await this.say('Nothing much is being taught in that. Try another part of the lecture.')
         return
       }
-      await this.showCard(concept)
-    } catch (error) {
-      await this.apologise('read that back', error)
-    } finally {
-      this.busy = false
-      this.patch({ orb: 'idle', composing: false })
-    }
+        await this.showCard(concept)
+      } catch (error) {
+        await this.apologise('read that back', error)
+      } finally {
+        this.busy = false
+        this.patch({ orb: 'idle', composing: false })
+      }
+    })
   }
 
   private async showCard(concept: Concept): Promise<void> {
@@ -405,10 +409,8 @@ export class Session {
 
     for (const gap of gaps) {
       const evidence = evidenceOf(this.deps.ikb, gap.exampleSentence)
-      await this.say(
-        `${gap.practice}, in ${gap.pctOfPostings} percent of them.`,
-        evidence ? { evidence } : {}
-      )
+      // One turn, three lines: the pause belongs before the turn, not before each.
+      await this.say(`${gap.practice}, in ${gap.pctOfPostings} percent of them.`, evidence ? { evidence } : {}, 'companion', false)
     }
 
     this.suggest([
@@ -478,13 +480,23 @@ export class Session {
    * thinks while the body runs, and a failure is apologised for in the words
    * of what was being attempted. The busy flag lives here and nowhere else.
    */
+  /**
+   * One queue for everything that answers the student. Two answers writing into
+   * the thread at once interleave their lines and fight over the orb, so the
+   * second waits rather than racing, and nothing is dropped to avoid the race.
+   */
+  private hold<T>(work: () => Promise<T>): Promise<T> {
+    const ahead = this.working ?? Promise.resolve()
+    const run = ahead.catch(() => undefined).then(work)
+    this.working = run.catch(() => undefined)
+    return run
+  }
+
   private async turn(text: string, attempting: string, body: () => Promise<void>): Promise<void> {
     // Said first, before any waiting: the composer has already cleared what they
     // typed, so a line that is not put in the thread now is a line they lose.
     this.heardFromStudent(text)
-    const ahead = this.working
-    if (ahead) await ahead.catch(() => undefined)
-    const run = (async () => {
+    return this.hold(async () => {
       this.busy = true
       try {
         this.patch({ orb: 'thinking', composing: true })
@@ -495,9 +507,7 @@ export class Session {
         this.busy = false
         this.patch({ orb: 'idle', composing: false })
       }
-    })()
-    this.working = run.catch(() => undefined)
-    return run
+    })
   }
 
   /**

@@ -2,7 +2,7 @@ import { TIER_CEILING, TIER_LABEL, type Mark, type Rung, type Tier, type WorkEve
 import type { OrbState, Suggestion, ThreadItem } from '../../shared/types.ts'
 import type { LlmLike } from '../llm/service.ts'
 import { coach } from './coach.ts'
-import { nextRung, type Climb } from './ladder.ts'
+import { CLIMB_EVERY, nextRung, type Climb } from './ladder.ts'
 import { EMPTY_WORK, describe, describeOutcome, fold, type Work } from './state.ts'
 
 /** How the practice reaches the student. The session provides it. */
@@ -49,6 +49,12 @@ export class LeetCodePractice {
   private busy = false
   /** What is on the wire. A question waits for it; a volunteered hint stands down. */
   private inFlight: Promise<unknown> | null = null
+  /**
+   * When the timer may try again after a pass that failed. Without it a dead
+   * endpoint is asked on every tick, and the tick is two seconds. The rung is
+   * not charged for a network failure, so this is what stops the hammering.
+   */
+  private retryAfter = 0
   private readonly deps: PracticeDeps
 
   constructor(deps: PracticeDeps) {
@@ -143,7 +149,7 @@ export class LeetCodePractice {
    * says a rung is earned, and then only one rung above the last.
    */
   async tick(now = this.now): Promise<void> {
-    if (this.busy || !this.deps.llm.available) return
+    if (this.busy || !this.deps.llm.available || now < this.retryAfter) return
     const rung = nextRung(TIER_CEILING[this.deps.tier()].volunteer, this.last, this.work, now)
     if (rung === null) return
     this.busy = true
@@ -154,7 +160,10 @@ export class LeetCodePractice {
       if (result.kind === 'hint') await this.speak(result.hint.say, result.hint.rung, result.hint.lines)
       if (result.kind === 'withheld') await this.deps.voice.say(result.say)
     } catch {
-      // A hint that fails to arrive is a hint not given, which is allowed.
+      // A hint that fails to arrive is a hint not given, which is allowed. The
+      // ladder is not charged for it, so the wait is what stops the next tick
+      // asking the same failing endpoint two seconds later.
+      this.retryAfter = now + CLIMB_EVERY
     } finally {
       this.busy = false
     }
