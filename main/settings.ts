@@ -127,7 +127,13 @@ export class SettingsStore {
 
   private seal(key: string): string {
     if (!this.keychain.available) return key
-    return `enc:${this.keychain.seal(key)}`
+    try {
+      return `enc:${this.keychain.seal(key)}`
+    } catch {
+      // DPAPI can refuse at the moment of sealing with no warning from
+      // isEncryptionAvailable. An unsealed key beats a save that drops everything.
+      return key
+    }
   }
 
   /** Wipes everything this window can set, leaving .env untouched. */

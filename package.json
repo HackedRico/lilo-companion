@@ -2,6 +2,9 @@
   "name": "lilo-companion",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=22.18"
+  },
   "description": "Hear it in class. See it in real jobs. Do it like work.",
   "main": "./out/main/index.js",
   "scripts": {
@@ -9,7 +12,7 @@
     "start": "electron-vite preview",
     "build": "electron-vite build",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json && tsc --noEmit -p tsconfig.test.json",
-    "test": "node --test",
+    "test": "node --test \"**/*.test.ts\"",
     "ingest": "node scripts/ingest-ikb.ts",
     "package": "npm run build && electron-builder",
     "package:mac": "npm run build && electron-builder --mac",

@@ -11,9 +11,11 @@ export class Mic {
   private stream: MediaStream | null = null
   private recorder: MediaRecorder | null = null
   private readonly onChunk: (chunk: ArrayBuffer) => void
+  private readonly onGone: () => void
 
-  constructor(onChunk: (chunk: ArrayBuffer) => void) {
+  constructor(onChunk: (chunk: ArrayBuffer) => void, onGone: () => void) {
     this.onChunk = onChunk
+    this.onGone = onGone
   }
 
   get running(): boolean {
@@ -25,7 +27,18 @@ export class Mic {
     this.stream = await navigator.mediaDevices.getUserMedia({
       audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true }
     })
-    const recorder = new MediaRecorder(this.stream, { mimeType: 'audio/webm;codecs=opus' })
+    // A device that goes away mid session is reported, not left as a dead recorder.
+    for (const track of this.stream.getTracks()) {
+      track.onended = () => {
+        this.stop()
+        this.onGone()
+      }
+    }
+    const preferred = 'audio/webm;codecs=opus'
+    const recorder = new MediaRecorder(
+      this.stream,
+      MediaRecorder.isTypeSupported(preferred) ? { mimeType: preferred } : {}
+    )
     recorder.ondataavailable = (event) => {
       if (event.data.size > 0) void event.data.arrayBuffer().then(this.onChunk)
     }
@@ -34,7 +47,11 @@ export class Mic {
   }
 
   stop(): void {
-    this.recorder?.stop()
+    try {
+      if (this.recorder && this.recorder.state !== 'inactive') this.recorder.stop()
+    } catch {
+      // A recorder whose device has already gone throws on stop, and is stopped.
+    }
     this.recorder = null
     for (const track of this.stream?.getTracks() ?? []) track.stop()
     this.stream = null

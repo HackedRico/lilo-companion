@@ -18,6 +18,11 @@ extraResources:
 
 mac:
   category: public.app-category.education
+  # A signed build runs hardened, and hardened needs the microphone granted
+  # explicitly or the app hears nothing.
+  hardenedRuntime: true
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
   target:
     - dmg
     - zip

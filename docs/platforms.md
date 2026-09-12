@@ -81,6 +81,10 @@ fails it fails quietly, by the orb going dead rather than by throwing.
 The microphone path is the same code on both. `getUserMedia`, `MediaRecorder`
 and webm/opus behave the same, so `audio/mic.ts` needs nothing per platform.
 
+**A signed macOS build hears nothing without the entitlement.** The hardened
+runtime is on for signed builds, and `build/entitlements.mac.plist` grants
+`com.apple.security.device.audio-input`; leave that pair together.
+
 **A refusal reads differently.** macOS shows a prompt, and
 `NSMicrophoneUsageDescription` in `electron-builder.yml` explains it. Windows
 has a privacy setting and no prompt to trigger, so `getUserMedia` simply rejects

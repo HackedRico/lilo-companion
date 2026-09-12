@@ -61,7 +61,8 @@ app.whenReady().then(async () => {
   const ikb = await loadIkb(dataDir)
   const panel = new Panel(prefs.orb, prefs.panel)
   const prefsWindow = new PrefsWindow((contents) => {
-    bridgeEditingShortcuts(contents)
+    // The panel closes itself on Cmd+W; the preferences window needs telling.
+    bridgeEditingShortcuts(contents, { KeyW: () => prefsWindow.close() })
     if (!dev) return
     contents.on('console-message', (event) => console.log(`[prefs] ${event.message}`))
     contents.on('did-finish-load', () => console.log('[prefs] loaded'))
@@ -106,8 +107,10 @@ app.whenReady().then(async () => {
   )
 
   // The renderer holds the microphone; the key never leaves this process.
-  electronSession.defaultSession.setPermissionRequestHandler((_contents, permission, decide) => {
-    decide(permission === 'media')
+  // Microphone only: a media request that also wants the camera is refused.
+  electronSession.defaultSession.setPermissionRequestHandler((_contents, permission, decide, details) => {
+    const wants = 'mediaTypes' in details ? (details.mediaTypes ?? []) : []
+    decide(permission === 'media' && wants.every((type) => type === 'audio'))
   })
 
   /** One way in and out of listening, whether it is a lecture file or a mic. */
@@ -125,7 +128,9 @@ app.whenReady().then(async () => {
         void session.trouble('There is no Deepgram key set, so I cannot hear a room. Play a lecture instead.')
         return
       }
-      void listener.start()
+      // The socket opens on the first chunk, once the microphone has actually
+      // been granted, so a slow permission prompt cannot outlast Deepgram's
+      // patience for silence.
       panel.emit(OUT.capture, true)
     }
     session.setListening(true)
@@ -151,8 +156,8 @@ app.whenReady().then(async () => {
   /** Any transcript on disk will do, so the file is chosen rather than shipped. */
   async function pickLecture(): Promise<void> {
     const picked = await dialog.showOpenDialog({
-      title: 'Play a saved lecture',
-      message: 'A transcript, one line per thing said.',
+      // The hint rides in the title, which every platform shows; message is macOS only.
+      title: 'Play a saved lecture: a transcript, one line per thing said',
       filters: [{ name: 'Transcript', extensions: ['txt', 'md', 'vtt'] }],
       properties: ['openFile']
     })
@@ -174,10 +179,13 @@ app.whenReady().then(async () => {
   })
 
   bridgeEditingShortcuts(panel.win.webContents)
-  globalShortcut.register('CommandOrControl+Shift+Y', () => {
+  const toggleKey = 'CommandOrControl+Shift+Y'
+  const registered = globalShortcut.register(toggleKey, () => {
     panel.toggle()
     tray.refresh()
   })
+  // Another app can already hold the combination, and registration says so quietly.
+  if (!registered) console.warn(`[lilo] ${toggleKey} is held by another app; the panel opens from the orb and the menu bar`)
 
   if (dev) {
     panel.win.webContents.on('console-message', (event) => {
@@ -203,10 +211,19 @@ app.whenReady().then(async () => {
 
   ipcMain.on(IN.listenStart, () => setListening(true))
   ipcMain.on(IN.listenStop, () => setListening(false))
-  ipcMain.on(IN.audioChunk, (_event, chunk: Uint8Array) => listener.send(chunk))
+  ipcMain.on(IN.audioChunk, (_event, chunk: Uint8Array) => {
+    if (!listener.open) void listener.start()
+    listener.send(chunk)
+  })
   ipcMain.on(IN.audioError, (_event, reason: string) => {
     setListening(false)
-    void session.trouble(`I could not get at the microphone. ${String(reason).slice(0, 120)}`)
+    const text = String(reason).slice(0, 120)
+    // Windows shows no prompt for a desktop app; the switch is in Settings, and nothing else says so.
+    const hint =
+      process.platform === 'win32' && /NotAllowed|denied|permission/i.test(text)
+        ? ' On Windows, microphone access for desktop apps is a switch under Settings, Privacy, Microphone.'
+        : ''
+    void session.trouble(`I could not get at the microphone. ${text}${hint}`)
   })
   ipcMain.on(IN.notes, (_event, text: unknown) => void session.useNotes(asText(text)))
   ipcMain.on(IN.intent, (_event, intent: Intent) => void session.run(intent))
@@ -325,17 +342,24 @@ app.whenReady().then(async () => {
    * macOS delivers copy and paste through the application menu, and this app
    * has none. Claim them here so the composer behaves like a text field.
    */
-  function bridgeEditingShortcuts(contents: Electron.WebContents): void {
+  function bridgeEditingShortcuts(contents: Electron.WebContents, extra: Record<string, () => void> = {}): void {
+    const mac = process.platform === 'darwin'
     contents.on('before-input-event', (event, input) => {
       if (input.type !== 'keyDown' || input.alt) return
-      if (!(process.platform === 'darwin' ? input.meta : input.control)) return
+      if (!(mac ? input.meta : input.control)) return
+      // Matched on the physical key, so a Cyrillic or Greek layout still copies.
       const action: (() => void) | undefined = {
-        c: () => contents.copy(),
-        v: () => contents.paste(),
-        x: () => contents.cut(),
-        a: () => contents.selectAll(),
-        z: () => (input.shift ? contents.redo() : contents.undo())
-      }[input.key.toLowerCase()]
+        KeyC: () => contents.copy(),
+        KeyV: () => contents.paste(),
+        KeyX: () => contents.cut(),
+        KeyA: () => contents.selectAll(),
+        KeyZ: () => (input.shift ? contents.redo() : contents.undo()),
+        // Windows redoes with Ctrl+Y as well.
+        ...(mac ? {} : { KeyY: () => contents.redo() }),
+        // With no application menu, Cmd+Q exists only if it is claimed here.
+        KeyQ: () => app.quit(),
+        ...extra
+      }[input.code]
       if (!action) return
       event.preventDefault()
       action()

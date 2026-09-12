@@ -1,4 +1,4 @@
-import { nativeImage, type NativeImage } from 'electron'
+import { nativeImage, screen, type NativeImage } from 'electron'
 import { PT, SCALES, paint } from './tray-mark.ts'
 
 /**
@@ -9,14 +9,17 @@ import { PT, SCALES, paint } from './tray-mark.ts'
  */
 export function trayIcon(): NativeImage {
   const template = process.platform === 'darwin'
-  const biggest = Math.max(...SCALES)
-  const image = nativeImage.createFromBitmap(paint(PT * biggest, template), {
-    width: PT * biggest,
-    height: PT * biggest,
-    scaleFactor: biggest
+  // Windows reads one bitmap and ignores the rest, so the primary one is drawn
+  // at the primary display's own scale rather than left to the shell to resize.
+  const primary = process.platform === 'win32' ? screen.getPrimaryDisplay().scaleFactor : Math.max(...SCALES)
+  const side = Math.round(PT * primary)
+  const image = nativeImage.createFromBitmap(paint(side, template), {
+    width: side,
+    height: side,
+    scaleFactor: primary
   })
   for (const scale of SCALES) {
-    if (scale === biggest) continue
+    if (scale === primary) continue
     image.addRepresentation({
       scaleFactor: scale,
       width: PT * scale,

@@ -51,7 +51,9 @@ export class PrefsWindow {
 
   /** The Dock is hidden, so the app has to be told to come forward itself. */
   private bringForward(win: BrowserWindow): void {
-    app.focus({ steal: true })
+    // The Dock is hidden, so macOS has to be told to bring the app forward. On
+    // Windows app.focus() would raise the orb window instead; show and focus do.
+    if (process.platform === 'darwin') app.focus({ steal: true })
     win.show()
     win.focus()
   }

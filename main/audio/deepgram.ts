@@ -13,6 +13,9 @@ export class Listener {
   private readonly onTrouble: (reason: string) => void
   private socket: Socket | null = null
   private ready = false
+  private connecting = false
+  /** Set by stop(), so the close that follows is not reported as a dropped line. */
+  private closing = false
 
   constructor(key: string, onFinal: (text: string) => void, onTrouble: (reason: string) => void) {
     this.key = key
@@ -36,7 +39,9 @@ export class Listener {
   }
 
   async start(): Promise<void> {
-    if (!this.available || this.socket) return
+    if (!this.available || this.socket || this.connecting) return
+    this.connecting = true
+    this.closing = false
     try {
       const socket = await new DeepgramClient({ apiKey: this.key }).listen.v1.connect({
         model: 'nova-3',
@@ -61,12 +66,18 @@ export class Listener {
         this.onTrouble(error.message)
       })
       socket.on('close', () => {
+        const wasReady = this.ready
         this.ready = false
         this.socket = null
+        // A close the app did not ask for is a dropped line, and the student
+        // should hear that rather than watch a ring listening to nothing.
+        if (wasReady && !this.closing) this.onTrouble('the connection closed')
       })
       this.socket = socket
     } catch (error) {
       this.onTrouble((error as Error).message)
+    } finally {
+      this.connecting = false
     }
   }
 
@@ -80,6 +91,7 @@ export class Listener {
   }
 
   stop(): void {
+    this.closing = true
     this.ready = false
     const socket = this.socket
     this.socket = null

@@ -183,7 +183,9 @@ export class Panel {
   /** Escape closes the panel, then hands focus back to the app beneath. */
   stepDown(): void {
     this.setExpanded(false)
-    this.win.blur()
+    // On Windows blur hands focus to the next topmost window, not to the app
+    // beneath, so only macOS gets the step down.
+    if (process.platform === 'darwin') this.win.blur()
   }
 
   setVisible(on: boolean): void {

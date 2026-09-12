@@ -16,7 +16,7 @@ export const PT = 18
 export const SCALES = [1, 2]
 
 /** How far the halo reaches, in points, so it holds at either scale. */
-const HALO = 0.75
+const HALO = 1
 
 /** Samples per axis inside each pixel, for an edge that is not a staircase. */
 const SAMPLES = 3

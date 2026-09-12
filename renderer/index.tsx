@@ -17,7 +17,10 @@ api.onProfile((profile) => store.setProfile(profile))
 api.onRecap((recap) => store.setRecap(recap))
 
 // The microphone is held here; the chunks go straight back out to main.
-const mic = new Mic((chunk) => api.sendAudio(chunk))
+const mic = new Mic(
+  (chunk) => api.sendAudio(chunk),
+  () => api.audioFailed('The microphone went away.')
+)
 api.onCapture((on) => {
   if (!on) {
     mic.stop()

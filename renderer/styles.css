@@ -45,8 +45,8 @@
   /* Type --------------------------------------------------------------- */
   --sans: ui-sans-serif, -apple-system, 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
   /* New York on macOS, Georgia elsewhere: quoted matter reads as a document. */
-  --serif: ui-serif, 'New York', Georgia, 'Iowan Old Style', serif;
-  --mono: ui-monospace, 'SF Mono', 'Cascadia Code', 'Roboto Mono', monospace;
+  --serif: ui-serif, Georgia, 'Iowan Old Style', serif;
+  --mono: ui-monospace, 'SF Mono', Menlo, Consolas, 'Cascadia Mono', 'Cascadia Code', monospace;
 
   --step-meta: 11px;
   --step-fine: 12px;
@@ -529,7 +529,7 @@ button {
 
 .dispatch-from {
   font-size: var(--step-fine);
-  font-weight: 650;
+  font-weight: 600;
   letter-spacing: -0.005em;
   color: var(--paper-ink);
 }
@@ -906,7 +906,7 @@ button {
 .rail-title {
   padding: 6px 10px 14px;
   font-size: var(--step-masthead);
-  font-weight: 640;
+  font-weight: 600;
   letter-spacing: -0.02em;
 }
 
@@ -932,7 +932,7 @@ button {
 .rail button[data-on='true'] {
   background: var(--accent-soft);
   color: var(--accent);
-  font-weight: 560;
+  font-weight: 600;
 }
 
 .rail button svg {
@@ -1007,7 +1007,7 @@ button {
 .group-title {
   margin: 0 0 3px;
   font-size: var(--step-title);
-  font-weight: 620;
+  font-weight: 600;
   letter-spacing: -0.015em;
 }
 

@@ -20,6 +20,8 @@ interface Deps {
 export function installTray(deps: Deps): { refresh(): void } {
   const tray = new Tray(trayIcon())
   tray.setToolTip('Lilo')
+  // Windows pops the context menu on right click only; a left click should get it too.
+  if (process.platform !== 'darwin') tray.on('click', () => tray.popUpContextMenu())
 
   const refresh = (): void => {
     tray.setContextMenu(
