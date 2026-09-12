@@ -26,7 +26,7 @@ import type { Mark, WorkEvent } from '../shared/leetcode.ts'
 import { ASKS, BETTER_QUESTION, LeetCodePractice, TRACE_QUESTION } from './leetcode/practice.ts'
 import { interviewAsk } from './interviews/ask.ts'
 import { briefInterview, firstSentences } from './interviews/brief.ts'
-import type { Account } from './interviews/sources.ts'
+import { mentions, type Account } from './interviews/sources.ts'
 import { reasonFor } from './settings.ts'
 
 /** How fast the companion talks, and how long it pauses between turns. */
@@ -73,6 +73,23 @@ function nextId(): string {
 }
 
 /** Keeps the spaces, so a streamed line reads the way it will finally look. */
+/**
+ * Long enough, and on enough lines, that nobody typed it as a question. A
+ * pasted lecture is read as one rather than answered as one.
+ */
+const PASTED_LECTURE = { chars: 400, lines: 4 }
+
+function readsAsALecture(text: string): boolean {
+  const lines = text.split('\n').filter((line) => line.trim()).length
+  return text.length >= PASTED_LECTURE.chars && lines >= PASTED_LECTURE.lines
+}
+
+/** Names said the way a person says them: "A, B and C". */
+export function listed(names: string[]): string {
+  if (names.length <= 1) return names[0] ?? ''
+  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
+}
+
 function words(text: string): string[] {
   return text.split(/(\s+)/).filter(Boolean)
 }
@@ -303,19 +320,29 @@ export class Session {
       await this.say('There were no words in that one. If it is scanned slides or an image, I cannot read it yet.')
       return
     }
-    this.transcript.take(text)
     // The tap waits for the line where the lecturer says it, not for the words
     // scattered across a whole lecture.
     for (const line of text.split('\n')) {
       const hit = firstMatch(line, this.state.watching)
-      if (hit) return this.lockIn(hit)
+      if (hit) {
+        this.transcript.take(text)
+        return this.lockIn(hit)
+      }
     }
-    // Reading a lecture is several seconds of model time, and an upload that
-    // answers with nothing but dots reads as an upload that did not land. The
-    // interview path says the same kind of thing for the same reason.
-    await this.say('Reading it now.')
-    this.patch({ orb: 'thinking', composing: true })
-    await this.why()
+    // Everything here happens in its turn. Saying the line outside the queue
+    // dropped it into the middle of an answer that was still streaming, and
+    // taking the transcript outside it meant two lectures dropped in quickly
+    // were both read as the second one, because the first read had not started
+    // by the time the second replaced what it was going to read.
+    return this.hold(async () => {
+      this.transcript.take(text)
+      // Reading a lecture is several seconds of model time, and an upload that
+      // answers with nothing but dots reads as an upload that did not land. The
+      // interview path says the same kind of thing for the same reason.
+      await this.say('Reading it now.')
+      this.patch({ orb: 'thinking', composing: true })
+      await this.read()
+    })
   }
 
   private async lockIn(concept: string): Promise<void> {
@@ -338,13 +365,20 @@ export class Session {
   }
 
   /**
-   * The student asked, so extract from the window and say what it is worth.
-   * Queued rather than dropped: a second upload, or a second
-   * press of the chip, waits for the first to finish and is then answered.
+   * The student asked, so extract from the lecture and say what it is worth.
+   * Queued rather than dropped: a second upload, or a second press of the
+   * chip, waits for the first to finish and is then answered.
    */
   async why(): Promise<void> {
-    return this.hold(async () => {
-      try {
+    return this.hold(() => this.read())
+  }
+
+  /**
+   * The body of it, without the queue. `useNotes` is already in its turn by
+   * the time it gets here, and a turn that waits for its own turn never comes.
+   */
+  private async read(): Promise<void> {
+    try {
       this.patch({ orb: 'thinking', composing: true })
       if (this.transcript.empty) {
         await this.say('Nothing has come through yet. Upload a lecture or paste your notes and I will read it back.')
@@ -355,13 +389,12 @@ export class Session {
         await this.say('There is not enough in that for me to work with. Send me more of it and I will read it back.')
         return
       }
-        await this.showCard(concept)
-      } catch (error) {
-        await this.apologise('read that back', error)
-      } finally {
-        this.patch({ orb: 'idle', composing: false })
-      }
-    })
+      await this.showCard(concept)
+    } catch (error) {
+      await this.apologise('read that back', error)
+    } finally {
+      this.patch({ orb: 'idle', composing: false })
+    }
   }
 
   private async showCard(concept: Concept): Promise<void> {
@@ -420,13 +453,15 @@ export class Session {
       // Not everything a lecture teaches is advertised for, and since a concept
       // with no surviving term is now said to be one, claiming all of it lands
       // on postings would be the one untrue line in the recap.
-      const landed = this.seen.filter((entry) => entry.terms.length > 0)
+      const landed = this.seen.filter((entry) => entry.terms.length > 0).map((entry) => entry.concept.name)
       const verdict =
         landed.length === this.seen.length
           ? ' All of it is on postings, under other names.'
-          : landed.length > 0
-            ? ` ${landed.map((entry) => entry.concept.name).join(' and ')} is on postings, under other names.`
-            : ''
+          : landed.length === 1
+            ? ` ${landed[0]} is on postings, under another name.`
+            : landed.length > 1
+              ? ` ${listed(landed)} are on postings, under other names.`
+              : ''
       await this.say(`Today you heard ${names}.${verdict}`)
     }
     await this.say(
@@ -459,6 +494,12 @@ export class Session {
   async typed(text: string): Promise<void> {
     const { mode } = this.state.composer
     if (mode === 'onboarding') return this.onboardingTurn(text)
+    // The empty panel invites them to paste their notes, and until this was
+    // here that paste was answered as a question and never became a card.
+    if (readsAsALecture(text)) {
+      this.heardFromStudent(text)
+      return this.useNotes(text)
+    }
     // A problem open in Chrome takes the composer, but asking what an interview
     // there is like is never a question about the code on screen.
     const aboutAnInterview = interviewAsk(text, this.companies) !== null
@@ -545,10 +586,25 @@ export class Session {
     // and naming a company before knowing whether there is anything under that
     // name is how the companion ends up saying it is reading about Sarah.
     const accounts = await this.deps.gatherInterviews!(company)
-    if (accounts.length === 0) {
-      await this.say(
-        `I found nothing first-hand about a ${company} interview on the boards I read, and I would rather say that than make one up.`
-      )
+    // A name the evidence base knows is a company whatever the boards hold, so
+    // having found nothing about it is worth saying. A name it does not know
+    // was only ever a guess at what the sentence meant: "with Sarah from
+    // recruiting" has the same shape as "with Two Sigma next week", and the
+    // sentence cannot tell them apart. A board can. Hacker News answers a
+    // search for John with whatever mentions John, so the guess stands only
+    // where a write-up is titled for it, which is what the LeetCode board does
+    // and what an unrelated comment does not. Measured: Google, Amazon,
+    // Microsoft and Meta all clear it, and John, Berkeley and HR do not.
+    const known = this.companies.some((name) => name.toLowerCase() === company.toLowerCase())
+    const vouchedFor = known || accounts.some((account) => mentions(account.title, company))
+    if (accounts.length === 0 || !vouchedFor) {
+      // Nothing is said about a guess that came to nothing. The line is
+      // answered like any other instead, which is what it probably was.
+      if (known) {
+        await this.say(
+          `I found nothing first-hand about a ${company} interview on the boards I read, and I would rather say that than make one up.`
+        )
+      }
       return false
     }
     await this.say(`Give me a moment. I am reading what people wrote about interviewing at ${company}.`)

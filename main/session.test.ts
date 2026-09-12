@@ -10,9 +10,10 @@ import {
 } from '../shared/schemas.ts'
 import type { CompanionState, Profile, ThreadItem } from '../shared/types.ts'
 import { loadIkb, type Ikb } from './ikb/load.ts'
+import type { Account } from './interviews/sources.ts'
 import type { Ask, LlmLike } from './llm/service.ts'
 import { EMPTY_PROFILE } from './profile.ts'
-import { Session, firstSentence } from './session.ts'
+import { listed, Session, firstSentence } from './session.ts'
 
 /**
  * A model that answers from a script, so the orchestration can be checked
@@ -522,4 +523,84 @@ test('a second lecture is what the companion reads, not the first one again', as
   assert.equal(reads.length, 2)
   assert.match(reads[1]!.user, /deadlock/)
   assert.doesNotMatch(reads[1]!.user, /Sampling variability/)
+})
+
+test('a guess at a company that no write-up is titled for is answered as ordinary chat', async () => {
+  // The sentence cannot tell "with Sarah from recruiting" from "with Two Sigma
+  // next week", so the boards do. Hacker News answers a search for Sarah with
+  // whatever mentions Sarah, and none of it is titled for her.
+  const llm = new ScriptedLlm()
+  const accounts: Account[] = [
+    {
+      id: 'hn:1',
+      source: 'hn',
+      title: 'Who is Satoshi Nakamoto? My quest to unmask him',
+      text: 'I once sat an interview where the whole loop was about consensus algorithms and nobody explained why.',
+      url: 'https://news.ycombinator.com/item?id=1',
+      at: Date.now()
+    }
+  ]
+  const { session, thread } = harness(llm, ikb, { gatherInterviews: async () => accounts })
+  await session.chat('interview with Sarah from recruiting, what should I ask her?')
+
+  const said = thread.filter((item) => item.speaker === 'companion').map((item) => item.text).join('\n')
+  assert.doesNotMatch(said, /Sarah/, 'the companion never says the name back')
+  assert.ok(!llm.lastAsk('first-hand account'), 'no brief was written about a person')
+  assert.ok(llm.lastAsk("never do a student's homework"), 'the line was answered like any other')
+})
+
+test('a company the base knows is told plainly when the boards hold nothing', async () => {
+  const llm = new ScriptedLlm()
+  const { session, thread } = harness(llm, ikb, { gatherInterviews: async () => [] })
+  await session.chat('what is the interview at Stripe like?')
+  assert.ok(thread.some((item) => /nothing first-hand about a Stripe interview/.test(item.text)))
+})
+
+test('two lectures dropped in quickly are read as two lectures', async () => {
+  // take() ran outside the queue, so the second lecture replaced what the first
+  // read was going to read before that read had started, and both came back as
+  // the second one.
+  const llm = new ScriptedLlm()
+  llm.delayMs = 5
+  const { session } = harness(llm, ikb)
+  const second = [
+    'Right, processes and threads. A process gets its own address space and a thread does not.',
+    'That is why two threads in one process can stamp on each other through a shared counter.',
+    'We fixed it with a mutex, then broke it again by taking two locks in the wrong order.',
+    'Hold and wait, no preemption, circular wait. That is a deadlock and you will meet one.'
+  ].join('\n')
+
+  await Promise.all([teach(session), session.useNotes(second)])
+  const reads = llm.asks.filter((ask) => ask.system.includes('name what is being taught'))
+  assert.equal(reads.length, 2)
+  assert.match(reads[0]!.user, /Sampling variability/)
+  assert.match(reads[1]!.user, /deadlock/)
+})
+
+test('the recap says what landed in words a person would use', () => {
+  assert.equal(listed(['Hash tables']), 'Hash tables')
+  assert.equal(listed(['Hash tables', 'Recursion']), 'Hash tables and Recursion')
+  assert.equal(listed(['Hash tables', 'Recursion', 'Dynamic programming']), 'Hash tables, Recursion and Dynamic programming')
+})
+
+test('notes pasted into the composer are read as a lecture, not answered as a question', async () => {
+  // The empty panel says "Upload a lecture or paste your notes", and nothing
+  // called the path that does it: a paste went to chat and never became a card.
+  const llm = new ScriptedLlm()
+  const { session, thread } = harness(llm, ikb)
+  await session.typed(LECTURE.join('\n'))
+
+  assert.ok(llm.lastAsk('name what is being taught'), 'the paste was read as a lecture')
+  assert.ok(!llm.lastAsk("never do a student's homework"), 'and not answered as a question')
+  assert.ok(thread.some((item) => item.speaker === 'user'), 'what they pasted is in the thread')
+})
+
+test('a long typed question is still a question', async () => {
+  const llm = new ScriptedLlm()
+  const { session } = harness(llm, ikb)
+  await session.typed(
+    'I have been going back and forth on this for a while and I wanted to ask you properly, because it keeps coming up when I read postings for backend work and I am never sure what they actually mean by it in practice on a real team'
+  )
+  assert.ok(llm.lastAsk("never do a student's homework"), 'answered as a question')
+  assert.ok(!llm.lastAsk('name what is being taught'), 'and not read as a lecture')
 })
