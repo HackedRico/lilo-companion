@@ -151,7 +151,7 @@ function teach(session: Session): void {
 let ikb: Ikb
 
 before(async () => {
-  ikb = await loadIkb(resolve(import.meta.dirname, '../../data'))
+  ikb = await loadIkb(resolve(import.meta.dirname, '../data'))
 })
 
 test('a card only claims terms the postings actually carry', async () => {

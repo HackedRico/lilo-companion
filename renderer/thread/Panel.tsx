@@ -7,9 +7,9 @@ import {
   type ReactElement,
   type RefObject
 } from 'react'
-import type { CompanionState, Placement, Rect, Suggestion } from '../../../shared/types.ts'
+import type { CompanionState, Placement, Rect, Suggestion } from '../../shared/types.ts'
 import { api } from '../api.ts'
-import { PANEL_MIN } from '../../../shared/layout.ts'
+import { PANEL_MIN } from '../../shared/layout.ts'
 import { trackPointer } from '../drag.ts'
 import { Line } from './Line.tsx'
 

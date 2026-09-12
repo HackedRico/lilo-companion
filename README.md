@@ -83,17 +83,17 @@ the app still starts, with nothing to prove anything with.
 
 | | |
 |---|---|
-| `src/main/session.ts` | the loop: hear, see, do, review, lock in, recap |
-| `src/main/scenario/stakeholder.ts` | the coworker, and why they cannot leak |
-| `src/main/ikb/` | job postings: tagging, search, gap statistics |
-| `src/main/pipeline/` | transcript to concept to posting terms to evidence |
-| `src/main/panel.ts` | the window: placement, dragging, click-through |
-| `src/renderer/src/bubble/` | the orb and the whisper |
-| `src/renderer/src/thread/` | the one conversation everything lands in |
-| `src/renderer/src/settings/` | the preferences window |
-| `src/main/settings.ts` | what you chose, layered over .env, keys sealed |
-| `src/main/guards.ts` | nothing from a renderer reaches a window unchecked |
-| `src/shared/prompts.ts` | every prompt, and the companion's voice |
+| `main/session.ts` | the loop: hear, see, do, review, lock in, recap |
+| `main/scenario/stakeholder.ts` | the coworker, and why they cannot leak |
+| `main/ikb/` | job postings: tagging, search, gap statistics |
+| `main/pipeline/` | transcript to concept to posting terms to evidence |
+| `main/panel.ts` | the window: placement, dragging, click-through |
+| `renderer/bubble/` | the orb and the whisper |
+| `renderer/thread/` | the one conversation everything lands in |
+| `renderer/settings/` | the preferences window |
+| `main/settings.ts` | what you chose, layered over .env, keys sealed |
+| `main/guards.ts` | nothing from a renderer reaches a window unchecked |
+| `shared/prompts.ts` | every prompt, and the companion's voice |
 | `scripts/ingest-ikb.ts` | the job board ingest |
 
 ## Two rules the code keeps

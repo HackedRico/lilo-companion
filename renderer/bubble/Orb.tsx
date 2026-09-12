@@ -1,5 +1,5 @@
 import { useEffect, useRef, type CSSProperties, type ReactElement } from 'react'
-import type { CompanionState, Rect } from '../../../shared/types.ts'
+import type { CompanionState, Rect } from '../../shared/types.ts'
 import { api } from '../api.ts'
 import { trackPointer } from '../drag.ts'
 import { FACES, eyeAt } from './face.ts'

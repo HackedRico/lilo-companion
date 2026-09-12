@@ -5,7 +5,7 @@ from reading them.
 
 ## The loop
 
-`src/main/session.ts` holds one loop and every state it can be in.
+`main/session.ts` holds one loop and every state it can be in.
 
 **Hear.** Transcript arrives a line at a time, from the microphone through
 Deepgram or from a saved lecture read back at speaking pace. Every fifteen
@@ -143,4 +143,4 @@ directly, with no build step and no test runner.
 
 `electron-store` ships as ESM only and the main process is bundled as CommonJS,
 so the import arrives as a module namespace. It is unwrapped in one place, in
-`src/main/store.ts`.
+`main/store.ts`.

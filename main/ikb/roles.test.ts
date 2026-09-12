@@ -7,7 +7,7 @@ import { familiesOf, resolveAim, resolveAims } from './roles.ts'
 let ikb: Ikb
 
 before(async () => {
-  ikb = await loadIkb(resolve(import.meta.dirname, '../../../data'))
+  ikb = await loadIkb(resolve(import.meta.dirname, '../../data'))
 })
 
 test('the obvious phrasings land where you would expect', () => {

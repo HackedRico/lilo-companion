@@ -20,18 +20,18 @@ function devCsp(): Plugin {
 
 export default defineConfig({
   main: {
-    build: { rollupOptions: { input: resolve('src/main/index.ts') } }
+    build: { rollupOptions: { input: resolve('main/index.ts') } }
   },
   preload: {
-    build: { rollupOptions: { input: resolve('src/preload/index.ts') } }
+    build: { rollupOptions: { input: resolve('preload/index.ts') } }
   },
   renderer: {
-    root: resolve('src/renderer'),
+    root: resolve('renderer'),
     build: {
       rollupOptions: {
         input: {
-          index: resolve('src/renderer/index.html'),
-          settings: resolve('src/renderer/settings.html')
+          index: resolve('renderer/index.html'),
+          settings: resolve('renderer/settings.html')
         }
       }
     },

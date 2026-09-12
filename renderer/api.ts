@@ -1,4 +1,4 @@
-import type { LiloApi } from '../../shared/api.ts'
+import type { LiloApi } from '../shared/api.ts'
 
 declare global {
   interface Window {

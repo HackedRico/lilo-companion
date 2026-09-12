@@ -8,7 +8,7 @@ import { computeGaps } from './gaps.ts'
 let ikb: Ikb
 
 before(async () => {
-  ikb = await loadIkb(resolve(import.meta.dirname, '../../../data'))
+  ikb = await loadIkb(resolve(import.meta.dirname, '../../data'))
 })
 
 test('the anchor terms return real sentences', () => {

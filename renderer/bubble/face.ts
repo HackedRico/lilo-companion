@@ -1,4 +1,4 @@
-import type { OrbState } from '../../../shared/types.ts'
+import type { OrbState } from '../../shared/types.ts'
 
 /**
  * The companion's face, in the same 100 unit box as the mark. Two eyes and a

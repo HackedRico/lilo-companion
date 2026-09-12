@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactElement } from 'react'
-import type { Aim } from '../../../shared/types.ts'
+import type { Aim } from '../../shared/types.ts'
 import {
   CHECKED,
   PRESETS,
@@ -7,8 +7,8 @@ import {
   type ConnectionResult,
   type SettingsPatch,
   type SettingsView
-} from '../../../shared/settings.ts'
-import { ROLE_LABEL, type Profile, type RoleFamily } from '../../../shared/types.ts'
+} from '../../shared/settings.ts'
+import { ROLE_LABEL, type Profile, type RoleFamily } from '../../shared/types.ts'
 import { api } from '../api.ts'
 import { Action, Field, Group, KeyRow, Tags, TextInput } from './fields.tsx'
 import { ModelField } from './ModelField.tsx'

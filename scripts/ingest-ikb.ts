@@ -9,8 +9,8 @@ import {
   splitSentences,
   tagText,
   type Term
-} from '../src/main/ikb/tag.ts'
-import type { Posting, Sentence } from '../src/shared/types.ts'
+} from '../main/ikb/tag.ts'
+import type { Posting, Sentence } from '../shared/types.ts'
 
 /**
  * Pulls public ATS boards into one local file. No auth, no scraping: these are

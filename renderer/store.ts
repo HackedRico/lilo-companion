@@ -1,6 +1,6 @@
 import { create } from 'zustand'
-import { collapsedLayout } from '../../shared/layout.ts'
-import type { CompanionState, Layout, Profile, Recap, ThreadItem } from '../../shared/types.ts'
+import { collapsedLayout } from '../shared/layout.ts'
+import type { CompanionState, Layout, Profile, Recap, ThreadItem } from '../shared/types.ts'
 
 const EMPTY_COMPANION: CompanionState = {
   orb: 'idle',

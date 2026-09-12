@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react'
-import type { ThreadItem } from '../../../shared/types.ts'
+import type { ThreadItem } from '../../shared/types.ts'
 import { api } from '../api.ts'
 
 /**

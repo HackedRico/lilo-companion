@@ -1,5 +1,5 @@
 import { useEffect, type ReactElement } from 'react'
-import type { Rect, Whisper as WhisperLine } from '../../../shared/types.ts'
+import type { Rect, Whisper as WhisperLine } from '../../shared/types.ts'
 import { api } from '../api.ts'
 
 /** Long enough to read in passing, short enough to stay ignorable. */

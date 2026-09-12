@@ -17,9 +17,9 @@
     "allowImportingTsExtensions": true
   },
   "include": [
-    "src/main/**/*.ts",
-    "src/preload/**/*.ts",
-    "src/shared/**/*.ts",
+    "main/**/*.ts",
+    "preload/**/*.ts",
+    "shared/**/*.ts",
     "scripts/**/*.ts",
     "electron.vite.config.ts"
   ]

@@ -17,8 +17,8 @@
     "allowImportingTsExtensions": true
   },
   "include": [
-    "src/main/**/*.ts",
-    "src/shared/**/*.ts",
+    "main/**/*.ts",
+    "shared/**/*.ts",
     "scripts/**/*.ts"
   ]
 }

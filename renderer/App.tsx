@@ -1,5 +1,5 @@
 import { useEffect, type ReactElement } from 'react'
-import { cornerOf } from '../../shared/layout.ts'
+import { cornerOf } from '../shared/layout.ts'
 import { api } from './api.ts'
 import { gesture } from './drag.ts'
 import { Orb } from './bubble/Orb.tsx'

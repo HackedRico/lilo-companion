@@ -1,5 +1,5 @@
 import type { PointerEvent as ReactPointerEvent } from 'react'
-import type { Point } from '../../shared/types.ts'
+import type { Point } from '../shared/types.ts'
 
 export interface Track {
   onStart(at: Point): void
