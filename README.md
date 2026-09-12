@@ -79,48 +79,80 @@ nothing to read, no model is called and it says so.
 
 ## How it is built
 
-Three programs and one file on disk. Chrome runs the extension. Chrome launches
-the host, which is the app's own binary run as plain Node with no Electron in
-it. Lilo itself is an Electron main process, a preload, and a sandboxed React
-renderer with no Node in it. The evidence base is a JSON file, read at start
-and rebuilt by a script.
+A picture first, then the same thing in words.
 
 ![How Lilo is built: the student, the companion, its three practices and two rules, and what it draws on](docs/architecture.svg)
 
-**One loop.** `main/session.ts` is one conversation everything lands in: a
-lecture, a LeetCode event, a typed question. It holds the state the orb reads
-as a mood and hands each turn to the practice that owns it.
+When Lilo is running, three things are on your machine.
 
-**One door.** The renderer touches nothing but the channels named in
-`shared/api.ts`, exposed by the preload. Every point and every string a
-renderer sends passes through `main/guards.ts` before it reaches a window,
-because Electron throws on a coordinate it cannot convert.
+- **Lilo itself**, an Electron app. It is the orb in the corner, the panel
+  beside it, and a main process behind them that does all the thinking. Only
+  the main process can reach the disk, the network or your keys. The panel is
+  a sandboxed web page that can ask it for things, and nothing more.
+- **A Chrome extension**, three small files you load once. It reads the code
+  in your LeetCode editor and tells Lilo what changed. It never reads any
+  other site, and it never writes to the page, except to mark a line a hint
+  points at.
+- **A small helper that Chrome starts**, so the extension has a way to reach
+  the app. It is Lilo's own program, started by Chrome as plain Node with no
+  window.
 
-**One service.** Every model call goes through `main/llm/service.ts`: one
-queue, since some endpoints answer concurrency with a 429, a backoff when an
-endpoint pushes back, and a zod schema over every reply. Under it a provider
-speaks one protocol to one address. There is no vendor setting anywhere. The
-protocol is decided from the address the student typed.
+Beside them, on disk, sits **the evidence base**: 1,388 real software
+engineering postings from 30 companies, broken into 10,737 sentences, each
+tagged with the tools and practices it mentions. It is one file, rebuilt by
+one command, and Lilo reads it when it starts.
 
-**One vocabulary.** A LeetCode event is parsed against `workEvent` in
-`shared/leetcode.ts` on the way in and folded into one state. Everything above
-the extension is platform-free and replays from a recording with no browser
-open.
+And somewhere you choose, **a model**. Hosted, or on your own machine. Lilo
+never picks one for you.
 
-**What a hint goes through.** `describe` says the state with no model.
-`nextRung` decides whether a hint is earned. `coach` asks the model once, for a
-hint with a rung on it. `gate` in `main/leetcode/ladder.ts` reads what the
-hint actually says, takes the higher of that and the rung it claims, and
-refuses anything over the ceiling, any line not in the code, any name not in
-it, and a rung 1 that is not a question. A refused hint is asked for once more
-under a stricter instruction, then withheld.
+### When you hand it a lecture
 
-**What a claim goes through.** `translate` hands the model the terms the
-retriever found nearest the concept and tells it to copy one exactly.
-`resolveTerms` drops anything the base does not have. `CitationFilter` in
-`main/chat/citations.ts` strips every marker the retriever did not return,
-claim by claim, so one good citation cannot carry an invented sentence beside
-it. [docs/architecture.md](docs/architecture.md) draws both paths.
+1. The file is read whole, and the model is asked one thing: what is being
+   taught here? At most three concepts come back.
+2. For each concept, Lilo looks in the evidence base for the terms postings
+   use nearest to it, and hands that shortlist to the model with one
+   instruction: copy one exactly.
+3. Anything the model says that is not in the evidence base is thrown away.
+   The one exception is a term the quoted postings themselves use, word for
+   word. If nothing survives, Lilo says postings do not ask for this, rather
+   than stretching.
+4. What survives becomes a card: sentences from three different companies,
+   quoted as written, each with the URL of the posting it came from.
+
+### When you are stuck on LeetCode
+
+1. The extension reports the problem, your code, and every run with its
+   verdict. Every report is checked against a fixed shape before anything
+   reads it.
+2. Lilo says what it sees first, in plain words, with no model involved: the
+   problem, how many lines you have, what the last run said.
+3. A hint it offers on its own is earned: one rung higher at a time, no more
+   than once a minute, and only after your code has changed. Ask, and it
+   answers at the level you set.
+4. The model is asked once, for a hint that carries a rung from 0 to 5. A gate
+   then reads the hint, decides which rung it really reaches, and refuses it
+   if that is above your level, or if it names a line or a variable that is
+   not in your code.
+5. A refused hint is asked for once more under a stricter instruction, then
+   dropped. Only then is a word said, and any line it names is marked in your
+   editor.
+
+### When you ask about a company's interview
+
+1. Lilo fetches what people posted first-hand in the last year, on LeetCode's
+   interview board and on Hacker News. Nothing else is read.
+2. The accounts are split into numbered sentences, and the model is given
+   those and nothing else.
+3. Every claim in the reply has to point at one of those sentences. A claim
+   that does not is dropped where it stands. How old the newest account is
+   comes from the dates, not from the model.
+
+Two things hold on every one of these paths. Every model call waits in one
+queue, and every structured reply is checked against a schema before it is
+believed. And nothing you ask for is dropped because the app is busy.
+
+[docs/architecture.md](docs/architecture.md) has the reasoning behind each of
+these choices, and the tree below maps them to the code.
 
 ### Where things are
 
