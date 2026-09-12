@@ -25,7 +25,7 @@ import { firstMatch } from './watch.ts'
 import type { Mark, WorkEvent } from '../shared/leetcode.ts'
 import { ASKS, BETTER_QUESTION, LeetCodePractice, TRACE_QUESTION } from './leetcode/practice.ts'
 import { interviewAsk } from './interviews/ask.ts'
-import { briefInterview, firstSentences } from './interviews/brief.ts'
+import { briefInterview, firstSentences, tidy } from './interviews/brief.ts'
 import { mentions, type Account } from './interviews/sources.ts'
 import { reasonFor } from './llm/provider.ts'
 
@@ -724,9 +724,13 @@ export class Session {
         this.deps.emit.token(item.id, token)
       })
       // The citations only exist once the stream is done, so they ride out with
-      // the end of the line rather than getting lost behind it.
-      this.deps.emit.end(item.id, { citations, sources })
-      this.state.thread.push({ ...item, text: full, streaming: false, citations, sources })
+      // the end of the line rather than getting lost behind it. The text goes
+      // with them: a marker is lifted out as it streams and leaves its space
+      // behind, so the line arrived reading "at Coinbase  ." until it is tidied
+      // at the end, which is the first moment the whole of it is known.
+      const said = tidy(full)
+      this.deps.emit.end(item.id, { text: said, citations, sources })
+      this.state.thread.push({ ...item, text: said, streaming: false, citations, sources })
     } catch (error) {
       // A line that broke off mid-stream is still a line: closed as it stands,
       // so the caret stops and what was said survives a resync.

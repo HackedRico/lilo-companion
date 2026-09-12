@@ -31,7 +31,8 @@ export async function askCompanion(
   await llm.stream(
     {
       lane: 'fast',
-      maxTokens: 320,
+      // Three or four sentences of substance, with room to finish the last one.
+      maxTokens: 480,
       ...companionChat(
         context.profile,
         context.transcript,

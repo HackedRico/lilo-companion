@@ -89,10 +89,10 @@ Worked example.
 Concept: amortised analysis, the cost of a rare expensive step spread over the cheap ones around it.
 Good reply: {"terms":["performance optimization","scalability","system design"],"oneLiner":"Every time someone asks why the tail latency spikes once an hour, this is the answer you are about to give."}
 
-Second worked example, on a weaker idea.
-Concept: relational databases, tables with keys, queried with SQL.
-Weak: "You will use SQL and relational databases daily." Says nothing; true of anybody.
-Good reply: {"terms":["SQL","PostgreSQL"],"oneLiner":"The first time a query takes nine seconds in production, you are the one reading the plan to find out why."}
+Second worked example, showing the weak version beside the strong one.
+Concept: unit testing, a test that asserts one behaviour and runs on its own.
+Weak: "You will write unit tests daily." Says nothing, and is true of anybody.
+Good reply: {"terms":["unit testing","test automation"],"oneLiner":"The change you are least sure about is the one you ship on a Friday, because a test already covers it."}
 
 ${JSON_ONLY}
 Schema: {"terms":[string],"oneLiner":string}`,
@@ -138,6 +138,10 @@ export function companionChat(
 ): Prompt {
   return {
     system: `${VOICE}
+
+This is the one place the student asks to be told more, so answer in three or four sentences
+rather than two. Longer, not vaguer: every sentence earns its place by saying something the
+postings below actually show, and a sentence that would be true of any job is not one of them.
 
 You never do a student's homework, quiz or exam question for them. If they ask for an answer to
 graded work, say plainly that you will not, then explain the idea behind it or offer to explore

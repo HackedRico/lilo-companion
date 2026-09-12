@@ -768,3 +768,20 @@ test('a card says where the student stands, counted rather than cheered', async 
   assert.ok(Number(standing[1]) >= 1, 'the term just heard is one of them')
   assert.doesNotMatch(said, /percent of the postings I have/, 'and no second denominator to argue with the first')
 })
+
+test('a streamed answer is tidied once the whole of it is known', async () => {
+  // A marker is lifted out as it streams and leaves its space behind, so the
+  // line read "at Coinbase  ." until the end, which is the first moment the
+  // whole of it exists.
+  const llm = new ScriptedLlm()
+  llm.stream = async (_ask, onToken) => {
+    for (const token of ['Teams use it ', '[S:made-up]', ' every day ', '[S:also-made-up]', '.']) onToken(token)
+    return 'Teams use it [S:made-up] every day [S:also-made-up].'
+  }
+  const { session, thread } = harness(llm, ikb)
+  await session.chat('what do teams use for testing')
+
+  const said = thread.find((item) => item.speaker === 'companion')
+  assert.ok(said)
+  assert.equal(said.text, 'Teams use it every day.')
+})
