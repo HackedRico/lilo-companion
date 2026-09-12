@@ -186,3 +186,26 @@ test('how an endpoint speaks is decided from its address, and the address shaped
   }
   assert.equal(normaliseBaseUrl('   '), '', 'and blank stays blank')
 })
+
+test('a call nobody asked for waits for nothing, because a student is behind it', async () => {
+  // Pushed back every time: the asked call keeps trying, the volunteered one does not.
+  const pushed = () => new ProviderError('slow down', 429)
+  const pushy = new FakeProvider()
+  pushy.replies = [pushed(), pushed(), pushed()]
+  const llm = service(pushy)
+  await assert.rejects(llm.text({ lane: 'fast', system: 's', user: 'u' }))
+  assert.equal(pushy.turns.length, 3, 'an asked call is worth retrying')
+
+  pushy.turns.length = 0
+  pushy.replies = [pushed(), pushed(), pushed()]
+  await assert.rejects(llm.text({ lane: 'fast', system: 's', user: 'u', unasked: true }))
+  assert.equal(pushy.turns.length, 1, 'a volunteered one is said once or not at all')
+})
+
+test('a volunteered reply the schema refuses is dropped rather than asked again', async () => {
+  const junk = new FakeProvider()
+  junk.replies = ['not json', 'not json']
+  const llm = service(junk)
+  await assert.rejects(llm.json(OK, { lane: 'fast', system: 's', user: 'u', unasked: true }))
+  assert.equal(junk.turns.length, 1)
+})

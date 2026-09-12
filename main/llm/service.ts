@@ -23,6 +23,12 @@ export interface Ask {
   user: string
   temperature?: number
   maxTokens?: number
+  /**
+   * True for a call nobody asked for. Every call is serialised, so the backoff
+   * sleeps and the schema retry of a volunteered line are paid for by whoever
+   * is waiting behind it. One that fails is simply not said.
+   */
+  unasked?: boolean
 }
 
 /** A model on this machine needs no key, and asking for one would be rude. */
@@ -158,17 +164,22 @@ export class ModelService implements LlmLike {
     )
   }
 
-  private async withBackoff<T>(work: () => Promise<T>): Promise<T> {
+  private async withBackoff<T>(work: () => Promise<T>, tries = 3): Promise<T> {
     let wait = 800
     for (let attempt = 0; ; attempt++) {
       try {
         return await work()
       } catch (error) {
-        if (!isPushback(error) || attempt >= 2) throw error
+        if (!isPushback(error) || attempt >= tries - 1) throw error
         await new Promise((resolve) => setTimeout(resolve, wait + Math.random() * 400))
         wait *= 2
       }
     }
+  }
+
+  /** A call nobody asked for waits for nothing: the queue behind it is a student. */
+  private tries(ask: Ask): number {
+    return ask.unasked ? 1 : 3
   }
 
   /**
@@ -191,14 +202,15 @@ export class ModelService implements LlmLike {
       // then failed the schema is a different fault, and paying seconds of
       // constrained decoding for it buys nothing.
       let unparseable = false
-      for (let attempt = 0; attempt < 2; attempt++) {
+      const attempts = ask.unasked ? 1 : 2
+      for (let attempt = 0; attempt < attempts; attempt++) {
         const user =
           attempt === 0
             ? ask.user
             : `${ask.user}\n\nYour previous reply could not be used: ${lastIssue}\nReturn only a JSON object matching the schema, nothing else.`
         const turn = this.turn({ ...ask, user }, unparseable, 0.4, 1200)
         const sent = Date.now()
-        const raw = await this.withBackoff(() => this.provider.complete(turn))
+        const raw = await this.withBackoff(() => this.provider.complete(turn), this.tries(ask))
         this.trace(turn, waited, Date.now() - sent, raw)
         try {
           const parsed = jsonFrom(raw)
@@ -221,7 +233,7 @@ export class ModelService implements LlmLike {
     return this.queue(async (waited) => {
       const turn = this.turn(ask, false, 0.6, 300)
       const sent = Date.now()
-      const raw = await this.withBackoff(() => this.provider.complete(turn))
+      const raw = await this.withBackoff(() => this.provider.complete(turn), this.tries(ask))
       this.trace(turn, waited, Date.now() - sent, raw)
       return raw.trim()
     })
@@ -232,7 +244,7 @@ export class ModelService implements LlmLike {
     return this.queue(async (waited) => {
       const turn = this.turn(ask, false, 0.6, 400)
       const sent = Date.now()
-      const reply = await this.withBackoff(() => this.provider.stream(turn, onToken))
+      const reply = await this.withBackoff(() => this.provider.stream(turn, onToken), this.tries(ask))
       this.trace(turn, waited, Date.now() - sent, reply)
       return reply
     })

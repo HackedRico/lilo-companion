@@ -33,6 +33,8 @@ export async function coach(
   const ask = (retry: Retry) =>
     llm.json(hintOut, {
       lane: 'strong',
+      // Nobody asked for a volunteered hint, so it never makes a student wait.
+      unasked: question === null,
       temperature: 0.4,
       // The steps and the answer are long, and a truncated reply is no reply at all.
       maxTokens: ceiling >= 4 ? 900 : 300,
