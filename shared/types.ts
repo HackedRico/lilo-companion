@@ -181,6 +181,7 @@ export interface CompanionState {
   watching: string[]
   composer: ComposerMode
   onboarded: boolean
+  modelConfigured: boolean
 }
 
 // The window -------------------------------------------------------------

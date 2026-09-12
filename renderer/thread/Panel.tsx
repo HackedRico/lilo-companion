@@ -87,11 +87,17 @@ export function Panel({
           <button
             className="lecture-button flex items-center gap-1.5"
             aria-label="Settings"
-            title="Settings"
+            title={state.modelConfigured === false ? 'Settings (No model configured)' : 'Settings'}
             onClick={() => api.openPrefs()}
           >
             <Gear />
             <span className="meta">Settings</span>
+            {state.modelConfigured === false && (
+              <span
+                className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"
+                title="No model configured"
+              />
+            )}
           </button>
           <button className="icon-button" aria-label="Close" onClick={() => api.expand(false)}>
             <Cross />
