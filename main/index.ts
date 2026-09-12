@@ -10,23 +10,26 @@ import {
   ipcMain,
   safeStorage,
   session as electronSession,
-  shell
+  shell,
+  systemPreferences
 } from 'electron'
 import { join } from 'node:path'
 import { z } from 'zod'
 import { ASK, IN, OUT } from '../shared/api.ts'
 import type { SettingsPatch } from '../shared/settings.ts'
 import type { Intent, Profile } from '../shared/types.ts'
+import type { Heard } from '../shared/voice.ts'
 import { loadIkb } from './ikb/load.ts'
 import { familiesOf, resolveAims } from './ikb/roles.ts'
 import { providerFor } from './llm/providers.ts'
 import { ModelService } from './llm/service.ts'
 import { Panel } from './panel.ts'
 import { PrefsWindow } from './prefs-window.ts'
-import { asPoint, asSize, asText } from './guards.ts'
+import { asAudio, asPoint, asSize, asText } from './guards.ts'
 import { ModelCatalogue, SettingsStore, osKeychain, testConnection } from './settings.ts'
 import { Prefs } from './store.ts'
 import { readLecture } from './lecture.ts'
+import { Transcriber } from './voice.ts'
 import { Bridge, bridgePath } from './leetcode/bridge.ts'
 import { installNativeHost } from './leetcode/connect.ts'
 import { Recorder, readRecording, replay } from './leetcode/recording.ts'
@@ -76,6 +79,7 @@ app.whenReady().then(async () => {
   const settings = new SettingsStore(prefs, osKeychain(safeStorage))
   const catalogue = new ModelCatalogue(providerFor)
   const llm = new ModelService(settings.llmConfig(), providerFor)
+  const transcriber = new Transcriber(settings.voiceConfig())
   const ikb = await loadIkb(dataDir)
   const panel = new Panel(prefs.orb, prefs.panel)
   const prefsWindow = new PrefsWindow((contents) => {
@@ -129,8 +133,24 @@ app.whenReady().then(async () => {
 
   panel.onExpandedChange = (expanded) => session.setExpanded(expanded)
 
-  // Nothing in a renderer needs a device or a permission, so every request is refused.
-  electronSession.defaultSession.setPermissionRequestHandler((_contents, _permission, decide) => decide(false))
+  // The microphone, for the panel, and nothing else: voice mode records there,
+  // and only once the student presses the mic. Every other request a page
+  // could make, a camera, the screen, a location, is still refused.
+  electronSession.defaultSession.setPermissionRequestHandler((contents, permission, decide, details) => {
+    const types = 'mediaTypes' in details ? (details.mediaTypes ?? []) : []
+    const granted =
+      permission === 'media' &&
+      contents === panel.win.webContents &&
+      types.length > 0 &&
+      types.every((type) => type === 'audio')
+    // What the OS thinks is the other half of "the mic does nothing", and
+    // Electron can read it on the two platforms that have a switch for it.
+    if (dev && permission === 'media') {
+      const os = process.platform === 'linux' ? 'unknown' : systemPreferences.getMediaAccessStatus('microphone')
+      console.log(`[lilo] microphone ${granted ? 'granted to' : 'refused for'} ${details.requestingUrl}; the OS says ${os}`)
+    }
+    decide(granted)
+  })
 
   /** Reads a lecture whole and hands it to the loop. */
   function openLecture(path: string): void {
@@ -253,6 +273,7 @@ app.whenReady().then(async () => {
     catalogue.forget()
     tray.refresh()
     session.updateModelAvailable(llm.available)
+    transcriber.reconfigure(settings.voiceConfig())
   }
 
   ipcMain.handle(ASK.settingsGet, () => settings.view())
@@ -279,6 +300,11 @@ app.whenReady().then(async () => {
       })
     })
   )
+  ipcMain.handle(ASK.transcribe, async (_event, wav: unknown): Promise<Heard> => {
+    const audio = asAudio(wav)
+    if (!audio) return { ok: false, detail: 'That recording could not be read.' }
+    return transcriber.hear(audio)
+  })
   ipcMain.handle(ASK.profileRead, () => session.getProfile())
   ipcMain.handle(ASK.profileWrite, (_event, patch: Partial<Profile>) => {
     // A typed aim only counts for as much as the postings say it does.

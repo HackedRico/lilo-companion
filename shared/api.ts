@@ -1,6 +1,7 @@
 import type { ChromeSetup, ChromeStatus } from './leetcode.ts'
 import type { ConnectionResult, SettingsPatch, SettingsView } from './settings.ts'
 import type { Aim, Card, CompanionState, Intent, Layout, Profile, Recap, ThreadItem } from './types.ts'
+import type { Heard } from './voice.ts'
 
 /** Main to renderer. */
 export const OUT = {
@@ -61,7 +62,8 @@ export const ASK = {
   models: 'settings:models',
   resolveAims: 'profile:resolve-aims',
   connectChrome: 'chrome:connect',
-  chromeStatus: 'chrome:status'
+  chromeStatus: 'chrome:status',
+  transcribe: 'voice:transcribe'
 } as const
 
 /** What the preload hands the renderer. The renderer touches nothing else. */
@@ -118,4 +120,6 @@ export interface LiloApi {
   connectChrome(): Promise<ChromeSetup>
   chromeStatus(): Promise<ChromeStatus>
   revealExtension(): void
+  /** One WAV from the microphone, and the words in it or the reason there are none. */
+  transcribe(wav: ArrayBuffer): Promise<Heard>
 }

@@ -16,6 +16,10 @@ export interface SavedSettings {
   modelStrong?: string
   /** Ciphertext when the platform has a keychain, otherwise the key itself. */
   apiKey?: string
+  voiceUrl?: string
+  voiceModel?: string
+  /** Sealed the same way as apiKey. */
+  voiceKey?: string
 }
 
 interface Saved {

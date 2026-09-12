@@ -191,3 +191,57 @@ test('the model list is fetched once per endpoint and filtered by what was typed
   await catalogue.list({ ...REACHABLE, baseUrl: 'https://other/v1' }, '')
   assert.equal(fetched, 2, 'a different address is a different endpoint')
 })
+
+test('speech goes where the model is until a voice address is typed', () => {
+  const store = new SettingsStore(home(), vault, ENV)
+  assert.deepEqual(store.voiceConfig(), {
+    baseUrl: 'https://env.example/v1',
+    apiKey: 'env-key-1111',
+    model: 'whisper-1'
+  })
+  assert.equal(store.view().voiceShared, true)
+
+  store.apply({ voiceUrl: 'http://localhost:8000' })
+  const local = store.voiceConfig()
+  assert.equal(local.baseUrl, 'http://localhost:8000/v1', 'shaped the OpenAI way, like the model address')
+  assert.equal(local.apiKey, '', "a server on this machine is not handed the model's key")
+  assert.equal(store.view().voiceShared, false)
+  assert.equal(store.view().voiceLocal, true)
+
+  store.apply({ voiceUrl: 'https://api.groq.com/openai/v1' })
+  const hosted = store.voiceConfig()
+  assert.equal(hosted.apiKey, 'env-key-1111', "a hosted address with no key of its own borrows the model's")
+  assert.equal(hosted.model, 'whisper-large-v3-turbo')
+  store.apply({ voiceKey: 'gsk-2222' })
+  assert.equal(store.voiceConfig().apiKey, 'gsk-2222')
+  assert.deepEqual(store.view().voiceKey, { set: true, hint: '…2222', fromEnv: false })
+
+  store.apply({ voiceModel: 'whisper-large-v3' })
+  assert.equal(store.voiceConfig().model, 'whisper-large-v3')
+})
+
+test('the voice address, key and model fall through to .env like everything else', () => {
+  const local = new SettingsStore(
+    home(),
+    vault,
+    { ...ENV, VOICE_BASE_URL: 'http://localhost:8000', VOICE_MODEL: 'Systran/faster-whisper-small.en' } as NodeJS.ProcessEnv
+  )
+  assert.deepEqual(local.voiceConfig(), {
+    baseUrl: 'http://localhost:8000/v1',
+    apiKey: '',
+    model: 'Systran/faster-whisper-small.en'
+  })
+  const keyed = new SettingsStore(
+    home(),
+    vault,
+    { ...ENV, VOICE_BASE_URL: 'https://voice.example', VOICE_API_KEY: 'vk-3333' } as NodeJS.ProcessEnv
+  )
+  assert.equal(keyed.voiceConfig().apiKey, 'vk-3333')
+  assert.equal(keyed.view().voiceKey.fromEnv, true)
+})
+
+test('with no model either, speech has nowhere to go', () => {
+  const store = new SettingsStore(home(), vault, NOTHING)
+  assert.equal(store.voiceConfig().baseUrl, '')
+  assert.equal(store.voiceConfig().apiKey, '')
+})

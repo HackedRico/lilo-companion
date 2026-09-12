@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { asPoint, asText } from './guards.ts'
+import { asAudio, asPoint, asText } from './guards.ts'
 
 test('a real point comes through', () => {
   assert.deepEqual(asPoint({ x: 12, y: -4 }), { x: 12, y: -4 })
@@ -30,4 +30,13 @@ test('text is text, and never unbounded', () => {
   assert.equal(asText(undefined), '')
   assert.equal(asText({ toString: () => 'sneaky' }), '')
   assert.equal(asText('x'.repeat(100), 10).length, 10)
+})
+
+test('audio is bytes of a sane size, in whichever container the bridge used', () => {
+  assert.equal(asAudio(new ArrayBuffer(8))?.byteLength, 8)
+  assert.equal(asAudio(new Uint8Array(8))?.byteLength, 8)
+  assert.equal(asAudio(Buffer.from('abc'))?.byteLength, 3)
+  for (const bad of [undefined, null, 'wav', 42, {}, [], new ArrayBuffer(0), new ArrayBuffer(9)]) {
+    assert.equal(asAudio(bad, 8), null)
+  }
 })

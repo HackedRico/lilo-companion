@@ -383,6 +383,51 @@ function ModelTab({
           </span>
         )}
       </div>
+
+      <Group
+        title="Voice"
+        note="What you say into the mic goes here to become words. Left blank it goes to the model address above, which works on OpenAI and Groq. A whisper server on this machine keeps it local."
+      >
+        <div className="fields">
+          <Field
+            wide
+            label="Voice endpoint URL"
+            badge={settings.voiceShared ? 'Same as the model' : undefined}
+            hint={
+              settings.voiceLocal
+                ? 'On this machine, so no key is wanted.'
+                : 'speaches or whisper.cpp on this machine, or any address that answers /v1/audio/transcriptions.'
+            }
+          >
+            <TextInput
+              key={settings.voiceUrl}
+              mono
+              value={settings.voiceUrl}
+              placeholder="http://localhost:8000"
+              onCommit={(voiceUrl) => change({ voiceUrl })}
+            />
+          </Field>
+          {!settings.voiceShared && (
+            <Field wide label="Voice API key" hint="Left blank, the model's key is sent.">
+              <KeyRow
+                state={settings.voiceKey}
+                envName="VOICE_API_KEY"
+                absent={settings.voiceLocal ? 'Not needed' : 'Not set'}
+                onSet={(voiceKey) => change({ voiceKey })}
+              />
+            </Field>
+          )}
+          <Field label="Voice model" hint="whisper-1 on OpenAI, whisper-large-v3-turbo on Groq, or whatever your server loaded.">
+            <TextInput
+              key={settings.voiceModel}
+              mono
+              value={settings.voiceModel}
+              placeholder="whisper-1"
+              onCommit={(voiceModel) => change({ voiceModel })}
+            />
+          </Field>
+        </div>
+      </Group>
     </>
   )
 }
