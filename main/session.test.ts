@@ -20,12 +20,13 @@ import { Session } from './session.ts'
  * replies. Every prompt it is given is kept for inspection.
  */
 class ScriptedLlm implements LlmLike {
-  readonly available = true
+  available = true
   readonly asks: Ask[] = []
   /** How long a call sits in flight, so overlapping work can be tested. */
   delayMs = 0
 
   async json<T>(schema: ZodType<T>, ask: Ask): Promise<T> {
+    if (!this.available) throw new Error('no model configured')
     this.asks.push(ask)
     if (this.delayMs > 0) await new Promise((done) => setTimeout(done, this.delayMs))
     return schema.parse(this.reply(schema)) as T
@@ -206,4 +207,29 @@ test('a problem in view takes the composer, and what is typed reaches the coach'
 
   await session.observe({ kind: 'closed', at: Date.now() })
   assert.equal(session.state.composer.mode, 'chat')
+})
+
+test('startOnboarding asks its greeting once and does not repeat if re-triggered', async () => {
+  const llm = new ScriptedLlm()
+  const { session, thread } = harness(llm, ikb)
+  session.state.onboarded = false
+  await session.startOnboarding()
+  assert.equal(thread.length, 1)
+  assert.match(thread[0]!.text, /Before we start/)
+
+  // Re-triggering does not repeat the question
+  await session.startOnboarding()
+  assert.equal(thread.length, 1)
+})
+
+test('onboarding turn informs user if model is not configured', async () => {
+  const llm = new ScriptedLlm()
+  llm.available = false
+  const { session, thread } = harness(llm, ikb)
+  session.state.onboarded = false
+  await session.startOnboarding()
+  await session.typed('Computer science')
+  await session.typed('Web development')
+  assert.match(thread.at(-1)!.text, /no model is configured/i)
+  assert.equal(session.state.onboarded, true)
 })

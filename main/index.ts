@@ -233,6 +233,7 @@ app.whenReady().then(async () => {
     llm.reconfigure(settings.llmConfig())
     catalogue.forget()
     tray.refresh()
+    session.updateModelAvailable(llm.available)
   }
 
   ipcMain.handle(ASK.settingsGet, () => settings.view())

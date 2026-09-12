@@ -73,7 +73,8 @@ export class Session {
     composing: false,
     watching: [],
     composer: { mode: 'chat', hint: 'Ask me anything' },
-    onboarded: false
+    onboarded: false,
+    modelConfigured: false
   }
 
   private readonly deps: SessionDeps
@@ -93,6 +94,7 @@ export class Session {
     this.pace = deps.pace ?? { word: WORD_MS, turn: TURN_PAUSE }
     this.profile = deps.loadProfile()
     this.state.onboarded = this.profile.major.length > 0 || this.profile.targetRoles.length > 0
+    this.state.modelConfigured = deps.llm.available
     this.leetcode = new LeetCodePractice({
       llm: deps.llm,
       tier: () => this.profile.tier,
@@ -122,6 +124,10 @@ export class Session {
   /** What the page reported, or what the student asked of the practice. */
   observe(event: WorkEvent): Promise<void> {
     return this.leetcode.observe(event)
+  }
+
+  updateModelAvailable(available: boolean): void {
+    this.patch({ modelConfigured: available })
   }
 
   // Speaking -------------------------------------------------------------
@@ -191,7 +197,7 @@ export class Session {
 
   /** Two questions, then read the answers back for them to confirm. */
   async startOnboarding(): Promise<void> {
-    if (this.state.onboarded) return
+    if (this.state.onboarded || this.state.composer.mode === 'onboarding' || this.onboardingTurns.length > 0) return
     this.patch({
       composer: { mode: 'onboarding', hint: 'Tell me in your own words' }
     })
@@ -220,7 +226,13 @@ export class Session {
       ])
     } catch {
       // Not knowing them is survivable. Getting stuck on the question is not.
-      await this.say('I did not catch all of that, but we can get going anyway.')
+      if (!this.deps.llm.available) {
+        await this.say(
+          'I could not note your goals because no model is configured. You can set one in Settings, but we can get going anyway.'
+        )
+      } else {
+        await this.say('I did not catch all of that, but we can get going anyway.')
+      }
       this.finishOnboarding()
     } finally {
       this.patch({ orb: 'idle' })

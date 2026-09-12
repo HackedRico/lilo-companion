@@ -114,7 +114,7 @@ export class LeetCodePractice {
    * says a rung is earned, and then only one rung above the last.
    */
   async tick(now = this.now): Promise<void> {
-    if (this.busy) return
+    if (this.busy || !this.deps.llm.available) return
     const rung = nextRung(TIER_CEILING[this.deps.tier()].volunteer, this.last, this.work, now)
     if (rung === null) return
     this.busy = true
@@ -147,8 +147,13 @@ export class LeetCodePractice {
       else if (result.kind === 'withheld') await voice.say(result.say)
       else await voice.say('I have nothing specific enough to say about that yet.')
       this.offer()
-    } catch {
-      await voice.say('I could not get a thought together just then.')
+    } catch (error) {
+      if (!this.deps.llm.available) {
+        await voice.say('I cannot coach you until a model is configured. Open Settings to set your model.')
+      } else {
+        const reason = error instanceof Error ? error.message : String(error)
+        await voice.say(`I could not get a thought together just then. ${reason.slice(0, 120)}`)
+      }
     } finally {
       this.busy = false
       voice.orb('idle')

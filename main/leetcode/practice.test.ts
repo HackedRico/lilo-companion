@@ -10,11 +10,12 @@ import { LeetCodePractice } from './practice.ts'
 
 /** Answers the hint schema from a queue, and keeps every prompt it was sent. */
 class ScriptedCoach implements LlmLike {
-  readonly available = true
+  available = true
   readonly asks: Ask[] = []
   queue: { rung: number; say: string; lines: number[]; names: string[] }[] = []
 
   async json<T>(schema: ZodType<T>, ask: Ask): Promise<T> {
+    if (!this.available) throw new Error('no model configured')
     this.asks.push(ask)
     const next = this.queue.shift()
     if (!next) throw new Error('nothing scripted')
@@ -166,4 +167,12 @@ test('every event is written down, the ceiling included', async () => {
   await h.practice.observe({ kind: 'ceiling', at: 5, tier: 'tutor' })
   assert.deepEqual(h.recorded.map((e) => e.kind), ['opened', 'attention', 'changed', 'ceiling'])
   assert.equal(h.said.at(-1)!.text, 'On Tutor now.')
+})
+
+test('asking for a hint informs the user if model is not configured', async () => {
+  const h = harness('coach')
+  await h.start()
+  h.llm.available = false
+  await h.practice.observe({ kind: 'asked', at: 10, text: 'Give me a hint' })
+  assert.match(h.said.at(-1)!.text, /cannot coach you until a model is configured/i)
 })
