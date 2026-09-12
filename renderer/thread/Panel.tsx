@@ -133,7 +133,9 @@ export function Panel({
  * grows, and a local measurement would feed the gesture back into itself.
  */
 function Handle({ corner, rect }: { corner: Placement; rect: Rect }): ReactElement {
+  const [active, setActive] = useState(false)
   const grab = (event: ReactPointerEvent): void => {
+    setActive(true)
     const started = { width: rect.width, height: rect.height }
     const outward = { x: corner.side === 'right' ? 1 : -1, y: corner.edge === 'down' ? 1 : -1 }
     let from = { x: 0, y: 0 }
@@ -148,7 +150,10 @@ function Handle({ corner, rect }: { corner: Placement; rect: Rect }): ReactEleme
           width: Math.max(PANEL_MIN.width, started.width + (at.x - from.x) * outward.x),
           height: Math.max(PANEL_MIN.height, started.height + (at.y - from.y) * outward.y)
         }),
-      onEnd: () => api.resizeEnd()
+      onEnd: () => {
+        setActive(false)
+        api.resizeEnd()
+      }
     })
   }
 
@@ -157,10 +162,18 @@ function Handle({ corner, rect }: { corner: Placement; rect: Rect }): ReactEleme
       className="handle"
       data-side={corner.side}
       data-edge={corner.edge}
+      data-active={active ? 'true' : undefined}
       role="separator"
-      title="Drag to resize"
+      aria-label="Drag corner to resize panel"
+      title="Drag corner to resize panel"
       onPointerDown={grab}
-    />
+    >
+      <div className="handle-grip" aria-hidden>
+        <span className="grip-line grip-line-1" />
+        <span className="grip-line grip-line-2" />
+        <span className="grip-line grip-line-3" />
+      </div>
+    </div>
   )
 }
 

@@ -334,57 +334,94 @@ button {
   background: var(--well);
 }
 
-/* The panel's free corner. Quiet until the pointer is near it, and always the
-   corner away from the orb, because the orb is what the layout is measured
-   from and the panel grows in the other direction. */
+/* The panel's free corner. Tactile grip ridges in the corner away from the orb,
+   because the orb is what the layout is measured from and the panel grows in the
+   other direction. */
 .handle {
   position: absolute;
-  z-index: 2;
-  display: grid;
-  place-items: center;
-  width: 16px;
-  height: 16px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
   touch-action: none;
 }
 
 .handle[data-side='right'] {
-  right: 0;
+  right: 1px;
 }
 
 .handle[data-side='left'] {
-  left: 0;
+  left: 1px;
 }
 
 .handle[data-edge='down'] {
-  bottom: 0;
+  bottom: 1px;
 }
 
 .handle[data-edge='up'] {
-  top: 0;
+  top: 1px;
 }
 
-.handle::after {
-  content: '';
-  width: 10px;
+.handle-grip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2.5px;
+  pointer-events: none;
+  opacity: 0.5;
+  transition: opacity 140ms var(--ease), transform 140ms var(--ease);
+}
+
+.handle:hover .handle-grip,
+.handle[data-active='true'] .handle-grip {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.grip-line {
+  display: block;
   height: 2px;
   border-radius: 99px;
   background: var(--rule-strong);
-  transition: width 140ms var(--ease), background 140ms var(--ease);
+  transition: background 140ms var(--ease);
 }
 
-.handle:hover::after {
-  width: 14px;
-  background: var(--faint);
+.grip-line-1 {
+  width: 5px;
 }
 
-/* The bar lies across the diagonal the corner actually travels along. */
+.grip-line-2 {
+  width: 9px;
+}
+
+.grip-line-3 {
+  width: 13px;
+}
+
+.handle:hover .grip-line {
+  background: var(--dim);
+}
+
+.handle[data-active='true'] .grip-line {
+  background: var(--accent);
+}
+
+/* When resizing from the bottom, order ridges so the smallest is nearest the corner */
+.handle[data-edge='down'] .handle-grip {
+  flex-direction: column-reverse;
+}
+
+/* The grip ridges lie across the diagonal the corner actually travels along. */
 .handle[data-side='right'][data-edge='down'],
 .handle[data-side='left'][data-edge='up'] {
   cursor: nwse-resize;
 }
 
-.handle[data-side='right'][data-edge='down']::after,
-.handle[data-side='left'][data-edge='up']::after {
+.handle[data-side='right'][data-edge='down'] .handle-grip,
+.handle[data-side='left'][data-edge='up'] .handle-grip {
   rotate: -45deg;
 }
 
@@ -393,8 +430,8 @@ button {
   cursor: nesw-resize;
 }
 
-.handle[data-side='right'][data-edge='up']::after,
-.handle[data-side='left'][data-edge='down']::after {
+.handle[data-side='right'][data-edge='up'] .handle-grip,
+.handle[data-side='left'][data-edge='down'] .handle-grip {
   rotate: 45deg;
 }
 
