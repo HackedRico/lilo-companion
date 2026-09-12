@@ -31,16 +31,30 @@ export function isLocal(baseUrl: string): boolean {
 }
 
 /**
+ * Anthropic's own service speaks its messages API and nothing else. Everything
+ * else that a student would type, a hosted service, a gateway or a server on
+ * this machine, speaks the OpenAI chat API. A gateway in front of Claude on
+ * another host works through the OpenAI-compatible surface every gateway has.
+ */
+export function protocolFor(baseUrl: string): Protocol {
+  try {
+    return /(^|\.)anthropic\.com$/i.test(new URL(baseUrl).hostname) ? 'anthropic' : 'openai'
+  } catch {
+    return 'openai'
+  }
+}
+
+/**
  * Each protocol has its own idea of where the version lives. OpenAI-style
  * addresses carry /v1 and everyone forgets it; the Anthropic SDK adds it
  * itself and doubles up if it is given. One rule per protocol, so whatever was
  * typed comes out the way that endpoint wants it.
  */
-export function normaliseBaseUrl(raw: string, protocol: Protocol): string {
+export function normaliseBaseUrl(raw: string): string {
   const trimmed = raw.trim().replace(/\/+$/, '')
   if (!trimmed) return ''
   const versioned = /\/v\d+$/.test(trimmed)
-  if (protocol === 'anthropic') return versioned ? trimmed.replace(/\/v\d+$/, '') : trimmed
+  if (protocolFor(trimmed) === 'anthropic') return versioned ? trimmed.replace(/\/v\d+$/, '') : trimmed
   return versioned ? trimmed : `${trimmed}/v1`
 }
 

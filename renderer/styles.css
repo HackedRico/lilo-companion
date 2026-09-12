@@ -1070,31 +1070,6 @@ button {
   font-size: 11.5px;
 }
 
-/* A native select in the dress of an input. The chevron is drawn here, since
-   each OS draws its own and neither matches the field. */
-.select {
-  position: relative;
-}
-
-.select > select {
-  appearance: none;
-  padding-right: 30px;
-  cursor: pointer;
-}
-
-.select::after {
-  content: '';
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  width: 6px;
-  height: 6px;
-  border-right: 1.5px solid var(--dim);
-  border-bottom: 1.5px solid var(--dim);
-  transform: translateY(-70%) rotate(45deg);
-  pointer-events: none;
-}
-
 .tag {
   display: inline-flex;
   align-items: center;

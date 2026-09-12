@@ -1,6 +1,6 @@
-import type { ConnectionResult, Protocol, SettingsPatch, SettingsView } from '../shared/settings.ts'
-import { isProtocol, maskKey } from '../shared/settings.ts'
-import { isLocal, normaliseBaseUrl, type LlmConfig, type ProviderFactory } from './llm/service.ts'
+import type { ConnectionResult, SettingsPatch, SettingsView } from '../shared/settings.ts'
+import { maskKey } from '../shared/settings.ts'
+import { isLocal, normaliseBaseUrl, protocolFor, type LlmConfig, type ProviderFactory } from './llm/service.ts'
 import type { SavedSettings } from './store.ts'
 
 /** All this needs of the preferences file, so a test can stand in for it. */
@@ -18,14 +18,12 @@ export interface Keychain {
 type Secret = 'apiKey' | 'deepgramKey'
 
 /**
- * Reads the protocol, the address, the key and the two model names from .env.
- * Nothing is invented for a blank: an unset field stays unset, and the window
- * says so rather than pointing at somebody's service by default.
+ * Reads the address, the key and the two model names from .env. Nothing is
+ * invented for a blank: an unset field stays unset, and the window says so
+ * rather than pointing at somebody's service by default.
  */
-function configFromEnv(env: NodeJS.ProcessEnv): LlmConfig {
-  const named = env['LLM_PROTOCOL']
+function configFromEnv(env: NodeJS.ProcessEnv): Omit<LlmConfig, 'protocol'> {
   return {
-    protocol: isProtocol(named) ? named : 'openai',
     baseUrl: env['LLM_BASE_URL'] ?? '',
     apiKey: env['LLM_API_KEY'] ?? '',
     fast: env['MODEL_FAST'] ?? '',
@@ -86,11 +84,10 @@ export class SettingsStore {
 
   llmConfig(): LlmConfig {
     const env = configFromEnv(this.env)
-    const protocol: Protocol = this.saved.protocol ?? env.protocol
+    const baseUrl = normaliseBaseUrl(this.saved.baseUrl || env.baseUrl)
     return {
-      protocol,
-      // Shaped on every read, so switching protocol carries the address across.
-      baseUrl: normaliseBaseUrl(this.saved.baseUrl || env.baseUrl, protocol),
+      protocol: protocolFor(baseUrl),
+      baseUrl,
       apiKey: this.apiKey,
       fast: this.saved.modelFast || env.fast,
       strong: this.saved.modelStrong || env.strong
@@ -115,8 +112,6 @@ export class SettingsStore {
 
   apply(patch: SettingsPatch): void {
     const next: SavedSettings = { ...this.saved }
-    // A renderer is not trusted to name a protocol this build does not have.
-    if (isProtocol(patch.protocol)) next.protocol = patch.protocol
     if (patch.baseUrl !== undefined) next.baseUrl = patch.baseUrl.trim()
     if (patch.modelFast !== undefined) next.modelFast = patch.modelFast.trim()
     if (patch.modelStrong !== undefined) next.modelStrong = patch.modelStrong.trim()

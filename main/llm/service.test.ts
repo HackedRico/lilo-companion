@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { z } from 'zod'
 import { ProviderError, type Provider, type Turn } from './provider.ts'
-import { LlmError, ModelService, normaliseBaseUrl, type LlmConfig } from './service.ts'
+import { LlmError, ModelService, normaliseBaseUrl, protocolFor, type LlmConfig } from './service.ts'
 
 const CONFIG: LlmConfig = {
   protocol: 'openai',
@@ -158,12 +158,17 @@ test('reconfiguring swaps the provider underneath the same instance', async () =
   assert.equal(await llm.text({ lane: 'fast', system: 's', user: 'u' }), 'two')
 })
 
-test('each protocol gets the address the way its endpoint wants it', () => {
+test('how an endpoint speaks is decided from its address, and the address shaped to match', () => {
+  assert.equal(protocolFor('https://api.anthropic.com'), 'anthropic')
+  assert.equal(protocolFor('https://api.featherless.ai/v1'), 'openai')
+  assert.equal(protocolFor('http://localhost:11434/v1'), 'openai')
+  assert.equal(protocolFor('https://notanthropic.com/v1'), 'openai', 'a host merely ending in the letters is not it')
+  assert.equal(protocolFor('not a url'), 'openai')
   for (const typed of ['http://localhost:11434', 'http://localhost:11434/', 'http://localhost:11434/v1/']) {
-    assert.equal(normaliseBaseUrl(typed, 'openai'), 'http://localhost:11434/v1', `openai from ${typed}`)
+    assert.equal(normaliseBaseUrl(typed), 'http://localhost:11434/v1', `from ${typed}`)
   }
   for (const typed of ['https://api.anthropic.com', 'https://api.anthropic.com/', 'https://api.anthropic.com/v1']) {
-    assert.equal(normaliseBaseUrl(typed, 'anthropic'), 'https://api.anthropic.com', `anthropic from ${typed}`)
+    assert.equal(normaliseBaseUrl(typed), 'https://api.anthropic.com', `from ${typed}`)
   }
-  assert.equal(normaliseBaseUrl('   ', 'openai'), '', 'and blank stays blank')
+  assert.equal(normaliseBaseUrl('   '), '', 'and blank stays blank')
 })

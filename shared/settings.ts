@@ -1,39 +1,16 @@
 /**
- * The wire protocol an endpoint speaks. Never a vendor: a vendor is an address
- * typed into the field, and the protocol is what a provider is chosen by.
+ * How an endpoint speaks. Never chosen: the service layer decides it from the
+ * address, and the window only shows what was decided.
  */
 export type Protocol = 'openai' | 'anthropic'
 
-export interface ProtocolInfo {
-  id: Protocol
-  label: string
-  note: string
-  /** A shape for the address field to show, not a value it fills in. */
-  placeholder: string
-}
-
-export const PROTOCOLS: ProtocolInfo[] = [
-  {
-    id: 'openai',
-    label: 'OpenAI chat completions',
-    note: 'What most services and every local server speak. The address ends in /v1.',
-    placeholder: 'https://host/v1'
-  },
-  {
-    id: 'anthropic',
-    label: 'Anthropic messages',
-    note: 'Claude, spoken to directly.',
-    placeholder: 'https://api.anthropic.com'
-  }
-]
-
-export function isProtocol(value: unknown): value is Protocol {
-  return PROTOCOLS.some((one) => one.id === value)
+export const PROTOCOL_LABEL: Record<Protocol, string> = {
+  openai: 'OpenAI chat API',
+  anthropic: 'Anthropic messages API'
 }
 
 /** What the student can choose. Keys never live in here. */
 export interface Settings {
-  protocol: Protocol
   baseUrl: string
   modelFast: string
   modelStrong: string
@@ -48,6 +25,8 @@ export interface KeyState {
 }
 
 export interface SettingsView extends Settings {
+  /** Decided from the address, so the student can see what will be spoken. */
+  protocol: Protocol
   apiKey: KeyState
   deepgramKey: KeyState
   /** False when the platform has no keychain, so keys sit in plain text. */

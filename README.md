@@ -36,11 +36,11 @@ pick models. Nothing needs to be configured before the app starts.
 companion has already read back to you. That last list is what stops the recap
 offering something as a gap when you have already met it.
 
-**The model** is a protocol, an address, a key and two model names, all yours
-to type. The protocol is how the endpoint speaks, OpenAI chat completions or
-Anthropic messages, and the address is where it is: a hosted service, a
-gateway, or a server on this machine. There is no vendor setting anywhere in
-the code. The model list is read from whatever endpoint you point at, and
+**The model** is an endpoint URL, a key and two model names, all yours to
+type. The URL is wherever the model is: Featherless, OpenRouter, Groq, Ollama,
+LM Studio, your own vLLM, or api.anthropic.com. How it speaks is worked out
+from the address, so there is no vendor setting and no protocol setting
+anywhere in the code. The model list is read from whatever endpoint you point at, and
 "Test it" makes one real call and says what came back.
 
 Keys are held in the OS keychain, Keychain on macOS and DPAPI on Windows, and

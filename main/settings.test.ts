@@ -29,7 +29,6 @@ function home(settings: SavedSettings = {}): SettingsHome {
 }
 
 const ENV = {
-  LLM_PROTOCOL: 'anthropic',
   LLM_API_KEY: 'env-key-1111',
   LLM_BASE_URL: 'https://env.example',
   MODEL_FAST: 'env/fast',
@@ -60,24 +59,15 @@ test('with neither, nothing is configured and nothing is invented', () => {
   assert.deepEqual(config, { protocol: 'openai', baseUrl: '', apiKey: '', fast: '', strong: '' })
 })
 
-test('the protocol comes from .env, can be chosen in the window, and ignores nonsense', () => {
+test('the protocol is decided from the address and shown, never chosen', () => {
   const store = new SettingsStore(home(), vault, ENV)
+  assert.equal(store.view().protocol, 'openai')
+  store.apply({ baseUrl: 'https://api.anthropic.com/v1/' })
   assert.equal(store.llmConfig().protocol, 'anthropic')
-  store.apply({ protocol: 'openai' })
+  assert.equal(store.llmConfig().baseUrl, 'https://api.anthropic.com', 'shaped the way that SDK wants it')
+  store.apply({ baseUrl: 'https://api.featherless.ai' })
   assert.equal(store.llmConfig().protocol, 'openai')
-  store.apply({ protocol: 'carrier-pigeon' as never })
-  assert.equal(store.llmConfig().protocol, 'openai', 'a renderer cannot put the store in an unknown state')
-  assert.equal(new SettingsStore(home(), vault, { LLM_PROTOCOL: 'nope' } as NodeJS.ProcessEnv).llmConfig().protocol, 'openai')
-})
-
-test('the address is shaped for whichever protocol is current, even after a switch', () => {
-  const store = new SettingsStore(home(), vault, NOTHING)
-  store.apply({ protocol: 'openai', baseUrl: 'https://api.example.com/' })
-  assert.equal(store.llmConfig().baseUrl, 'https://api.example.com/v1')
-  store.apply({ protocol: 'anthropic' })
-  assert.equal(store.llmConfig().baseUrl, 'https://api.example.com', 'the same address, as that SDK wants it')
-  store.apply({ protocol: 'openai' })
-  assert.equal(store.llmConfig().baseUrl, 'https://api.example.com/v1')
+  assert.equal(store.llmConfig().baseUrl, 'https://api.featherless.ai/v1')
 })
 
 test('a key is sealed at rest and never comes back through the window', () => {
@@ -145,11 +135,10 @@ test('a model on this machine is usable with no key at all', () => {
 
 test('forgetting clears the window settings and leaves .env alone', () => {
   const store = new SettingsStore(home(), vault, ENV)
-  store.apply({ apiKey: 'sk-mine-6666', modelFast: 'mine/fast', protocol: 'openai' })
+  store.apply({ apiKey: 'sk-mine-6666', modelFast: 'mine/fast' })
   store.forget()
   assert.equal(store.apiKey, 'env-key-1111')
   assert.equal(store.llmConfig().fast, 'env/fast')
-  assert.equal(store.llmConfig().protocol, 'anthropic')
 })
 
 const REACHABLE: LlmConfig = {
@@ -185,6 +174,6 @@ test('the model list is fetched once per endpoint and filtered by what was typed
   assert.deepEqual(await catalogue.list(REACHABLE, ''), ['alpha', 'beta', 'gamma'])
   assert.deepEqual(await catalogue.list(REACHABLE, 'ET'), ['beta'])
   assert.equal(fetched, 1)
-  await catalogue.list({ ...REACHABLE, protocol: 'anthropic' }, '')
-  assert.equal(fetched, 2, 'a different protocol at the same address is a different endpoint')
+  await catalogue.list({ ...REACHABLE, baseUrl: 'https://other/v1' }, '')
+  assert.equal(fetched, 2, 'a different address is a different endpoint')
 })

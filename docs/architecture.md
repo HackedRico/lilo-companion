@@ -87,9 +87,13 @@ process down with it. Points and text pass through `guards.ts` first.
 
 ## Settings
 
-There is no vendor setting. A model is a protocol, an address, a key and two
-model names, and the student types all of them: nothing is filled in, and
-nothing points at anybody's service by default.
+There is no vendor setting and no protocol setting. A model is an address, a
+key and two model names, and the student types all three: nothing is filled
+in, and nothing points at anybody's service by default. How the endpoint
+speaks is decided from the address by `protocolFor`: Anthropic's own host
+gets its messages API, and everything else gets the OpenAI chat API, which is
+what every hosted service, gateway and local server speaks. The window shows
+what was decided beside the address and never asks.
 
 `main/llm/service.ts` is the service layer. It owns what every protocol needs
 alike: one queue, because some endpoints answer concurrency with a 429; a
@@ -101,7 +105,7 @@ meets a class, so a new protocol is a provider file and a line there. The model
 list is read from the endpoint's own listing, and `isLocal` is what decides
 whether to ask for a key. Each protocol shapes the address its own way,
 OpenAI-style with `/v1` and Anthropic without, so the address is re-shaped on
-every read and survives a switch.
+every read.
 
 Keys are sealed with Electron's `safeStorage`, which is the OS keychain. The
 preferences window only ever receives whether a key is set and its last four

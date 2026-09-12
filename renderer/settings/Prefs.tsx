@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState, type ReactElement } from 'react'
 import type { Aim } from '../../shared/types.ts'
 import {
-  PROTOCOLS,
+  PROTOCOL_LABEL,
   type ConnectionResult,
   type SettingsPatch,
   type SettingsView
 } from '../../shared/settings.ts'
 import { ROLE_LABEL, type Profile, type RoleFamily } from '../../shared/types.ts'
 import { api } from '../api.ts'
-import { Action, Field, Group, KeyRow, Select, TextInput } from './fields.tsx'
+import { Action, Field, Group, KeyRow, TextInput } from './fields.tsx'
 import { ModelField } from './ModelField.tsx'
 
 type Tab = 'profile' | 'model'
@@ -280,7 +280,6 @@ function ModelTab({
 }): ReactElement {
   const [tested, setTested] = useState<ConnectionResult | null>(null)
   const [testing, setTesting] = useState(false)
-  const protocol = PROTOCOLS.find((one) => one.id === settings.protocol)
 
   const change = (patch: SettingsPatch): void => {
     setTested(null)
@@ -290,28 +289,30 @@ function ModelTab({
   return (
     <>
       <p className="lede">
-        Any model you can reach: a service, or one running on this machine. Say how it speaks, where it
-        is, and which two models to use.
+        Any model you can reach: a hosted service, or one running on this machine. How the endpoint
+        speaks is worked out from its address.
       </p>
       <div className="fields">
-        <Field label="Speaks" hint={protocol?.note}>
-          <Select
-            value={settings.protocol}
-            options={PROTOCOLS.map((one) => ({ value: one.id, label: one.label }))}
-            onChange={(next) => change({ protocol: next })}
-          />
-        </Field>
-        <Field label="Address" hint={settings.local ? 'On this machine, so no key is wanted.' : undefined}>
-          {/* Keyed on the value, so an address reshaped by a protocol switch shows reshaped. */}
+        <Field
+          wide
+          label="Endpoint URL"
+          badge={settings.baseUrl ? PROTOCOL_LABEL[settings.protocol] : undefined}
+          hint={
+            settings.local
+              ? 'On this machine, so no key is wanted.'
+              : 'Featherless, OpenRouter, Groq, Ollama, LM Studio, vLLM, or api.anthropic.com.'
+          }
+        >
+          {/* Keyed on the value, so an address tidied by main shows tidied. */}
           <TextInput
             key={settings.baseUrl}
             mono
             value={settings.baseUrl}
-            placeholder={protocol?.placeholder}
+            placeholder="https://host/v1"
             onCommit={(baseUrl) => change({ baseUrl })}
           />
         </Field>
-        <Field wide label="Key">
+        <Field wide label="API key">
           <KeyRow
             state={settings.apiKey}
             envName="LLM_API_KEY"
