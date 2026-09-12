@@ -58,16 +58,6 @@ const NOT_A_COMPANY = new Set([
  */
 const NOT_THE_INTERVIEWER = new Set(['in', 'on', 'into', 'inside', 'using', 'via', 'through'])
 
-/**
- * When the interview is, which is what follows a company and not a person:
- * "an interview at Datadog next week" says where, "a phone screen with John
- * tomorrow" says who.
- */
-const WHEN = new Set([
-  'next', 'this', 'last', 'tomorrow', 'today', 'tonight', 'soon', 'later', 'on', 'in', 'at',
-  'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'
-])
-
 /** A name as typed: capitalised, with dots or hyphens only inside it. */
 const NAME = "[A-Z][A-Za-z0-9&]*(?:[.-][A-Za-z0-9&]+)*"
 
@@ -105,20 +95,6 @@ function couldBeACompany(name: string): boolean {
   return name.length > 0 && name.length <= MAX_NAME && !NOT_A_NAME.has(first) && !NOT_A_COMPANY.has(first.toLowerCase())
 }
 
-/**
- * Nothing follows the name but the end of the line or the end of the phrase.
- * A company is the last thing in the phrase that names it, where a person or
- * a place carries on: "Sarah from recruiting", "Berkeley career fair".
- */
-function endsThePhrase(text: string, end: number): boolean {
-  return /^\s*(?:[.,;:!?)]|$)/.test(text.slice(end))
-}
-
-/** The next word says when the interview is, so the word before it was where. */
-function whenFollows(text: string, end: number): boolean {
-  return WHEN.has((/^\s+([A-Za-z]+)/.exec(text.slice(end))?.[1] ?? '').toLowerCase())
-}
-
 export function interviewAsk(text: string, companies: readonly string[]): string | null {
   const words = [...text.matchAll(ASKING)].map((match) => ({ start: match.index ?? 0, end: (match.index ?? 0) + match[0].length }))
   if (words.length === 0) return null
@@ -143,27 +119,20 @@ export function interviewAsk(text: string, companies: readonly string[]): string
   // who is interviewing them.
   const typed = new RegExp(`\\b(at|with|from)\\s+(${NAME_RUN})|(${NAME_RUN})(?:'s)?\\s+(?:${WORDS})\\b`, 'g')
   for (const match of text.matchAll(typed)) {
-    const preposition = (match[1] ?? '').toLowerCase()
     const name = trimmed(match[2] ?? match[3] ?? '')
     if (!couldBeACompany(name)) continue
     const at = text.indexOf(name, match.index ?? 0)
     const end = at + name.length
     if (!beside(at, end)) continue
     if (NOT_THE_INTERVIEWER.has(introducer(text, at))) continue
-    // A name the base does not know says nothing about itself, so the sentence has
-    // to. It stands in front of the word, "Datadog interview"; or it ends the
-    // phrase, "an onsite with Datadog"; or it is where the interview is and when
-    // follows it, "at Datadog next week".
-    // "with John tomorrow" reads exactly like a company would, and one word is
-    // all a person is usually given. Two words is not: "onsite with Two Sigma
-    // next week" is a sentence students write and "with Sarah Chen tomorrow"
-    // is not, so a run of words is allowed where a single one is let go.
-    const runOfWords = name.split(/\s+/).length > 1
-    const theInterviewer =
-      !preposition ||
-      endsThePhrase(text, end) ||
-      (whenFollows(text, end) && (preposition === 'at' || runOfWords))
-    if (theInterviewer) found.push({ at, name })
+    // Whether this really is a company is not settled here. It cannot be: the
+    // base knows thirty of them and none of the ones a student is most likely
+    // to name, so a rule strict enough to refuse "with Sarah from recruiting"
+    // also refused "what is the interview at Google like". The boards settle it
+    // instead, in `interviews` in session.ts: nothing is said about a name the
+    // base does not know until a write-up has come back with that name on it,
+    // and a name nobody wrote about falls through to ordinary chat in silence.
+    found.push({ at, name })
   }
   found.sort((a, b) => a.at - b.at)
   return found[0]?.name ?? null

@@ -92,44 +92,54 @@ test('a company with more than one word in its name arrives whole', () => {
   for (const [line, company] of asks) assert.equal(interviewAsk(line, KNOWN), company, line)
 })
 
-test('a person, a role or a word from the sentence is not a company to read about', () => {
+test('a role, a practice site or a word from the sentence is never a company', () => {
+  // These cannot be settled by asking a board, because no board would answer
+  // for them in a way worth showing, so they are settled here.
   const notAsks = [
-    'interview with Sarah from recruiting',
-    'phone screen with John tomorrow',
-    'interview with HR next week',
     'I have an interview for Software Engineer roles',
     'I have an interview for Backend next week',
     'what do I need for Leetcode interviews',
     'any advice for This interview',
     'prepping for OA then interview',
-    'is the interview at Berkeley career fair worth it',
-    'I keep my interview prep in Notion'
+    'interview with HR next week',
+    'I keep my interview prep in Notion',
+    'is my loop wrong for Two Sum',
+    'how do I prepare for interviews'
   ]
   for (const line of notAsks) assert.equal(interviewAsk(line, KNOWN), null, line)
 })
 
-test('a name the base knows is read wherever it sits, and one it does not has to sit where a company sits', () => {
-  // The base knowing the name is the evidence; without it the sentence has to be.
-  assert.equal(interviewAsk('I have an onsite with Coinbase next Tuesday', KNOWN), 'Coinbase')
-  assert.equal(interviewAsk('I have an onsite with Datadog next Tuesday', KNOWN), null)
-  // You interview at a company and with a person, so when follows only the first.
+test('a name that could be a person is handed on, for the boards to settle', () => {
+  // Nothing in the sentence separates "with Sarah from recruiting" from "with
+  // Two Sigma next week", and a rule strict enough to refuse the first refused
+  // "what is the interview at Google like" as well. So the name goes through
+  // and `interviews` in session.ts asks the boards about it: a write-up titled
+  // for the name is the evidence, and nothing said where there is none.
+  assert.equal(interviewAsk('interview with Sarah from recruiting', KNOWN), 'Sarah')
+  assert.equal(interviewAsk('phone screen with John tomorrow', KNOWN), 'John')
+  assert.equal(interviewAsk('is the interview at Berkeley career fair worth it', KNOWN), 'Berkeley')
+})
+
+test('the phrasings a student actually uses all reach a company', () => {
+  // Every one of these answered null until the sentence stopped being asked to
+  // prove the name, and none of the companies in them is in the evidence base.
+  assert.equal(interviewAsk('what is the interview at Google like?', KNOWN), 'Google')
+  assert.equal(interviewAsk("what's the interview process at Google like", KNOWN), 'Google')
+  assert.equal(interviewAsk('what is the onsite at Amazon like', KNOWN), 'Amazon')
+  assert.equal(interviewAsk('is the interview at Microsoft hard', KNOWN), 'Microsoft')
+  assert.equal(interviewAsk('I have a phone screen with Meta on Friday', KNOWN), 'Meta')
   assert.equal(interviewAsk('I have an interview at Datadog next week', KNOWN), 'Datadog')
-  assert.equal(interviewAsk('I have an interview at Datadog on Friday', KNOWN), 'Datadog')
-  assert.equal(interviewAsk('I have an interview at Datadog, any tips?', KNOWN), 'Datadog')
+})
+
+test('a company with more than one word in its name still arrives whole', () => {
+  assert.equal(interviewAsk('I have an onsite with Two Sigma next week. What should I expect?', KNOWN), 'Two Sigma')
+  assert.equal(interviewAsk('interview with Jane Street next Tuesday', KNOWN), 'Jane Street')
+  assert.equal(interviewAsk('I have an interview at Goldman Sachs', KNOWN), 'Goldman Sachs')
+  assert.equal(interviewAsk('I have an onsite with Bank of America', KNOWN), 'Bank of America')
 })
 
 test('a run of capitalised words is a sentence, not a name a cache can hold', () => {
   const long = `I have an interview at ${'Ableton Bandcamp Cloudera Datadog Elastic '.repeat(4).trim()}`
   assert.equal(interviewAsk(long, KNOWN), null, 'nothing that long is a company')
-  assert.equal(interviewAsk('I have an interview at Datadog I think', KNOWN), null, 'the run stops before the sentence')
-})
-
-test('a company of two words is the interviewer where one word is a person', () => {
-  // "onsite with Two Sigma next week" is a sentence a student writes. "phone
-  // screen with John tomorrow" is the one it has to stay distinct from, and a
-  // person is usually given one name where a company is given its own.
-  assert.equal(interviewAsk('I have an onsite with Two Sigma next week. What should I expect?', KNOWN), 'Two Sigma')
-  assert.equal(interviewAsk('interview with Jane Street next Tuesday', KNOWN), 'Jane Street')
-  assert.equal(interviewAsk('phone screen with John tomorrow', KNOWN), null)
-  assert.equal(interviewAsk('interview with Sarah from recruiting', KNOWN), null)
+  assert.equal(interviewAsk('I have an interview at Datadog I think', KNOWN), 'Datadog', 'the run stops before the sentence')
 })
