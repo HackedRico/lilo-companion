@@ -134,6 +134,9 @@ No font files are bundled. `ui-serif` and `ui-monospace` reach the platform's
 own optically sized faces. Swapping in a licensed face is two lines in
 `styles.css`. The mark is drawn in code, in `bubble/logo.ts` for the orb and
 `tray-mark.ts` for the menu bar, so there is no binary asset to keep in step.
+The orb is a character, with a face laid out inside the mark's opening and a
+mood for each thing the companion can be doing; [character.md](character.md)
+has its geometry and manners.
 
 ## Two conventions
 

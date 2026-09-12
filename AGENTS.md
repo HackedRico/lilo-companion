@@ -23,6 +23,8 @@ Read [docs/architecture.md](docs/architecture.md) before changing the loop in
 is shaped the way it is. Read [docs/platforms.md](docs/platforms.md) before
 touching the window, the tray, keys, audio or packaging: it says what differs
 between macOS and Windows and which of those differences are load-bearing.
+Read [docs/character.md](docs/character.md) before changing the orb, its
+moods or the tray mark: it holds the geometry and the numbers.
 
 ## Two rules the code keeps
 
