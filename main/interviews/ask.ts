@@ -153,10 +153,16 @@ export function interviewAsk(text: string, companies: readonly string[]): string
     // A name the base does not know says nothing about itself, so the sentence has
     // to. It stands in front of the word, "Datadog interview"; or it ends the
     // phrase, "an onsite with Datadog"; or it is where the interview is and when
-    // follows it, "at Datadog next week". Nothing else: "with John tomorrow" reads
-    // exactly like a company would there, so it is let go rather than guessed at.
+    // follows it, "at Datadog next week".
+    // "with John tomorrow" reads exactly like a company would, and one word is
+    // all a person is usually given. Two words is not: "onsite with Two Sigma
+    // next week" is a sentence students write and "with Sarah Chen tomorrow"
+    // is not, so a run of words is allowed where a single one is let go.
+    const runOfWords = name.split(/\s+/).length > 1
     const theInterviewer =
-      !preposition || endsThePhrase(text, end) || (preposition === 'at' && whenFollows(text, end))
+      !preposition ||
+      endsThePhrase(text, end) ||
+      (whenFollows(text, end) && (preposition === 'at' || runOfWords))
     if (theInterviewer) found.push({ at, name })
   }
   found.sort((a, b) => a.at - b.at)

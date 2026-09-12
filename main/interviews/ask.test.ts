@@ -123,3 +123,13 @@ test('a run of capitalised words is a sentence, not a name a cache can hold', ()
   assert.equal(interviewAsk(long, KNOWN), null, 'nothing that long is a company')
   assert.equal(interviewAsk('I have an interview at Datadog I think', KNOWN), null, 'the run stops before the sentence')
 })
+
+test('a company of two words is the interviewer where one word is a person', () => {
+  // "onsite with Two Sigma next week" is a sentence a student writes. "phone
+  // screen with John tomorrow" is the one it has to stay distinct from, and a
+  // person is usually given one name where a company is given its own.
+  assert.equal(interviewAsk('I have an onsite with Two Sigma next week. What should I expect?', KNOWN), 'Two Sigma')
+  assert.equal(interviewAsk('interview with Jane Street next Tuesday', KNOWN), 'Jane Street')
+  assert.equal(interviewAsk('phone screen with John tomorrow', KNOWN), null)
+  assert.equal(interviewAsk('interview with Sarah from recruiting', KNOWN), null)
+})
