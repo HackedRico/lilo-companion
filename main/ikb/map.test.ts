@@ -202,3 +202,33 @@ test('an ordinary sentence about a process is not a lecture on Linux', () => {
   )
   assert.ok(!mapped.some((hit) => hit.term === 'Linux'))
 })
+
+test('the topic a course is named after reaches the postings, not just its sub-topics', () => {
+  // There was a rule for database normalization and none for databases, so a
+  // lecture called Databases was told postings barely mention it, with SQL in
+  // 199 of them.
+  const topics: [string, string, string][] = [
+    ['Databases', 'How data is stored, queried and kept consistent across tables.', 'SQL'],
+    ['Testing', 'Writing tests that assert one behaviour each.', 'test automation'],
+    ['APIs', 'An interface one service offers another over the network.', 'REST'],
+    ['Software architecture', 'How a system is split into parts that talk to each other.', 'system design'],
+    ['Cloud computing', 'Running software on machines you rent, on demand.', 'AWS'],
+    ['Web development', 'Building an application that runs in a browser.', 'React'],
+    ['Algorithms', 'Step by step procedures and how long they take.', 'performance optimization']
+  ]
+  for (const [name, summary, expected] of topics) {
+    const mapped = mapConceptTerms(ikb, concept(name, summary))
+    assert.ok(mapped.some((hit) => hit.term === expected), `${name} should reach ${expected}`)
+  }
+})
+
+test('an ordinary word that happens to be a term is still an ordinary word', () => {
+  const notLectures: [string, string][] = [
+    ['String joining', 'The loop joins the strings together with a separator between them.'],
+    ['Cloud formations', 'How a cumulus cloud forms when warm air rises and the vapour condenses.'],
+    ['Design process', 'How a team goes from a requirements document to a shipped feature.']
+  ]
+  for (const [name, summary] of notLectures) {
+    assert.deepEqual(mapConceptTerms(ikb, concept(name, summary)), [], name)
+  }
+})

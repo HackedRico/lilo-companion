@@ -140,7 +140,12 @@
       "http api",
       "http methods",
       "status codes",
-      "resources and routes"
+      "resources and routes",
+      "api",
+      "apis",
+      "web service",
+      "web services",
+      "endpoints"
     ],
     "terms": [
       "REST",
@@ -286,6 +291,129 @@
     "terms": [
       "security best practices",
       "debugging",
+      "code review"
+    ]
+  },
+  {
+    "concept": "databases",
+    "aliases": [
+      "database",
+      "relational databases",
+      "relational database",
+      "database design",
+      "schema design",
+      "primary key",
+      "foreign key",
+      "sql queries",
+      "query language",
+      "sql joins",
+      "inner join",
+      "outer join"
+    ],
+    "terms": [
+      "SQL",
+      "PostgreSQL",
+      "NoSQL"
+    ]
+  },
+  {
+    "concept": "testing",
+    "aliases": [
+      "software testing",
+      "test suite",
+      "test coverage",
+      "regression testing",
+      "integration tests",
+      "automated tests",
+      "writing tests"
+    ],
+    "terms": [
+      "test automation",
+      "unit testing",
+      "CI/CD"
+    ]
+  },
+  {
+    "concept": "web development",
+    "aliases": [
+      "web applications",
+      "web apps",
+      "frontend",
+      "front end",
+      "client side",
+      "single page application",
+      "html and css"
+    ],
+    "terms": [
+      "React",
+      "TypeScript",
+      "JavaScript",
+      "REST"
+    ]
+  },
+  {
+    "concept": "software architecture",
+    "aliases": [
+      "architecture",
+      "system architecture",
+      "service boundaries",
+      "layered architecture",
+      "monolith",
+      "separation of concerns"
+    ],
+    "terms": [
+      "system design",
+      "microservices",
+      "scalability"
+    ]
+  },
+  {
+    "concept": "cloud computing",
+    "aliases": [
+      "virtual machines",
+      "serverless",
+      "infrastructure as a service",
+      "deploying to the cloud",
+      "cloud storage",
+      "cloud provider",
+      "public cloud",
+      "cloud services"
+    ],
+    "terms": [
+      "AWS",
+      "cloud infrastructure",
+      "Kubernetes"
+    ]
+  },
+  {
+    "concept": "algorithms",
+    "aliases": [
+      "algorithm",
+      "sorting algorithms",
+      "searching",
+      "divide and conquer",
+      "greedy algorithms",
+      "algorithm design"
+    ],
+    "terms": [
+      "performance optimization",
+      "scalability",
+      "system design"
+    ]
+  },
+  {
+    "concept": "object oriented programming",
+    "aliases": [
+      "oop",
+      "classes and objects",
+      "inheritance",
+      "polymorphism",
+      "encapsulation",
+      "abstraction"
+    ],
+    "terms": [
+      "system design",
+      "refactoring",
       "code review"
     ]
   }
