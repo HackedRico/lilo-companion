@@ -12,7 +12,8 @@ export const EMPTY_PROFILE: Profile = {
   interests: [],
   roleAffinity: {},
   heardTerms: [],
-  tier: 'coach'
+  tier: 'coach',
+  onboarded: false
 }
 
 /** A "sounds like me" tap is worth one vote toward that kind of work. */

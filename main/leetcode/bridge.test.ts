@@ -16,7 +16,7 @@ test('the bridge path is a pipe on windows and a short socket file elsewhere', (
   assert.notEqual(bridgePath('/a', 'darwin'), bridgePath('/b', 'darwin'))
 })
 
-test('events come in validated, marks go out, and junk is ignored', async (t) => {
+test('a fresh line is asked to say again, events come in validated, marks go out, and junk is ignored', async (t) => {
   const seen: WorkEvent[] = []
   const path = join(tmpdir(), `lilo-test-${process.pid}.sock`)
   const bridge = new Bridge(path, (event) => seen.push(event))
@@ -37,6 +37,10 @@ test('events come in validated, marks go out, and junk is ignored', async (t) =>
     }
     const received: string[] = []
     client.on('data', (chunk: Buffer) => received.push(chunk.toString('utf8')))
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    // The app can start after the tab did, and a page that is not changing
+    // reports nothing, so the line opens by asking for what is already there.
+    assert.equal(received.join(''), '{"resync":true}\n')
 
     client.write('not json\n{"event":{"kind":"nope","at":1}}\n')
     client.write('{"event":{"kind":"pending","at":5}}\n{"event":{"kind":"atten')
@@ -50,7 +54,7 @@ test('events come in validated, marks go out, and junk is ignored', async (t) =>
 
     bridge.send({ mark: { lines: [4] } })
     await new Promise((resolve) => setTimeout(resolve, 50))
-    assert.equal(received.join(''), '{"mark":{"lines":[4]}}\n')
+    assert.equal(received.join(''), '{"resync":true}\n{"mark":{"lines":[4]}}\n')
     client.destroy()
     await new Promise((resolve) => setTimeout(resolve, 50))
     assert.ok(!bridge.connected)

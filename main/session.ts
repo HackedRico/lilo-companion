@@ -26,7 +26,8 @@ import type { Mark, WorkEvent } from '../shared/leetcode.ts'
 import { ASKS, BETTER_QUESTION, LeetCodePractice, TRACE_QUESTION } from './leetcode/practice.ts'
 import { interviewAsk } from './interviews/ask.ts'
 import { briefInterview, firstSentences } from './interviews/brief.ts'
-import type { Account } from './interviews/sources.ts'
+import { mentions, type Account } from './interviews/sources.ts'
+import { reasonFor } from './llm/provider.ts'
 
 /** How fast the companion talks, and how long it pauses between turns. */
 const WORD_MS = 26
@@ -72,6 +73,23 @@ function nextId(): string {
 }
 
 /** Keeps the spaces, so a streamed line reads the way it will finally look. */
+/**
+ * Long enough, and on enough lines, that nobody typed it as a question. A
+ * pasted lecture is read as one rather than answered as one.
+ */
+const PASTED_LECTURE = { chars: 400, lines: 4 }
+
+function readsAsALecture(text: string): boolean {
+  const lines = text.split('\n').filter((line) => line.trim()).length
+  return text.length >= PASTED_LECTURE.chars && lines >= PASTED_LECTURE.lines
+}
+
+/** Names said the way a person says them: "A, B and C". */
+export function listed(names: string[]): string {
+  if (names.length <= 1) return names[0] ?? ''
+  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
+}
+
 function words(text: string): string[] {
   return text.split(/(\s+)/).filter(Boolean)
 }
@@ -96,7 +114,6 @@ export class Session {
   private readonly cards = new Map<string, Card>()
   private readonly seen: { concept: Concept; terms: string[] }[] = []
   private profile: Profile = EMPTY_PROFILE
-  private busy = false
   private readonly onboardingTurns: { role: string; text: string }[] = []
 
   private readonly pace: { word: number; turn: number }
@@ -111,7 +128,8 @@ export class Session {
     this.deps = deps
     this.pace = deps.pace ?? { word: WORD_MS, turn: TURN_PAUSE }
     this.profile = deps.loadProfile()
-    this.state.onboarded = this.profile.major.length > 0 || this.profile.targetRoles.length > 0
+    this.state.onboarded =
+      this.profile.onboarded === true || this.profile.major.length > 0 || this.profile.targetRoles.length > 0
     this.state.modelConfigured = deps.llm.available
     this.leetcode = new LeetCodePractice({
       llm: deps.llm,
@@ -227,11 +245,10 @@ export class Session {
   }
 
   private async apologise(what: string, error: unknown): Promise<void> {
-    const reason = error instanceof Error ? error.message : String(error)
     await this.say(
       this.deps.llm.available
-        ? `I could not ${what} just then. ${reason.slice(0, 120)}`
-        : `I cannot ${what} until a model is configured. The job postings still work without one.`
+        ? `I could not ${what} just then. ${reasonFor(error)}`
+        : `I cannot ${what} until a model is configured. Open Settings and point me at one.`
     )
   }
 
@@ -283,6 +300,9 @@ export class Session {
 
   private finishOnboarding(): void {
     this.onboardingTurns.length = 0
+    // Saved even when the model could not read the answers, so a student with
+    // no model configured is not asked the same two questions at every launch.
+    this.profile = { ...this.profile, onboarded: true }
     this.patch({
       onboarded: true,
       composer: { mode: 'chat', hint: 'Ask me anything' }
@@ -299,14 +319,36 @@ export class Session {
 
   /** A lecture arrives whole: uploaded from the tray, or pasted as notes. */
   async useNotes(text: string): Promise<void> {
-    this.transcript.append(text)
+    // Scanned slides and an empty file both read as nothing. Saying so beats
+    // answering from the lecture before it, which is what happens if this falls
+    // through to a transcript that is not empty.
+    if (!text.trim()) {
+      await this.say('There were no words in that one. If it is scanned slides or an image, I cannot read it yet.')
+      return
+    }
     // The tap waits for the line where the lecturer says it, not for the words
     // scattered across a whole lecture.
     for (const line of text.split('\n')) {
       const hit = firstMatch(line, this.state.watching)
-      if (hit) return this.lockIn(hit)
+      if (hit) {
+        this.transcript.take(text)
+        return this.lockIn(hit)
+      }
     }
-    await this.why()
+    // Everything here happens in its turn. Saying the line outside the queue
+    // dropped it into the middle of an answer that was still streaming, and
+    // taking the transcript outside it meant two lectures dropped in quickly
+    // were both read as the second one, because the first read had not started
+    // by the time the second replaced what it was going to read.
+    return this.hold(async () => {
+      this.transcript.take(text)
+      // Reading a lecture is several seconds of model time, and an upload that
+      // answers with nothing but dots reads as an upload that did not land. The
+      // interview path says the same kind of thing for the same reason.
+      await this.say('Reading it now.')
+      this.patch({ orb: 'thinking', composing: true })
+      await this.read()
+    })
   }
 
   private async lockIn(concept: string): Promise<void> {
@@ -328,12 +370,21 @@ export class Session {
     return profileRoles(this.profile)
   }
 
-  /** The student asked, so extract from the window and say what it is worth. */
+  /**
+   * The student asked, so extract from the lecture and say what it is worth.
+   * Queued rather than dropped: a second upload, or a second press of the
+   * chip, waits for the first to finish and is then answered.
+   */
   async why(): Promise<void> {
-    if (this.busy) return
-    return this.hold(async () => {
-      this.busy = true
-      try {
+    return this.hold(() => this.read())
+  }
+
+  /**
+   * The body of it, without the queue. `useNotes` is already in its turn by
+   * the time it gets here, and a turn that waits for its own turn never comes.
+   */
+  private async read(): Promise<void> {
+    try {
       this.patch({ orb: 'thinking', composing: true })
       if (this.transcript.empty) {
         await this.say('Nothing has come through yet. Upload a lecture or paste your notes and I will read it back.')
@@ -341,17 +392,15 @@ export class Session {
       }
       const [concept] = await extractConcepts(this.deps.llm, this.transcript.window())
       if (!concept) {
-        await this.say('Nothing much is being taught in that. Try another part of the lecture.')
+        await this.say('There is not enough in that for me to work with. Send me more of it and I will read it back.')
         return
       }
-        await this.showCard(concept)
-      } catch (error) {
-        await this.apologise('read that back', error)
-      } finally {
-        this.busy = false
-        this.patch({ orb: 'idle', composing: false })
-      }
-    })
+      await this.showCard(concept)
+    } catch (error) {
+      await this.apologise('read that back', error)
+    } finally {
+      this.patch({ orb: 'idle', composing: false })
+    }
   }
 
   private async showCard(concept: Concept): Promise<void> {
@@ -378,7 +427,7 @@ export class Session {
     const top = card.terms[0]!
     await this.say(card.oneLiner)
     await this.say(
-      `They do not call it ${concept.name} though. On a posting it reads as ${top.term}, and ${top.hits} of the postings I have say something about it.`,
+      `They do not call it ${concept.name} though. On a posting it reads as ${top.term}, and I have ${top.hits} ${top.hits === 1 ? 'posting' : 'postings'} that ask for it.`,
       evidence ? { evidence } : {}
     )
 
@@ -407,7 +456,19 @@ export class Session {
 
     if (this.seen.length > 0) {
       const names = this.seen.map((entry) => entry.concept.name).join(', ')
-      await this.say(`Today you heard ${names}. All of it is on postings, under other names.`)
+      // Not everything a lecture teaches is advertised for, and since a concept
+      // with no surviving term is now said to be one, claiming all of it lands
+      // on postings would be the one untrue line in the recap.
+      const landed = this.seen.filter((entry) => entry.terms.length > 0).map((entry) => entry.concept.name)
+      const verdict =
+        landed.length === this.seen.length
+          ? ' All of it is on postings, under other names.'
+          : landed.length === 1
+            ? ` ${landed[0]} is on postings, under another name.`
+            : landed.length > 1
+              ? ` ${listed(landed)} are on postings, under other names.`
+              : ''
+      await this.say(`Today you heard ${names}.${verdict}`)
     }
     await this.say(
       `Here is what ${labelRoles(cohort.roles)} postings keep asking for that has not come up in your lectures.`
@@ -446,6 +507,14 @@ export class Session {
       this.heardFromStudent(text)
       return this.observe({ kind: 'asked', at: Date.now(), text })
     }
+    // The empty panel invites them to paste their notes, and nothing called the
+    // path that reads them, so a paste was answered as a question and never
+    // became a card. Checked after the problem in view, because a wall of text
+    // pasted with LeetCode open is a stack trace far more often than a lecture.
+    if (readsAsALecture(text)) {
+      this.heardFromStudent(text)
+      return this.useNotes(text)
+    }
     return this.chat(text)
   }
 
@@ -482,11 +551,6 @@ export class Session {
   }
 
   /**
-   * One turn of the student's: what they said goes in the thread, the orb
-   * thinks while the body runs, and a failure is apologised for in the words
-   * of what was being attempted. The busy flag lives here and nowhere else.
-   */
-  /**
    * One queue for everything that answers the student. Two answers writing into
    * the thread at once interleave their lines and fight over the orb, so the
    * second waits rather than racing, and nothing is dropped to avoid the race.
@@ -498,19 +562,22 @@ export class Session {
     return run
   }
 
+  /**
+   * One turn of the student's: what they said goes in the thread, the orb
+   * thinks while the body runs, and a failure is apologised for in the words
+   * of what was being attempted.
+   */
   private async turn(text: string, attempting: string, body: () => Promise<void>): Promise<void> {
     // Said first, before any waiting: the composer has already cleared what they
     // typed, so a line that is not put in the thread now is a line they lose.
     this.heardFromStudent(text)
     return this.hold(async () => {
-      this.busy = true
       try {
         this.patch({ orb: 'thinking', composing: true })
         await body()
       } catch (error) {
         await this.apologise(attempting, error)
       } finally {
-        this.busy = false
         this.patch({ orb: 'idle', composing: false })
       }
     })
@@ -519,23 +586,44 @@ export class Session {
   /**
    * What people wrote about interviewing at a company, read from public
    * accounts and said with a citation on every claim. Resolves false when
-   * there was nothing to read, so the question still gets an ordinary answer.
+   * there was nothing to read, so the question still gets an ordinary answer:
+   * half of one is often about the student rather than the company.
    */
   private async interviews(company: string): Promise<boolean> {
-    // The reading starts before the line about it is spoken, so the words cover the wait.
-    const reading = this.deps.gatherInterviews!(company)
-    await this.say(`Give me a moment. I am reading what people wrote about interviewing at ${company}.`)
-    const accounts = await reading
-    if (accounts.length === 0) {
-      await this.say(
-        `I found nothing first-hand about a ${company} interview on the boards I read, and I would rather say that than make one up.`
-      )
+    // Read before saying anything. The boards answer in about half a second,
+    // and naming a company before knowing whether there is anything under that
+    // name is how the companion ends up saying it is reading about Sarah.
+    const accounts = await this.deps.gatherInterviews!(company)
+    // A name the evidence base knows is a company whatever the boards hold, so
+    // having found nothing about it is worth saying. A name it does not know
+    // was only ever a guess at what the sentence meant: "with Sarah from
+    // recruiting" has the same shape as "with Two Sigma next week", and the
+    // sentence cannot tell them apart. A board can. Hacker News answers a
+    // search for John with whatever mentions John, so the guess stands only
+    // where a write-up is titled for it, which is what the LeetCode board does
+    // and what an unrelated comment does not. Measured: Google, Amazon,
+    // Microsoft and Meta all clear it, and John, Berkeley and HR do not.
+    const known = this.companies.some((name) => name.toLowerCase() === company.toLowerCase())
+    const vouchedFor = known || accounts.some((account) => mentions(account.title, company))
+    if (accounts.length === 0 || !vouchedFor) {
+      // Nothing is said about a guess that came to nothing. The line is
+      // answered like any other instead, which is what it probably was.
+      if (known) {
+        await this.say(
+          `I found nothing first-hand about a ${company} interview on the boards I read, and I would rather say that than make one up.`
+        )
+      }
       return false
     }
+    await this.say(`Give me a moment. I am reading what people wrote about interviewing at ${company}.`)
+    // say() clears the dots when its line lands, and writing the brief is
+    // several more seconds after that. Without this the panel sits still and
+    // silent for the whole of it, which reads as the companion having stopped.
+    this.patch({ composing: true })
     // Without a model the accounts are still worth handing over.
     const brief = this.deps.llm.available
       ? await briefInterview(this.deps.llm, company, accounts)
-      : { kind: 'unwritable' as const, sources: firstSentences(accounts) }
+      : { kind: 'unwritable' as const, sources: firstSentences(accounts, company) }
     if (brief.kind === 'brief') {
       await this.say(brief.text, { citations: brief.citations, sources: brief.sources })
       return true

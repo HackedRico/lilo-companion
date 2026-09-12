@@ -16,7 +16,12 @@ One call over what arrived names at most three concepts.
 model is not asked to guess: the terms that appear in postings nearest the
 concept are retrieved first and handed over, and it is told to copy one exactly.
 Anything it returns that the retriever cannot find is dropped. What survives
-becomes a card with three sentences quoted from three different companies.
+becomes a card holding up to three sentences from three different companies,
+and the first of them is quoted beside the line that names the term. Where no
+vocabulary term survives at all, the model may name one from the quotes
+themselves, and `translate.ts` only lets that through when the quotes it cited
+actually say it. A concept the postings do not advertise for is said to be one,
+which is a truer answer than a stretched term.
 
 **Lock in.** A concept can be watched for future lectures. `watch.ts` looks
 for those exact words on every line of the next lecture that arrives, and turns
@@ -75,9 +80,12 @@ read.
 
 The rule is the same one postings live under. The accounts are split into
 sentences with ids, the model is handed those and nothing else, and
-`CitationFilter` drops any id the list does not carry, so a claim about an
-interview traces to a sentence with a URL or is not made. With nothing recent
-to read, no model is called and the companion says so. What was read is kept
+`CitationFilter` runs over each claim in turn rather than the reply as a whole,
+so one good citation cannot carry the invented sentences around it: a claim
+with no surviving marker is dropped where it stands. How old the newest account
+is is said from the dates in code, not asked of the model, because the boards
+have gone quiet and the model would not mention it. With nothing to read, no
+model is called and the companion says so. What was read is kept
 for a day in `AccountCache`, so the second ask is instant and offline.
 
 ## The LeetCode practice
@@ -247,9 +255,9 @@ Preferences are a second window rather than part of the thread. The companion is
 one conversation, and typing an API key into a conversation would be absurd. It
 is a rail and a pane rather than a centred column, because a settings window
 gets stretched: the form answers to the width it is given through a container
-query, going to two columns once there is room. It has two tabs, because it
-holds two unrelated things, and the tab is remembered in the window's own
-storage.
+query, going to two columns once there is room. It has a tab per unrelated
+thing it holds, Profile, Model, LeetCode and Advanced, and the tab is
+remembered in the window's own storage.
 
 What you are aiming at is yours to type, and onboarding writes down the track
 it heard so the window and the filter say the same thing. The eight tracks are what every

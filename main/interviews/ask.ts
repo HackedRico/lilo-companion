@@ -5,8 +5,12 @@ import { escapeRegExp } from '../ikb/tag.ts'
  * company, and which one. The company has to sit beside the word, because
  * several companies in the base are ordinary words: "linear probing before
  * my interview" is not about Linear. A company the base knows wins, in the
- * order the student named them; a capitalised name beside the word is the
- * fallback for one it does not.
+ * order the student named them; a name the base does not know is the
+ * fallback, and it has to sit where only the company sits, because what comes
+ * of it is said out loud as "I am reading what people wrote about
+ * interviewing at X". A brief about Sarah is worse than no brief at all, so
+ * an unknown name that is not clearly the interviewer is dropped and the
+ * line falls through to ordinary chat.
  */
 
 // "loop" is deliberately absent: a student working a problem says "my loop".
@@ -16,16 +20,53 @@ const ASKING = new RegExp(`\\b(?:${WORDS})\\b`, 'gi')
 /** How many words may sit between the company and the word: "interview process at Stripe". */
 const BETWEEN = 2
 
+/** The name becomes a cache filename, and nothing this long was ever a company. */
+const MAX_NAME = 60
+
 /** Capitalised because it starts a sentence or names a day, not because it is a company. */
 const NOT_A_NAME = new Set([
   'I', 'My', 'The', 'A', 'An', 'How', 'What', 'When', 'Where', 'Why', 'Who', 'Is', 'Are', 'Do', 'Does',
   'Can', 'Could', 'Should', 'Would', 'Will', 'Tell', 'Give', 'Help', 'Prepare', 'Any', 'Got', 'Have', 'Had',
+  'This', 'That', 'These', 'Those', 'It', 'Its', 'Their', 'Your', 'Our', 'His', 'Her', 'Every', 'Each',
+  'Another', 'Other', 'Both', 'All', 'Some', 'No', 'Not', 'Next', 'Last', 'First', 'Final', 'Also', 'And',
+  'But', 'Or', 'So', 'Then', 'Just', 'Now', 'Maybe', 'Please', 'Thanks', 'Hi', 'Hey', 'Ok', 'Okay', 'Yes',
+  'If', 'Was', 'Were', 'Am', 'Be', 'Been', 'Let', 'Need', 'Want', 'Know', 'Think', 'Show', 'Explain', 'Walk',
   'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday', 'Today', 'Tomorrow',
   'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'
 ])
 
+/**
+ * The words of the search itself, lowercased: the track, the stage, or the
+ * site the student practises on. "Software Engineer interviews" and "Leetcode
+ * interviews" read like "Stripe interviews" and are nothing like it, and no
+ * board holds a first-hand account of interviewing at Backend.
+ */
+const NOT_A_COMPANY = new Set([
+  'software', 'backend', 'back-end', 'frontend', 'front-end', 'fullstack', 'full-stack', 'engineer',
+  'engineering', 'developer', 'dev', 'swe', 'sde', 'intern', 'internship', 'internships', 'grad', 'junior',
+  'senior', 'data', 'ml', 'devops', 'sre', 'qa', 'security', 'platform', 'mobile', 'embedded', 'infra',
+  'cloud', 'hr', 'oa', 'phone', 'technical', 'behavioral', 'behavioural', 'coding', 'system', 'design',
+  'onsite', 'screen', 'round', 'rounds', 'offer', 'resume', 'referral', 'recruiter', 'recruiting', 'career',
+  'careers', 'job', 'jobs', 'role', 'roles', 'prep', 'leetcode', 'neetcode', 'hackerrank', 'codesignal',
+  'codility', 'hirevue', 'karat', 'glassdoor', 'blind', 'handshake', 'faang', 'big', 'tech'
+])
+
+/**
+ * Where something is kept or done, not who is doing the interviewing: "I keep
+ * my interview prep in Notion" names a tool the student uses, and the base
+ * knowing Notion does not make it the company they are asking about.
+ */
+const NOT_THE_INTERVIEWER = new Set(['in', 'on', 'into', 'inside', 'using', 'via', 'through'])
+
 /** A name as typed: capitalised, with dots or hyphens only inside it. */
 const NAME = "[A-Z][A-Za-z0-9&]*(?:[.-][A-Za-z0-9&]+)*"
+
+/**
+ * A name does not stop at its first word. "Jane Street" cut down to "Jane" is
+ * not a shorter answer, it is a different and wrong one, so the run takes the
+ * capitalised words after it and the "of" or "&" that joins them.
+ */
+const NAME_RUN = `${NAME}(?:\\s+(?:of\\s+|&\\s+)?${NAME})*`
 
 function wordsBetween(text: string, from: number, to: number): number {
   return (text.slice(from, to).match(/[A-Za-z0-9']+/g) ?? []).length
@@ -34,6 +75,24 @@ function wordsBetween(text: string, from: number, to: number): number {
 /** The company's name, however cased, not running into a neighbouring word. */
 export function companyPattern(company: string): RegExp {
   return new RegExp(`(?<![A-Za-z0-9_-])${escapeRegExp(company)}(?![A-Za-z0-9_-])`, 'gi')
+}
+
+/** The word in front of the name, which says what the name is doing in the sentence. */
+function introducer(text: string, at: number): string {
+  return (/([A-Za-z]+)[^A-Za-z]*$/.exec(text.slice(0, at))?.[1] ?? '').toLowerCase()
+}
+
+/** A run of capitalised words reaches past the name into the sentence, "Datadog I think", so that is given back. */
+function trimmed(run: string): string {
+  const parts = run.split(/\s+/)
+  while (parts.length > 0 && NOT_A_NAME.has(parts[parts.length - 1]!)) parts.pop()
+  return parts.join(' ')
+}
+
+/** A name reads as a company when it is not the sentence around it, a role, or a practice site. */
+function couldBeACompany(name: string): boolean {
+  const first = name.split(/\s+/)[0] ?? ''
+  return name.length > 0 && name.length <= MAX_NAME && !NOT_A_NAME.has(first) && !NOT_A_COMPANY.has(first.toLowerCase())
 }
 
 export function interviewAsk(text: string, companies: readonly string[]): string | null {
@@ -47,18 +106,32 @@ export function interviewAsk(text: string, companies: readonly string[]): string
   for (const company of companies) {
     for (const match of text.matchAll(companyPattern(company))) {
       const at = match.index ?? 0
-      if (beside(at, at + match[0].length)) found.push({ at, name: company })
+      if (!beside(at, at + match[0].length)) continue
+      if (NOT_THE_INTERVIEWER.has(introducer(text, at))) continue
+      found.push({ at, name: company })
     }
   }
   // "interview at Coinbase", "Coinbase interview", "Ramp's onsite": a name the base
   // does not know. It has to sit beside the word like a known company does, or
   // "is my loop wrong for Two Sum" reads as an interview at a company called Two.
-  const typed = new RegExp(`\\b(?:at|with|for|from)\\s+(${NAME})|(${NAME})(?:'s)?\\s+(?:${WORDS})\\b`, 'g')
+  // "for" is not one of the prepositions: "for Backend", "for Leetcode interviews"
+  // and "for Software Engineer roles" say what the student is preparing for, never
+  // who is interviewing them.
+  const typed = new RegExp(`\\b(at|with|from)\\s+(${NAME_RUN})|(${NAME_RUN})(?:'s)?\\s+(?:${WORDS})\\b`, 'g')
   for (const match of text.matchAll(typed)) {
-    const name = match[1] ?? match[2] ?? ''
-    if (!name || NOT_A_NAME.has(name)) continue
+    const name = trimmed(match[2] ?? match[3] ?? '')
+    if (!couldBeACompany(name)) continue
     const at = text.indexOf(name, match.index ?? 0)
-    if (!beside(at, at + name.length)) continue
+    const end = at + name.length
+    if (!beside(at, end)) continue
+    if (NOT_THE_INTERVIEWER.has(introducer(text, at))) continue
+    // Whether this really is a company is not settled here. It cannot be: the
+    // base knows thirty of them and none of the ones a student is most likely
+    // to name, so a rule strict enough to refuse "with Sarah from recruiting"
+    // also refused "what is the interview at Google like". The boards settle it
+    // instead, in `interviews` in session.ts: nothing is said about a name the
+    // base does not know until a write-up has come back with that name on it,
+    // and a name nobody wrote about falls through to ordinary chat in silence.
     found.push({ at, name })
   }
   found.sort((a, b) => a.at - b.at)

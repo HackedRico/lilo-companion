@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { WorkEvent } from '../../shared/leetcode.ts'
-import { EMPTY_WORK, QUIET_MS, ago, describe, fold } from './state.ts'
+import { EMPTY_WORK, PENDING_STALE_MS, QUIET_MS, ago, describe, fold, isPending } from './state.ts'
 
 const PROBLEM = { slug: 'two-sum', title: 'Two Sum', difficulty: 'Easy', statement: 'Find two numbers that add up.' }
 
@@ -35,11 +35,38 @@ test('a run in flight makes the verdict on file stale', () => {
     { kind: 'outcome', at: 2, outcome: { verdict: 'accepted', detail: '' } },
     { kind: 'pending', at: 3 }
   ])
-  assert.ok(work.pending)
+  assert.ok(isPending(work, 3))
   assert.match(describe(work, 3), /A run is in flight\.$/)
   const done = fold(work, { kind: 'outcome', at: 4, outcome: { verdict: 'time_limit', detail: '' } })
-  assert.ok(!done.pending)
+  assert.equal(done.pendingAt, null)
   assert.equal(done.attempts, 2)
+})
+
+test('a verdict that never arrives stops being waited for', () => {
+  const work = run([
+    { kind: 'opened', at: 0, problem: PROBLEM },
+    { kind: 'changed', at: 1, code: 'x', language: 'python' },
+    { kind: 'outcome', at: 2, outcome: { verdict: 'wrong_answer', detail: '' } },
+    { kind: 'pending', at: 3 }
+  ])
+  assert.ok(isPending(work, 3 + PENDING_STALE_MS - 1))
+  // The site refused the second submit in a row and never polled for it, so
+  // the verdict is not coming and the wait is what would silence the companion.
+  assert.ok(!isPending(work, 3 + PENDING_STALE_MS))
+  assert.match(describe(work, 3 + PENDING_STALE_MS), /The last run came back wrong answer\.$/)
+})
+
+test('the same problem opening again keeps what was folded for it', () => {
+  const work = run([
+    { kind: 'opened', at: 0, problem: PROBLEM },
+    { kind: 'changed', at: 10, code: 'x', language: 'python' },
+    { kind: 'outcome', at: 20, outcome: { verdict: 'wrong_answer', detail: '' } },
+    // The app reconnected and asked the page to say again what is open.
+    { kind: 'opened', at: 30, problem: { ...PROBLEM, title: 'Two Sum' } }
+  ])
+  assert.equal(work.code, 'x')
+  assert.equal(work.changedAt, 10)
+  assert.equal(work.attempts, 1)
 })
 
 test('the same code again is not a change', () => {

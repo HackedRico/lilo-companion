@@ -10,6 +10,12 @@ export interface Ikb {
   sentences: Sentence[]
   /** Canonical term to every sentence carrying it. */
   byTag: Map<string, Sentence[]>
+  /**
+   * Canonical term to how many distinct postings carry it. The companion says
+   * this number out loud as a count of postings, and one posting often has
+   * several sentences on the same term, so counting sentences overstated it.
+   */
+  postingsByTag: Map<string, number>
   /** Lowercased term or alias to the canonical term it stands for. */
   vocabulary: Map<string, string>
   /** Canonical tool and practice entries, normalized into one taxonomy. */
@@ -58,13 +64,18 @@ export async function loadIkb(dataDir: string): Promise<Ikb> {
   const postings = new Map(raw.postings.map((posting) => [posting.id, posting]))
 
   const byTag = new Map<string, Sentence[]>()
+  const postingIdsByTag = new Map<string, Set<string>>()
   for (const sentence of raw.sentences) {
     for (const tag of sentence.tags) {
       const bucket = byTag.get(tag)
       if (bucket) bucket.push(sentence)
       else byTag.set(tag, [sentence])
+      const seen = postingIdsByTag.get(tag)
+      if (seen) seen.add(sentence.postingId)
+      else postingIdsByTag.set(tag, new Set([sentence.postingId]))
     }
   }
+  const postingsByTag = new Map([...postingIdsByTag].map(([tag, ids]) => [tag, ids.size]))
 
   const vocabulary = new Map<string, string>()
   for (const { term, aliases } of [...tools, ...practices]) {
@@ -90,6 +101,7 @@ export async function loadIkb(dataDir: string): Promise<Ikb> {
     postings,
     sentences: raw.sentences,
     byTag,
+    postingsByTag,
     vocabulary,
     taxonomy,
     tools: new Set(tools.map((tool) => tool.term)),

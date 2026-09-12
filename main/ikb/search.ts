@@ -6,6 +6,7 @@ const EVIDENCE = 3
 
 export interface TermHit {
   term: string
+  /** How many distinct postings carry the term. This is the number said out loud. */
   hits: number
 }
 
@@ -18,7 +19,7 @@ export function resolveTerms(ikb: Ikb, raw: string[]): TermHit[] {
   for (const phrase of raw) {
     const canonical = ikb.vocabulary.get(phrase.trim().toLowerCase())
     if (!canonical) continue
-    const hits = ikb.byTag.get(canonical)?.length ?? 0
+    const hits = ikb.postingsByTag.get(canonical) ?? 0
     if (hits > 0) seen.set(canonical, hits)
   }
   // Kept in the order the model offered them: it is ranking by how well the

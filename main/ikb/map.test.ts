@@ -61,7 +61,12 @@ test('leetCode-style concepts can expand to runtime evidence queries without bec
     'A stack kept in sorted order while scanning an array for the next greater element.'
   )
   assert.deepEqual(mapConceptTerms(ikb, leetcode), [])
-  assert.ok(conceptEvidenceQueries(ikb, leetcode).includes('data structures and algorithms'))
+  // No rule claims it, so what is searched for is the concept as the lecturer
+  // said it. Postings do not advertise for a monotonic stack, and saying so is
+  // the honest answer.
+  const queries = conceptEvidenceQueries(ikb, leetcode)
+  assert.ok(queries.includes(leetcode.name))
+  assert.ok(queries.includes(leetcode.summary))
 })
 
 test('unsupported configured mappings are dropped before they can become evidence', () => {
@@ -71,6 +76,7 @@ test('unsupported configured mappings are dropped before they can become evidenc
       ['ghost skill', 'ghost skill']
     ]),
     byTag: new Map([['code review', [{ id: 's1', postingId: 'p1', text: 'Review code with teammates.', tags: ['code review'] }]]]),
+    postingsByTag: new Map([['code review', 1]]),
     taxonomy: new Map([['code review', { term: 'code review', aliases: [], kind: 'practice' }]]),
     conceptMappings: [{ concept: 'review', aliases: [], terms: ['code review', 'ghost skill'] }]
   } as unknown as Ikb
@@ -124,4 +130,75 @@ test('an alias that is also an ordinary word is matched as written, not stemmed'
     confidence: 'high'
   })
   assert.deepEqual(flag, [], 'setting a flag is not a lecture on hash tables')
+})
+
+test('every rule points at vocabulary the postings actually carry', () => {
+  // Eight rules once named terms that were in no vocabulary file, so they were
+  // dropped without a word and four rules resolved to nothing at all.
+  for (const rule of ikb.conceptMappings) {
+    const resolved = rule.terms.filter((term) => ikb.vocabulary.has(term.trim().toLowerCase()))
+    assert.deepEqual(
+      rule.terms.filter((term) => !ikb.vocabulary.has(term.trim().toLowerCase())),
+      [],
+      `${rule.concept} names a term that is in no vocabulary file`
+    )
+    assert.ok(resolved.length > 0, `${rule.concept} resolves to nothing`)
+  }
+})
+
+test('a data structures lecture is not a lecture about Node.js', () => {
+  // "node" was an alias of Node.js, and it is the commonest word in a lecture
+  // on trees. What a posting means by Node is written Node.js or NodeJS.
+  const trees = mapConceptTerms(
+    ikb,
+    concept('Binary search trees', 'Every node has at most two children, and the left node is smaller.')
+  )
+  assert.ok(!trees.some((hit) => hit.term === 'Node.js'))
+  const runtime = mapConceptTerms(
+    ikb,
+    concept('Server side JavaScript', 'The team runs the API on NodeJS behind a load balancer.')
+  )
+  assert.ok(runtime.some((hit) => hit.term === 'Node.js'))
+})
+
+test('the count said out loud is postings, not sentences', () => {
+  // One posting says the same thing several times; the line reads "N of the
+  // postings", so counting sentences overstated it by up to five times.
+  for (const [term, count] of ikb.postingsByTag) {
+    const sentences = ikb.byTag.get(term) ?? []
+    const postings = new Set(sentences.map((sentence) => sentence.postingId))
+    assert.equal(count, postings.size)
+    assert.ok(count <= sentences.length)
+  }
+})
+
+test('the term said out loud is the one the lecture names, not one in passing', () => {
+  // The order was whatever the alias list happened to be sorted by, so a
+  // summary that mentions Python made a lecture on DataFrames a lecture on
+  // Python, with 604 postings behind it and a quote listing four languages.
+  const mapped = mapConceptTerms(
+    ikb,
+    concept('Pandas DataFrames', 'A Python library providing tabular data structures for data analysis.')
+  )
+  assert.equal(mapped[0]?.term, 'Pandas')
+  assert.ok(mapped.some((hit) => hit.term === 'Python'))
+})
+
+test('a trigger at the end of a sentence still counts', () => {
+  // normalise keeps a full stop because .NET and node.js need theirs, so a
+  // phrase that finished a sentence was compared against "address space." and
+  // never matched anything.
+  const mapped = mapConceptTerms(
+    ikb,
+    concept('Process', 'A process is a program in execution with its own address space.')
+  )
+  assert.ok(mapped.some((hit) => hit.term === 'Linux'))
+})
+
+test('an ordinary sentence about a process is not a lecture on Linux', () => {
+  const mapped = mapConceptTerms(
+    ikb,
+    concept('Design process', 'How a team goes from a requirements document to a shipped feature.')
+  )
+  assert.ok(!mapped.some((hit) => hit.term === 'Linux'))
 })

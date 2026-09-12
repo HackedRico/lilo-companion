@@ -1,5 +1,5 @@
 import type { Hint, Rung, Trace } from '../../shared/leetcode.ts'
-import { lineCount, type Work } from './state.ts'
+import { isPending, lineCount, type Work } from './state.ts'
 
 /**
  * The rules that make a tier hold. Nothing here asks a model anything: the
@@ -23,7 +23,7 @@ export interface Climb {
  * and the code has changed since the last one: hints are earned, not clicked.
  */
 export function nextRung(ceiling: Rung, last: Climb | null, work: Work, now: number): Rung | null {
-  if (!work.problem || work.changedAt === null || work.pending || !work.inFront) return null
+  if (!work.problem || work.changedAt === null || isPending(work, now) || !work.inFront) return null
   if (work.quietUntil !== null && now < work.quietUntil) return null
   if (work.outcome?.verdict === 'accepted') return null
   if (now - work.changedAt < CLIMB_EVERY) return null
@@ -79,12 +79,39 @@ export function gate(hint: Hint, ceiling: Rung, work: Work): Gate {
   return { ok: true }
 }
 
-/** A fenced block, or lines that read as code rather than as a sentence. */
+/** A line that opens with a statement, where the line start is the giveaway. */
+const OPENS_CODE = /^\s*(def |class |for |while |if |elif |else:|return |import |[A-Za-z_]\w*\s*(=[^=]|\[))/
+
+/** What a statement looks like where one follows something else on the same line. */
+const A_STATEMENT = String.raw`(?:return\b|[A-Za-z_]\w*\s*(?:=[^=]|\[|\.\w+\s*\())`
+
+/**
+ * Code run together on one line. A block header carrying its body past the
+ * colon, or two statements with a semicolon between them: "for i, n in
+ * enumerate(nums): d[target - n] = i" and "d = {}; return d" are the answer
+ * however they are punctuated.
+ *
+ * What this deliberately does not catch is a sentence that happens to contain
+ * two assignments. "You set left = 0 and right = len(nums) - 1, but nothing
+ * moves them" is the plainest rung three hint there is, and counting
+ * assignments read it as handing over the solution and refused it.
+ */
+const INLINE_BLOCK = new RegExp(String.raw`\b(?:for|while|if|elif|else)\b[^\n:]*:\s*` + A_STATEMENT, 'i')
+const RUN_TOGETHER = new RegExp(String.raw`;\s*` + A_STATEMENT)
+
+/** Writing into a structure. No sentence about someone's code says d[k] = v. */
+const SUBSCRIPT_ASSIGNMENT = /[A-Za-z_]\w*\s*\[[^\]\n]+\]\s*=[^=]/
+
+/**
+ * A fenced block, or the code written out in the words. Code usually arrives
+ * on its own lines and two of those is enough; it also arrives run together on
+ * one line, where the line start gives nothing away.
+ */
 export function handsOverCode(say: string): boolean {
   if (say.includes('```')) return true
   const lines = say.split('\n')
-  if (lines.length < 2) return false
-  return lines.filter((line) => /^\s*(def |class |for |while |if |elif |else:|return |import |[A-Za-z_]\w*\s*(=[^=]|\[))/.test(line)).length >= 2
+  if (lines.filter((line) => OPENS_CODE.test(line)).length >= 2) return true
+  return lines.some((line) => INLINE_BLOCK.test(line) || RUN_TOGETHER.test(line) || SUBSCRIPT_ASSIGNMENT.test(line))
 }
 
 /**
@@ -105,9 +132,14 @@ export function namesFromCode(say: string, code: string): string[] {
  * same way, and a dry run of anything is at least the idea drawn. Below that
  * it is left at one, because saying what it sees is said in code, not asked
  * of a model.
+ *
+ * Code is rung 5, not rung 4. The tiers rest on that: tutor volunteers up to
+ * the steps and answers up to the answer, so code reaching only rung 4 is code
+ * handed over with nobody asking, which is the one thing tutor promises not to
+ * do. Asked outright, tutor's onAsk ceiling of 5 still gives it.
  */
 export function reachedRung(hint: Hint, work: Work): Rung {
-  if (handsOverCode(hint.say) || (hint.trace !== undefined && codeInTrace(hint.trace))) return 4
+  if (handsOverCode(hint.say) || (hint.trace !== undefined && codeInTrace(hint.trace))) return 5
   if (hint.lines.length > 0 || hint.names.length > 0 || namesFromCode(hint.say, work.code).length > 0) return 3
   if (hint.trace !== undefined && tracesTheirCode(hint.trace, work.code)) return 3
   if (hint.trace !== undefined) return 2

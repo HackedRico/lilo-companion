@@ -7,19 +7,35 @@ import { loadIkb, type Ikb } from '../ikb/load.ts'
 import type { Ask, LlmLike } from '../llm/service.ts'
 import { translate } from './translate.ts'
 
+/**
+ * A model that proposes a term the vocabulary does not carry, and then names a
+ * runtime skill. `skill` says what it names when the fixed vocabulary misses:
+ * by default it echoes words out of the first quote it was shown, which is what
+ * the prompt asks for.
+ */
 class TranslationLlm implements LlmLike {
   available = true
   readonly asks: Ask[] = []
+  skill: string | null = null
 
   async json<T>(schema: ZodType<T>, ask: Ask): Promise<T> {
     this.asks.push(ask)
     if (ask.system.includes('did not resolve to the fixed skill vocabulary')) {
       const evidence = [...ask.user.matchAll(/\[S:([^\]]+)\] ([^\n]+)/g)]
       const ids = evidence.map((match) => match[1]!)
-      const dsa = evidence.find((match) => /data structures|algorithms/i.test(match[2]!))?.[1]
+      const first = evidence[0]
+      const echoed = first
+        ? first[2]!
+            .toLowerCase()
+            .replace(/[^a-z0-9 ]+/g, ' ')
+            .split(/\s+/)
+            .sort((a, b) => b.length - a.length)
+            .slice(0, 2)
+            .join(' ')
+        : 'nothing'
       return schema.parse({
-        skill: 'data structures and algorithms',
-        citations: [dsa ?? ids[0], 'made-up-id'].filter(Boolean),
+        skill: this.skill ?? echoed,
+        citations: [ids[0], 'made-up-id'].filter(Boolean),
         oneLiner: 'You meet this whenever teams expect clean fundamentals under messy production constraints.'
       }) as T
     }
@@ -78,7 +94,7 @@ test('the model menu is seeded with explicit mappings from the evidence base', a
   assert.match(ask.user, /system design/)
 })
 
-test('when fixed vocabulary misses, runtime evidence can name a supported skill', async () => {
+test('when fixed vocabulary misses, a skill the quotes say is allowed through', async () => {
   const llm = new TranslationLlm()
   const translated = await translate(
     llm,
@@ -87,12 +103,28 @@ test('when fixed vocabulary misses, runtime evidence can name a supported skill'
     ['swe']
   )
 
-  assert.deepEqual(translated.terms, [{ term: 'data structures and algorithms', hits: 1 }])
+  const [term] = translated.terms
+  assert.ok(term)
   assert.equal(translated.sentences.length, 1)
-  assert.ok(translated.sentences[0]!.text.length > 0)
-  assert.ok(
-    translated.sentences[0]!.text.toLowerCase().includes('data structures') ||
-      translated.sentences[0]!.text.toLowerCase().includes('algorithms')
-  )
+  // The term never passed through the vocabulary, so the quote has to say it.
+  const said = translated.sentences[0]!.text.toLowerCase()
+  assert.ok(term.term.split(' ').every((word) => said.includes(word)))
   assert.ok(!translated.sentences.some((sentence) => sentence.id === 'made-up-id'))
+})
+
+test('a skill the quotes do not say is refused rather than said out loud', async () => {
+  // Nothing above this checked the runtime skill against anything, so the model
+  // could name a phrase no posting uses and the companion would read it out as
+  // what industry calls the concept.
+  const llm = new TranslationLlm()
+  llm.skill = 'Chief Happiness Officer'
+  const translated = await translate(
+    llm,
+    ikb,
+    concept('sliding window', 'A LeetCode array technique for keeping a moving range of values.'),
+    ['swe']
+  )
+
+  assert.deepEqual(translated.terms, [])
+  assert.deepEqual(translated.sentences, [])
 })

@@ -10,15 +10,25 @@ import { workEvent, type WorkEvent } from '../../shared/leetcode.ts'
 export class Recorder {
   private readonly path: string
   private ready: Promise<void> | null = null
+  /**
+   * One write at a time. A recording is replayed in the order it was written,
+   * and appends started together do not finish in the order they started.
+   */
+  private tail: Promise<void> = Promise.resolve()
 
   constructor(path: string) {
     this.path = path
   }
 
-  async write(event: WorkEvent): Promise<void> {
+  write(event: WorkEvent): Promise<void> {
     this.ready ??= mkdir(dirname(this.path), { recursive: true }).then(() => undefined)
-    await this.ready
-    await appendFile(this.path, `${JSON.stringify(event)}\n`)
+    const line = `${JSON.stringify(event)}\n`
+    const run = this.tail.then(async () => {
+      await this.ready
+      await appendFile(this.path, line)
+    })
+    this.tail = run.catch(() => undefined)
+    return run
   }
 }
 

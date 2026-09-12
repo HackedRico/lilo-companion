@@ -859,7 +859,8 @@ button {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: var(--step-fine);
-  color: color-mix(in srgb, var(--paper-ink) 55%, transparent);
+  /* The role under every quote, at 55 percent, fell under AA on light paper. */
+  color: color-mix(in srgb, var(--paper-ink) 72%, transparent);
 }
 
 /* What they said last time, kept beside what they are about to say now. */

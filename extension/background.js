@@ -2,6 +2,15 @@
 // which is the Lilo app on this machine, and hand its marks back to the page.
 // Nothing is stored and nothing goes anywhere else.
 const HOST = 'com.lilo.companion'
+const PROBLEMS = 'https://leetcode.com/problems/*'
+
+/**
+ * The tab the app's state is about: the last one to say what is open or what
+ * is written. The app folds one problem out of whatever arrives, so a mark
+ * belongs to the tab that named it and to no other. A second problem tab was
+ * getting the first one's lines highlighted.
+ */
+let speaking = null
 
 let port = null
 let retryAfter = 0
@@ -19,10 +28,21 @@ function connect() {
     return null
   }
   port.onMessage.addListener((message) => {
-    if (!message || !message.mark) return
-    chrome.tabs.query({ url: 'https://leetcode.com/problems/*' }, (tabs) => {
-      for (const tab of tabs) chrome.tabs.sendMessage(tab.id, { mark: message.mark }).catch(() => {})
-    })
+    if (!message) return
+    if (message.mark) {
+      // Until a tab has said what it has, there is no tab a mark is about.
+      if (speaking !== null) chrome.tabs.sendMessage(speaking, { mark: message.mark }).catch(() => {})
+      return
+    }
+    // The app has just come up and knows nothing about a tab that has been
+    // sitting still, so every problem tab says what it has again. The tab in
+    // front is asked last, because the app keeps the problem it hears about last.
+    if (message.resync === true) {
+      chrome.tabs.query({ url: PROBLEMS }, (tabs) => {
+        const ordered = tabs.filter((tab) => typeof tab.id === 'number').sort((a, b) => Number(a.active) - Number(b.active))
+        for (const tab of ordered) chrome.tabs.sendMessage(tab.id, { resync: true }).catch(() => {})
+      })
+    }
   })
   port.onDisconnect.addListener(() => {
     // The app is not running, or Chrome has no host registered yet. Try again later, not on every keystroke.
@@ -39,12 +59,28 @@ function connect() {
 // Connect proactively on startup so Lilo's settings page shows connection immediately
 connect()
 
+/**
+ * The app can restart while the student is reading the problem rather than
+ * typing in it, and nothing here would notice: the connection is only ever
+ * tried on startup and when the page has something to say. So it is tried on a
+ * timer as well, and the practice comes back on its own within a minute of the
+ * app coming back. The alarm also wakes this worker, which Chrome is free to
+ * stop whenever it likes.
+ */
+const RECONNECT = 'lilo-reconnect'
+chrome.alarms.create(RECONNECT, { periodInMinutes: 0.5 })
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === RECONNECT) connect()
+})
+
 chrome.runtime.onInstalled?.addListener(() => {
   connect()
 })
 
-chrome.runtime.onMessage.addListener((message) => {
+chrome.runtime.onMessage.addListener((message, sender) => {
   if (!message || !message.event) return
+  const kind = message.event.kind
+  if (sender.tab && (kind === 'opened' || kind === 'changed')) speaking = sender.tab.id
   const live = connect()
   if (!live) return
   try {

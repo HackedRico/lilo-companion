@@ -20,7 +20,7 @@ export async function buildCard(
       concept,
       [],
       [],
-      `${concept.name} barely shows up in postings for the work you are aiming at. That does not make it useless, it just is not what they advertise for.`
+      `Postings for the work you are aiming at barely mention ${concept.name}. That does not make it useless, it just is not what they advertise for.`
     )
   }
   return cardFrom(concept, terms.slice(0, 5), sentences.length > 0 ? sentences : evidenceFor(ikb, terms, roles), oneLiner)

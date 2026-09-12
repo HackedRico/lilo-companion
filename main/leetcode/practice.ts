@@ -1,4 +1,4 @@
-import { TIER_CEILING, TIER_LABEL, type Mark, type Rung, type Tier, type Trace, type WorkEvent } from '../../shared/leetcode.ts'
+import { TIER_CEILING, TIER_LABEL, type Mark, type Problem, type Rung, type Tier, type Trace, type WorkEvent } from '../../shared/leetcode.ts'
 import type { OrbState, Suggestion, ThreadItem } from '../../shared/types.ts'
 import type { LlmLike } from '../llm/service.ts'
 import { coach } from './coach.ts'
@@ -77,14 +77,19 @@ export class LeetCodePractice {
   }
 
   /** How long the page is given to report what is already in the editor. */
-  private static readonly SETTLE_MS = 2000
+  private static readonly SETTLE_MS = 4000
 
-  /** The state once the code that was already there has had time to arrive. */
+  /**
+   * The state once the page has said what is in the editor. What is waited for
+   * is the report, not code in it, because an empty editor is an answer too and
+   * waiting for code would hold the greeting the full four seconds every time a
+   * student opens a problem they have not started.
+   */
   private async settle(): Promise<string> {
     const problem = this.work.problem
-    for (let waited = 0; waited < LeetCodePractice.SETTLE_MS; waited += 250) {
-      if (this.work.code) break
-      await new Promise((resolve) => setTimeout(resolve, 250))
+    for (let waited = 0; waited < LeetCodePractice.SETTLE_MS; waited += 200) {
+      if (this.work.changedAt !== null) break
+      await new Promise((resolve) => setTimeout(resolve, 200))
       // They moved on while we waited, so the line would be about the wrong thing.
       if (this.work.problem !== problem) break
     }
@@ -92,11 +97,24 @@ export class LeetCodePractice {
   }
 
   async observe(event: WorkEvent): Promise<void> {
-    await this.deps.record?.(event)
+    // Folded before anything is awaited. Events arrive from the page in bursts,
+    // the recorder writes each one to disk, and three appends finish in
+    // whatever order the filesystem likes. Folding behind that await let
+    // `opened` land after the `changed` it was meant to precede, and `opened`
+    // on a problem the app has not seen is a clean slate, so it wiped the code
+    // the student already had. What that looked like: reconnect after a
+    // restart, and the companion says nothing is written when six lines are.
+    const before = this.work
     this.work = fold(this.work, event)
+    await this.deps.record?.(event)
     const { voice } = this.deps
     switch (event.kind) {
       case 'opened': {
+        // The page is asked to say again what is open every time the app
+        // reconnects, so hearing about the problem already in hand is a
+        // repeat. Greeting it again would make a reconnection read as a new
+        // problem, and would send the ladder back to the bottom.
+        if (before.problem?.slug === event.problem.slug) return
         this.last = null
         voice.focus(event.problem.title)
         // The editor's contents arrive a moment after the page says which problem
@@ -155,8 +173,10 @@ export class LeetCodePractice {
     const rung = nextRung(TIER_CEILING[this.deps.tier()].volunteer, this.last, this.work, now)
     if (rung === null) return
     this.busy = true
+    const asked = this.work.problem
     try {
       const result = await coach(this.deps.llm, this.work, rung, null, now)
+      if (!this.stillOn(asked)) return
       // Counted as a climb even when nothing was said, so silence is not retried every tick.
       this.last = { rung, at: now, codeAt: this.work.changedAt }
       if (result.kind === 'hint') await this.speak(result.hint)
@@ -190,10 +210,12 @@ export class LeetCodePractice {
   private async ask(question: string): Promise<void> {
     const { voice } = this.deps
     this.busy = true
+    const asked = this.work.problem
     voice.orb('thinking')
     try {
       const ceiling = TIER_CEILING[this.deps.tier()].onAsk
       const result = await coach(this.deps.llm, this.work, ceiling, question, this.now)
+      if (!this.stillOn(asked)) return
       if (result.kind === 'hint') {
         // The timer waits for another edit rather than piling on what was just
         // answered. The rung it would volunteer is left alone: what they asked
@@ -215,6 +237,16 @@ export class LeetCodePractice {
       this.busy = false
       voice.orb('idle')
     }
+  }
+
+  /**
+   * Whether the problem an answer was asked about is still the one on the page.
+   * A model call takes seconds, and the student can close the tab or move to
+   * the next problem inside them. A hint about code that is gone, and a mark on
+   * lines that are gone, are worse than saying nothing.
+   */
+  private stillOn(problem: Problem | null): boolean {
+    return problem !== null && this.work.problem?.slug === problem.slug
   }
 
   /** The words, the rung they reached, and the picture when there is one; then the mark. */

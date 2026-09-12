@@ -532,7 +532,7 @@ function LeetCodeTab({
             </div>
             <div className="flex-1 pb-4">
               <h3 className="text-[13.5px] font-semibold text-[var(--ink)] m-0 leading-[20px]">
-                Register native messaging host
+                Let Chrome reach Lilo
               </h3>
               <p className="mt-1 mb-2 text-[13px] leading-[1.5] text-[var(--ink-soft)]">
                 Writes the native host manifest and launcher so Chrome can talk to Lilo.
@@ -548,7 +548,7 @@ function LeetCodeTab({
                       .finally(() => setConnecting(false))
                   }}
                 >
-                  {connecting ? 'Setting up…' : setup?.ok ? 'Re-run host setup' : 'Set up Chrome'}
+                  {connecting ? 'Setting up…' : setup?.ok ? 'Set up Chrome again' : 'Set up Chrome'}
                 </Action>
                 {setup?.ok && (
                   <span className="text-[12px] text-[var(--dim)]">Host manifest installed</span>
@@ -600,7 +600,7 @@ function LeetCodeTab({
                   <span className="text-[12px] font-medium text-[var(--dim)]">Extension directory</span>
                   <div className="flex items-center gap-1.5">
                     <Action onClick={copyPath} className="!py-0.5 !px-2.5 !text-[12px]">
-                      {copied ? 'Copied!' : 'Copy path'}
+                      {copied ? 'Copied' : 'Copy path'}
                     </Action>
                     <Action onClick={() => api.revealExtension()} className="!py-0.5 !px-2.5 !text-[12px]">
                       Show folder
@@ -635,7 +635,8 @@ function LeetCodeTab({
                 Navigate to any problem on <button type="button" onClick={() => api.openLink('https://leetcode.com/problemset/')} className="underline hover:text-[var(--ink)] cursor-pointer bg-transparent border-0 p-0 text-inherit font-inherit">leetcode.com</button>. The status above turns to <strong>Connected</strong> once the extension reaches the companion.
               </p>
               <p className="mt-2 text-[12.5px] leading-[1.5] text-[var(--dim)]">
-                Tip: Restart Chrome if it was already open before step 1.
+                If Chrome was already open before step 1, restart it. It reads
+                the manifest at start.
               </p>
             </div>
           </div>
@@ -676,10 +677,10 @@ function AdvancedTab({
     <>
       <TabHeader
         title="Advanced"
-        description="Data storage location, keychain security, and machine-level reset."
+        description="Where your things are kept, how the key is sealed, and how to erase all of it."
       />
 
-      <Group title="Storage & Security">
+      <Group title="Storage and security">
         <div className="flex flex-col gap-4">
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -709,7 +710,7 @@ function AdvancedTab({
                 Local configuration file
               </span>
               <Action onClick={copyStorage} className="!py-0.5 !px-2.5 !text-[12px]">
-                {copied ? 'Copied full path!' : 'Copy path'}
+                {copied ? 'Copied' : 'Copy path'}
               </Action>
             </div>
             <div className="input-mono text-[12.5px] text-[var(--ink)] select-all break-all leading-normal bg-[var(--well)] p-2.5 rounded-lg border border-[var(--rule-strong)]">
@@ -730,7 +731,7 @@ function AdvancedTab({
                 Reset everything
               </span>
               <p className="m-0 mt-0.5 text-[13px] text-[var(--ink-soft)] leading-[1.5]">
-                Erases your saved profile, model configurations, stored API keys, and local session data from this machine.
+                Erases your profile, your model settings, your key and this session from this machine.
               </p>
             </div>
             <Action

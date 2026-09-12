@@ -10,7 +10,7 @@
   const POLL_MS = 1000
   /** An edit is reported once the code has sat still this long, not on every keystroke. */
   const SETTLE_MS = 1500
-  const state = { slug: null, code: null, language: null, inFront: null, marks: null, draft: null }
+  const state = { slug: null, code: null, language: null, inFront: null, marks: null, draft: null, problem: null }
 
   const post = (event) => window.postMessage({ lilo: 'event', event: { at: Date.now(), ...event } }, location.origin)
 
@@ -53,6 +53,9 @@
         method: 'POST',
         credentials: 'include',
         headers: { 'content-type': 'application/json' },
+        // The poll waits on this, so it is not allowed to wait forever. The
+        // title falls back to the slug, which is enough to say what is open.
+        signal: AbortSignal.timeout(6000),
         body: JSON.stringify({
           operationName: 'questionData',
           variables: { titleSlug: slug },
@@ -66,20 +69,86 @@
     }
   }
 
+  // The problem is fetched before `opened` goes out, and the poll does not
+  // stop while that is in the air. Without this guard a later tick posts the
+  // code first, and `opened` lands behind it and wipes what it just reported.
+  let ticking = false
+
   async function tick() {
+    if (ticking) return
+    ticking = true
+    try {
+      await step()
+    } finally {
+      ticking = false
+    }
+  }
+
+  /**
+   * Everything this tab has, said again. `opened` goes out when the tab's own
+   * slug changes and nothing else sends it, so an app that started after the
+   * tab did would have no problem open however long the student worked here,
+   * and every hint would answer "nothing open on LeetCode". The app asks for
+   * this down each fresh connection, which is the whole recovery.
+   */
+  async function announce() {
+    const slug = slugOf()
+    state.slug = slug
+    if (!slug) {
+      post({ kind: 'closed' })
+      return
+    }
+    // Already in hand from the first announcement, so this one usually costs no fetch.
+    if (!state.problem || state.problem.slug !== slug) state.problem = await problem(slug)
+    post({ kind: 'opened', problem: state.problem })
+    const live = model()
+    if (live) {
+      state.code = live.getValue()
+      state.language = languageOf(live)
+      state.draft = null
+      post({ kind: 'changed', code: state.code.slice(0, 20000), language: state.language })
+    }
+    state.inFront = document.visibilityState === 'visible' && document.hasFocus()
+    post({ kind: 'attention', inFront: state.inFront })
+  }
+
+  // A piled-up tick is dropped because the next one is a second away. This is
+  // the recovery, so it waits for whatever is in the air and then goes.
+  async function sayItAgain() {
+    while (ticking) await new Promise((resolve) => setTimeout(resolve, 100))
+    ticking = true
+    try {
+      await announce()
+    } finally {
+      ticking = false
+    }
+  }
+
+  async function step() {
     const slug = slugOf()
     if (slug !== state.slug) {
       state.slug = slug
       state.code = null
       state.language = null
-      if (slug) post({ kind: 'opened', problem: await problem(slug) })
+      state.problem = slug ? await problem(slug) : null
+      if (state.problem) post({ kind: 'opened', problem: state.problem })
       else post({ kind: 'closed' })
     }
     const live = model()
     if (slug && live) {
       const code = live.getValue()
       const language = languageOf(live)
-      if (code === state.code && language === state.language) {
+      if (state.code === null) {
+        // The first look at a problem has nothing to debounce against: the wait
+        // is for a student to stop typing, and nobody has typed yet. Monaco is
+        // slow enough to restore what was saved that adding the wait on top put
+        // the first report four seconds after the tab opened, by which time the
+        // companion had already said there was nothing written.
+        state.code = code
+        state.language = language
+        state.draft = null
+        post({ kind: 'changed', code: code.slice(0, 20000), language })
+      } else if (code === state.code && language === state.language) {
         state.draft = null
       } else if (!state.draft || state.draft.code !== code || state.draft.language !== language) {
         // Still typing. Remember what it looks like and wait for it to settle.
@@ -167,8 +236,9 @@
   }
 
   window.addEventListener('message', (message) => {
-    if (message.source !== window || !message.data || message.data.lilo !== 'mark') return
-    mark(Array.isArray(message.data.lines) ? message.data.lines.filter((n) => Number.isInteger(n)) : [])
+    if (message.source !== window || !message.data) return
+    if (message.data.lilo === 'mark') mark(Array.isArray(message.data.lines) ? message.data.lines.filter((n) => Number.isInteger(n)) : [])
+    if (message.data.lilo === 'resync') void sayItAgain()
   })
 
   const style = document.createElement('style')

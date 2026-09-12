@@ -4,7 +4,7 @@ import type { ZodType } from 'zod'
 import type { Mark, Tier, Trace, WorkEvent } from '../../shared/leetcode.ts'
 import type { OrbState, Suggestion, ThreadItem } from '../../shared/types.ts'
 import type { Ask, LlmLike } from '../llm/service.ts'
-import { WITHHELD } from './coach.ts'
+import { WITHHELD, WITHHELD_UNASKED } from './coach.ts'
 import { CLIMB_EVERY } from './ladder.ts'
 import { LeetCodePractice, TRACE_QUESTION } from './practice.ts'
 
@@ -70,10 +70,15 @@ function harness(tier: Tier = 'coach') {
     }
   })
   const at = (ms: number) => (clock = ms)
+  // The bridge hands every event straight to observe without waiting for the
+  // one before it, so a recording that awaits each in turn is not what the
+  // practice sees: the greeting would always time out waiting for code that
+  // was already on its way.
   const start = async () => {
-    await practice.observe({ kind: 'opened', at: clock, problem: PROBLEM })
+    const greeting = practice.observe({ kind: 'opened', at: clock, problem: PROBLEM })
     await practice.observe({ kind: 'attention', at: clock, inFront: true })
     await practice.observe({ kind: 'changed', at: clock, code: CODE, language: 'python' })
+    await greeting
   }
   return { llm, practice, said, marks, orbs, recorded, at, start, suggestions: () => suggestions, focus: () => focus }
 }
@@ -81,7 +86,7 @@ function harness(tier: Tier = 'coach') {
 test('the state is said first, and hands off never volunteers past it', async () => {
   const h = harness('hands_off')
   await h.start()
-  assert.equal(h.said[0]!.text, 'Two Sum, easy. Nothing written yet. You have me on Hands off.')
+  assert.equal(h.said[0]!.text, 'Two Sum, easy. 5 lines of python, last changed just now. You have me on Hands off.')
   assert.equal(h.focus(), 'Two Sum')
   h.at(CLIMB_EVERY * 5)
   await h.practice.tick()
@@ -231,6 +236,73 @@ test('a question asked while the timer is thinking waits, and is never dropped',
   assert.match(h.llm.asks[1]!.system, /ceiling right now is rung 3/, 'and at the tier the student set')
 })
 
+test('tutor climbs to the steps and still never volunteers the code', async () => {
+  const h = harness('tutor')
+  await h.start()
+  // A minute and an edit apart, the way the student earns them.
+  const earned = async (minute: number, hint: { rung: number; say: string; names?: string[] }) => {
+    await h.practice.observe({ kind: 'changed', at: CLIMB_EVERY * minute, code: `${CODE}\n# ${minute}`, language: 'python' })
+    h.llm.queue.push({ lines: [], names: [], ...hint })
+    h.at(CLIMB_EVERY * (minute + 1) + 1)
+    await h.practice.tick()
+  }
+  await earned(0, { rung: 1, say: 'What would you need to have seen before n to answer at n?' })
+  await earned(2, { rung: 2, say: 'This one has a name: the single pass with a lookup table.' })
+  await earned(4, { rung: 3, say: 'seen is filled and never read.', names: ['seen'] })
+  assert.deepEqual(h.said.slice(-3).map((item) => item.rung), [1, 2, 3])
+
+  // Rung 4 is the steps, and the model answers with the whole thing anyway.
+  const solution = 'seen = {}\nfor i, n in enumerate(nums):\n    if target - n in seen:\n        return [seen[target - n], i]'
+  await h.practice.observe({ kind: 'changed', at: CLIMB_EVERY * 6, code: `${CODE}\n# 6`, language: 'python' })
+  h.llm.queue.push({ rung: 4, say: solution, lines: [], names: [] }, { rung: 4, say: solution, lines: [], names: [] })
+  h.at(CLIMB_EVERY * 7 + 1)
+  await h.practice.tick()
+  assert.match(h.llm.asks.at(-1)!.system, /ceiling right now is rung 4/, 'asked for the steps')
+  assert.ok(!h.said.some((item) => item.text.includes('return [seen')), 'and the answer was not handed over unasked')
+  assert.equal(h.said.at(-1)!.text, WITHHELD_UNASKED)
+  assert.equal(h.marks.length, 0)
+})
+
+test('the page saying again what is open is a repeat, not a new problem', async () => {
+  const h = harness('coach')
+  await h.start()
+  const before = h.said.length
+  // What the app asks for when it reconnects to a tab that has been sitting still.
+  await h.practice.observe({ kind: 'opened', at: 20, problem: PROBLEM })
+  assert.equal(h.said.length, before, 'the opening line is not said twice')
+  assert.equal(h.practice.work.code, CODE, 'and what they had written is still what it knows')
+})
+
+test('a problem closed before the ask is handled is not sent to the model at all', async () => {
+  const h = harness('coach')
+  await h.start()
+  h.llm.queue.push({ rung: 3, say: 'seen is filled on line 4 and never read.', lines: [4], names: ['seen'] })
+  const answering = h.practice.observe({ kind: 'asked', at: 10, text: 'why is it always empty' })
+  // They shut the tab in the same breath. Every event is folded as it arrives,
+  // so by the time the ask is handled the problem is already gone.
+  await h.practice.observe({ kind: 'closed', at: 11 })
+  await answering
+  assert.equal(h.llm.asks.length, 0, 'nothing was asked about a problem that is gone')
+  assert.ok(!h.said.some((item) => item.text.includes('seen is filled')), 'and nothing was said about code that is gone')
+  assert.equal(h.marks.length, 0, 'nor marked on a page that has moved on')
+  assert.deepEqual(h.suggestions(), [], 'and no chips are put back up for it')
+})
+
+test('a problem closed while the model is thinking is neither said nor marked', async () => {
+  const h = harness('coach')
+  await h.start()
+  h.llm.queue.push({ rung: 3, say: 'seen is filled on line 4 and never read.', lines: [4], names: ['seen'] })
+  // Asked and handled, so the model is on the wire before the tab is shut.
+  const answering = h.practice.observe({ kind: 'asked', at: 10, text: 'why is it always empty' })
+  await Promise.resolve()
+  await h.practice.observe({ kind: 'closed', at: 11 })
+  await answering
+  assert.equal(h.llm.asks.length, 1, 'the model was asked')
+  assert.ok(!h.said.some((item) => item.text.includes('seen is filled')), 'and nothing was said about code that is gone')
+  assert.equal(h.marks.length, 0, 'nor marked on a page that has moved on')
+  assert.deepEqual(h.suggestions(), [], 'and no chips are put back up for it')
+})
+
 test('asked to be walked through it, the coach draws a dry run and the line carries it', async () => {
   const h = harness('coach')
   await h.start()
@@ -258,4 +330,58 @@ test('hands off is offered no walk-through, and a dry run that does not hold tog
   assert.match(h.llm.asks[1]!.system, /did not hold together/, 'the second try is told what was wrong with the picture')
   assert.equal(h.said.at(-1)!.text, 'I have nothing specific enough to say about that yet.')
   assert.equal(h.said.at(-1)!.trace, undefined, 'and nothing broken is drawn')
+})
+
+test('the greeting waits for the page to report, not for there to be code', async () => {
+  // The bridge does not wait for one event to be handled before delivering the
+  // next, so this is how they really arrive. Waiting for code rather than for
+  // the report held the greeting the full settle every time a student opened a
+  // problem they had not started, and cut off the code of one they had.
+  const h = harness('coach')
+  const greeting = h.practice.observe({ kind: 'opened', at: 0, problem: PROBLEM })
+  await h.practice.observe({ kind: 'changed', at: 0, code: '', language: 'python' })
+  const started = Date.now()
+  await greeting
+  assert.ok(Date.now() - started < 1000, 'the greeting did not sit out the settle')
+  assert.equal(h.said[0]!.text, 'Two Sum, easy. Nothing written yet. You have me on Coach.')
+})
+
+test('code that arrives late is still what the greeting says', async () => {
+  const h = harness('coach')
+  const greeting = h.practice.observe({ kind: 'opened', at: 0, problem: PROBLEM })
+  await new Promise((resolve) => setTimeout(resolve, 600))
+  await h.practice.observe({ kind: 'changed', at: 0, code: CODE, language: 'python' })
+  await greeting
+  assert.match(h.said[0]!.text, /lines of python/)
+})
+
+test('a burst of events is folded in the order it arrived, whatever the recorder does', async () => {
+  // The recorder writes each event to disk and the fold used to wait on that.
+  // Three appends started together do not finish in the order they started, so
+  // `opened` could land after the `changed` it preceded, and `opened` on an
+  // unseen problem is a clean slate: the student's code went with it.
+  const h = harness('coach')
+  const delays = new Map<string, number>([
+    ['opened', 30],
+    ['changed', 1],
+    ['attention', 1]
+  ])
+  const slow = new LeetCodePractice({
+    llm: h.llm,
+    tier: () => 'coach',
+    now: () => 0,
+    nextId: () => '1',
+    record: (event) => new Promise((done) => setTimeout(done, delays.get(event.kind) ?? 1)),
+    voice: { say: async () => undefined, suggest: () => undefined, orb: () => undefined, mark: () => undefined, focus: () => undefined }
+  })
+
+  // Handed over the way the bridge hands them over: all at once, none awaited.
+  const all = [
+    slow.observe({ kind: 'opened', at: 0, problem: PROBLEM }),
+    slow.observe({ kind: 'changed', at: 0, code: CODE, language: 'python' }),
+    slow.observe({ kind: 'attention', at: 0, inFront: true })
+  ]
+  await Promise.all(all)
+  assert.equal(slow.work.code, CODE)
+  assert.equal(slow.work.problem?.slug, PROBLEM.slug)
 })

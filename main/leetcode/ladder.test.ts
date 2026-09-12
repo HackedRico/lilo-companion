@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import type { Hint, Trace } from '../../shared/leetcode.ts'
+import { TIER_CEILING, type Hint, type Trace } from '../../shared/leetcode.ts'
 import { CLIMB_EVERY, gate, handsOverCode, mentions, namesFromCode, nextRung, reachedRung } from './ladder.ts'
-import { EMPTY_WORK, type Work } from './state.ts'
+import { EMPTY_WORK, PENDING_STALE_MS, type Work } from './state.ts'
 
 const CODE = 'def twoSum(nums, target):\n    seen = {}\n    for i, n in enumerate(nums):\n        seen[n] = i\n    return []'
 
@@ -34,11 +34,17 @@ test('hands off volunteers nothing, whatever the effort', () => {
 
 test('nothing is volunteered into a run, an accepted answer, quiet, or an empty tab', () => {
   const late = CLIMB_EVERY * 2
-  assert.equal(nextRung(3, null, { ...working, pending: true }, late), null)
+  assert.equal(nextRung(3, null, { ...working, pendingAt: late }, late), null)
   assert.equal(nextRung(3, null, { ...working, outcome: { verdict: 'accepted', detail: '' } }, late), null)
   assert.equal(nextRung(3, null, { ...working, quietUntil: late + 1 }, late), null)
   assert.equal(nextRung(3, null, { ...working, inFront: false }, late), null)
   assert.equal(nextRung(3, null, { ...working, problem: null }, late), null)
+})
+
+test('a run whose verdict never came stops holding the companion quiet', () => {
+  const submitted = { ...working, pendingAt: CLIMB_EVERY * 2 }
+  assert.equal(nextRung(3, null, submitted, CLIMB_EVERY * 2), null, 'while the judge is still out')
+  assert.equal(nextRung(3, null, submitted, CLIMB_EVERY * 2 + PENDING_STALE_MS), 1, 'and speaks again once it plainly is not coming')
 })
 
 test('above the ceiling is never said', () => {
@@ -78,6 +84,16 @@ test('the steps and the answer are new work, so they point at nothing of theirs'
   const answer: Hint = { rung: 5, say: 'seen = {}\nfor i, n in enumerate(nums):\n    if target - n in seen:\n        return [seen[target - n], i]', lines: [], names: [] }
   assert.deepEqual(gate(answer, 5, working), { ok: true }, 'a tutor who may answer can hand over code')
   assert.deepEqual(gate(answer, 3, working), { ok: false, reason: 'too_high' }, 'and a coach still cannot')
+})
+
+test('the whole solution is never volunteered, however the code is written', () => {
+  const answer: Hint = { rung: 4, say: 'Try this:\nseen = {}\nfor i, n in enumerate(nums):\n    return [seen[target - n], i]', lines: [], names: [] }
+  assert.deepEqual(gate(answer, TIER_CEILING.tutor.volunteer, working), { ok: false, reason: 'too_high' }, 'nobody asked for it')
+  assert.deepEqual(gate(answer, TIER_CEILING.tutor.onAsk, working), { ok: true }, 'and asked outright it is theirs')
+  // The same answer with the newlines taken out is the same answer.
+  const oneLine: Hint = { rung: 1, say: 'What if you wrote d = {}; for i, n in enumerate(nums): d[target - n] = i?', lines: [], names: [] }
+  assert.deepEqual(gate(oneLine, TIER_CEILING.hands_off.onAsk, working), { ok: false, reason: 'too_high' })
+  assert.deepEqual(gate(oneLine, TIER_CEILING.coach.onAsk, working), { ok: false, reason: 'too_high' })
 })
 
 test('a promise with nothing after it is refused rather than said', () => {
@@ -136,8 +152,14 @@ test('what a hint actually says is what the ceiling answers to, not what it call
 test('reading a hint back', () => {
   assert.ok(handsOverCode('```python\nx = 1\n```'))
   assert.ok(handsOverCode('Try this:\nseen = {}\nfor i, n in enumerate(nums):'))
+  assert.ok(
+    handsOverCode('What if you wrote d = {}; for i, n in enumerate(nums): d[target - n] = i and then returned [d[n], i]?'),
+    'a solution written on one line is still a solution'
+  )
   assert.ok(!handsOverCode('Walk the array once, storing each value against its index as you go.'))
   assert.ok(!handsOverCode('One line: think about what you store.'))
+  assert.ok(!handsOverCode('What if you kept what you have already seen, and looked in it before storing n?'))
+  assert.equal(reachedRung({ rung: 2, say: '```python\nseen = {}\n```', lines: [], names: [] }, working), 5, 'code is the top rung')
   assert.deepEqual(namesFromCode('Notice that `seen` is filled but never read.', CODE), ['seen'])
   assert.deepEqual(namesFromCode('Your twoSum loop is off by one.', CODE), ['twoSum'])
   assert.deepEqual(namesFromCode('The loop never resets the count.', CODE), [], 'ordinary words are prose')
@@ -189,7 +211,8 @@ test('code in the steps of a dry run is the top of the ladder, whatever the rung
   }
   const hint: Hint = { rung: 3, say: 'Here is how it goes.', lines: [], names: ['seen'], trace: smuggled }
   assert.deepEqual(gate(hint, 3, working), { ok: false, reason: 'too_high' })
-  assert.deepEqual(gate(hint, 4, working), { ok: true })
+  assert.deepEqual(gate(hint, 4, working), { ok: false, reason: 'too_high' }, 'the steps are not the code in pieces')
+  assert.deepEqual(gate(hint, 5, working), { ok: true })
   const narrated: Trace = {
     ...WALK,
     steps: [
@@ -201,4 +224,21 @@ test('code in the steps of a dry run is the top of the ladder, whatever the rung
   // A say that ends by introducing the picture has kept its promise.
   const intro: Hint = { rung: 4, say: 'Watch the two ends walk in:', lines: [], names: [], trace: WALK }
   assert.deepEqual(gate(intro, 4, working), { ok: true })
+})
+
+test('a hint that names two of their own values is a hint, not the answer', () => {
+  // Counting assignments anywhere on a line read the plainest rung three hint
+  // there is as handing over the solution, so the student asked for help and
+  // was told to raise the level instead.
+  assert.equal(handsOverCode('You set left = 0 and right = len(nums) - 1, but nothing moves them.'), false)
+  assert.equal(handsOverCode('Right now right = len(nums) - 1 and nothing ever decrements it.'), false)
+  assert.equal(handsOverCode('Set the left pointer to 0 and the right pointer to the last index.'), false)
+  assert.equal(handsOverCode('Here is the idea: walk the array once and remember what you saw.'), false)
+})
+
+test('code run together on one line is code however it is punctuated', () => {
+  assert.equal(handsOverCode('What if you wrote d = {}; for i, n in enumerate(nums): d[target-n] = i?'), true)
+  assert.equal(handsOverCode('What if you wrote if target - n in seen: return [seen[target-n], i]?'), true)
+  assert.equal(handsOverCode('Try d = {}; return d'), true)
+  assert.equal(handsOverCode('You could do seen[target - n] = i on the way past.'), true)
 })

@@ -22,7 +22,7 @@ const JSON_ONLY = 'Reply with one JSON object and nothing else. No prose, no cod
 
 /** The one rule every cited answer carries, in the words the citation filter enforces. */
 const CITE_RULE =
-  'Cite it as [S:id] right after the claim, one id per marker, copied exactly as it is listed. Never cite an id that is not listed. If nothing below supports a claim, do not make it.'
+  'Cite it as [S:id] right after the claim, one id per marker, copied exactly as it is listed. Never cite an id that is not listed. If nothing below supports a claim, do not make it. The reader never sees a marker, so a sentence has to read as a whole sentence without it: never write "as seen in", "as mentioned in" or "described in" in front of one.'
 
 /** Sentences in the only form the model may cite them. */
 function citable(sentences: Sentence[]): string {
@@ -31,15 +31,40 @@ function citable(sentences: Sentence[]): string {
 
 // Hear -------------------------------------------------------------------
 
+/**
+ * What a model is shown of a long lecture. A deck or a transcript says what it
+ * is about early and finishes on references, homework and questions, so the
+ * opening is kept and the closing is what gets dropped.
+ */
+const LECTURE_CHARS = 6000
+
+export function lectureWindow(transcript: string): string {
+  const trimmed = transcript.trim()
+  return trimmed.length <= LECTURE_CHARS ? trimmed : trimmed.slice(0, LECTURE_CHARS)
+}
+
+/**
+ * A prompt whose only job is to be the size and shape of a real one, so the
+ * first call to a cold endpoint is this one rather than the student's. The
+ * lecture is filler: the reply is thrown away.
+ */
+export function warmUp(): Prompt {
+  return extractConcepts(
+    'Today we went over how a service answers a request, where the time goes, and what you do when it goes somewhere unexpected. '.repeat(
+      10
+    )
+  )
+}
+
 export function extractConcepts(transcript: string): Prompt {
   return {
-    system: `You read a few minutes of a lecture a software engineering student is sitting in, and name what is being taught.
+    system: `You read a lecture a software engineering student has handed you, and name what is being taught.
 Name at most three concepts, the ones they would need to look up.
 Skip admin, greetings, and exam logistics. If nothing is being taught, return an empty list.
 Confidence is high when the lecturer defines or works through it, low when it is mentioned in passing.
 ${JSON_ONLY}
 Schema: {"concepts":[{"name":string,"summary":string,"confidence":"low"|"medium"|"high"}]}`,
-    user: `Lecture transcript:\n"""\n${transcript.slice(-6000)}\n"""`
+    user: `Lecture:\n"""\n${lectureWindow(transcript)}\n"""`
   }
 }
 
@@ -73,7 +98,7 @@ What the lecturer said about it: ${summary}`
 
 export function nameRuntimeSkill(concept: string, summary: string, sentences: Sentence[]): Prompt {
   return {
-    system: `A software engineering student just heard or practiced a concept that did not resolve to the fixed skill vocabulary.
+    system: `A software engineering student just heard or practised a concept that did not resolve to the fixed skill vocabulary.
 
 You are given real job-posting sentences retrieved for that concept. Name the skill or requirement those postings use for the idea.
 Use a short phrase that appears directly in the sentences, or a near-verbatim phrase made from their words.
@@ -112,7 +137,7 @@ how the concept applies to real work instead.
 
 When a claim about industry comes from one of the posting sentences below, cite it. ${CITE_RULE}`,
     user: `About the student: software engineering, ${profile.major ? `studying ${profile.major}` : 'course not said'}, ${profile.year || 'year not said'}, aiming at ${labelRoles(profile.targetRoles) || 'no track said yet'}.
-${card ? `They are looking at: ${card.concept.name} — ${card.oneLiner}\n` : ''}${transcript ? `Recent lecture:\n"""\n${transcript.slice(-2500)}\n"""\n` : ''}
+${card ? `They are looking at: ${card.concept.name}. ${card.oneLiner}\n` : ''}${transcript ? `Recent lecture:\n"""\n${transcript.slice(-2500)}\n"""\n` : ''}
 Posting sentences you may cite:
 ${sentences.length > 0 ? citable(sentences) : '(none retrieved)'}
 

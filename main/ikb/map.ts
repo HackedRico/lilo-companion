@@ -34,8 +34,14 @@ function normalise(input: string): string {
     .trim()
 }
 
+/**
+ * Whole words only, so "set" does not match "offset". A full stop is kept by
+ * `normalise` because .NET and node.js need theirs, but the one that ends a
+ * sentence is not part of the word in front of it: without this, a trigger
+ * that fell at the end of a sentence never matched at all.
+ */
 function includesPhrase(haystack: string, needle: string): boolean {
-  return haystack === needle || haystack.startsWith(`${needle} `) || haystack.endsWith(` ${needle}`) || haystack.includes(` ${needle} `)
+  return ` ${haystack.replace(/\.+(?=\s|$)/g, '')} `.includes(` ${needle} `)
 }
 
 /**
@@ -79,7 +85,7 @@ function pushSupported(
 ): void {
   const canonical = ikb.vocabulary.get(raw.trim().toLowerCase())
   if (!canonical || out.has(canonical)) return
-  const hits = ikb.byTag.get(canonical)?.length ?? 0
+  const hits = ikb.postingsByTag.get(canonical) ?? 0
   const kind = ikb.taxonomy.get(canonical)?.kind
   if (hits > 0 && kind) out.set(canonical, { term: canonical, hits, kind, source })
 }
@@ -110,9 +116,14 @@ export function mapConceptTerms(ikb: Ikb, concept: Concept): MappedTerm[] {
     .filter(([alias]) => normalise(alias).length >= MIN_LITERAL)
     .sort((a, b) => b[0].length - a[0].length)
 
-  for (const [alias, canonical] of literal) {
-    if (!includesPhrase(text, normalise(alias))) continue
-    pushSupported(ikb, out, canonical, 'literal')
+  // The name of the concept is read before its description, because the first
+  // term to survive is the one said out loud. A summary of Pandas DataFrames
+  // mentions Python, and the lecture is not about Python.
+  for (const where of [normalise(concept.name), text]) {
+    for (const [alias, canonical] of literal) {
+      if (!includesPhrase(where, normalise(alias))) continue
+      pushSupported(ikb, out, canonical, 'literal')
+    }
   }
 
   return [...out.values()]
