@@ -53,30 +53,6 @@ prompt.
   every name against the student's own code before a word is said. The model
   is told the ceiling and never trusted with it.
 
-## What it does
-
-**Reads a lecture and proves where it turns up.** Drop a transcript, captions,
-slides, a PDF or your own notes onto the orb. One model call names at most
-three concepts. Each becomes a card: what postings call it, and up to three
-sentences from three different companies, quoted from the postings
-themselves. The recap at the end says what you met, and what postings for your
-track ask for that you have not.
-
-**Sits beside you on LeetCode.** A Chrome extension reads the editor's model,
-not the screen, and reports events: a problem opened, the code changed, a run
-pending, a verdict arrived. The companion says the state first, in words with
-no model in them. Then a hint, if one is earned: one rung higher a minute at a
-time, and only after your code changed. Three tiers, hands off, coach and
-tutor, and each is a ceiling. A hint can carry a dry run, the pointers on the
-array one row per step, drawn in the thread and stepped through at your own
-pace.
-
-**Briefs you before an interview.** "What's the Stripe interview like" reads
-what people posted first-hand in the last year on LeetCode's interview
-experience board and on Hacker News. Every claim carries a chip that opens the
-account. How old the newest account is comes from the dates, in code. With
-nothing to read, no model is called and it says so.
-
 ## How it is built
 
 A picture first, then the same thing in words.
@@ -118,6 +94,8 @@ never picks one for you.
    than stretching.
 4. What survives becomes a card: sentences from three different companies,
    quoted as written, each with the URL of the posting it came from.
+5. At the end of a session, a recap: what you met, and what postings for your
+   track ask for that you have not.
 
 ### When you are stuck on LeetCode
 
@@ -136,11 +114,16 @@ never picks one for you.
 5. A refused hint is asked for once more under a stricter instruction, then
    dropped. Only then is a word said, and any line it names is marked in your
    editor.
+6. Ask to be walked through it, and the hint comes with a dry run: the
+   pointers on the array, the values that change, one row per step, drawn in
+   the thread for you to step through at your own pace. The same ceiling
+   applies to the picture as to the words.
 
 ### When you ask about a company's interview
 
 1. Lilo fetches what people posted first-hand in the last year, on LeetCode's
-   interview board and on Hacker News. Nothing else is read.
+   interview board and on Hacker News. Nothing else is read. With nothing to
+   read, no model is called, and it says so.
 2. The accounts are split into numbered sentences, and the model is given
    those and nothing else.
 3. Every claim in the reply has to point at one of those sentences. A claim
