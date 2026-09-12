@@ -1,31 +1,39 @@
 # Lilo
 
-A desktop companion for the software engineering student who wants the job.
+**A desktop companion for the software engineering student who wants the job.**
 
-Every student has sat in a lecture and thought "I will never use this." That
-is the moment the motivation goes: the slides keep moving, the concept stays
-abstract, and the job it was all supposed to lead to feels further away, not
-closer. Lilo is a companion that stays with the student through all of it,
-from that lecture to the LeetCode grind to the interview to the offer.
+> "I will never use this."
 
-Hand it a lecture and it names the concept, says what industry calls the same
-thing, and quotes a real job posting to prove it, with the URL behind the
-quote. Open a problem on LeetCode and it sits beside you, reads your editor,
-and helps only up to a ceiling you set, so the effort stays yours. Ask what an
-interview at a company is like and it reads what people posted first-hand,
-with a citation on every claim. It cheers when you get there. It does not do
-the work for you.
+Every student has thought it, halfway through a lecture. It is the moment the
+motivation goes. The slides keep moving, the concept stays abstract, and the
+job it was all supposed to lead to feels further away, not closer. Nobody in
+the room says which of this week's ideas a Stripe or a Cloudflare posting asks
+for by name, so the student is asked to take it on faith. The gap between the
+classroom and the job is real, and the student is the one left to close it
+alone.
 
-It runs on macOS and Windows from one codebase. Built for the LILO Summer
-Academy Hackathon, Track 01: DSA practice and interviewing.
+Lilo stays with the student through all of it, from that lecture to the
+LeetCode grind to the interview to the offer.
+
+- **Hand it a lecture.** It names the concept, says what industry calls the
+  same thing, and quotes a real job posting to prove it, with the URL behind
+  the quote.
+- **Open a problem on LeetCode.** It sits beside you, reads your editor, and
+  helps only up to a ceiling you set, so the effort stays yours.
+- **Ask about an interview.** It reads what people posted first-hand about a
+  company, with a citation on every claim.
+
+It cheers when you get there. It never does the work for you.
+
+Runs on macOS and Windows from one codebase. Built for the LILO Summer Academy
+Hackathon, Track 01: DSA practice and interviewing.
 
 ## Why it matters
 
-The distance between a lecture and a job posting is the gap this hackathon is
-named for, and a student cannot close it alone: nobody in class says which of
-this week's ideas a Stripe or Cloudflare posting asks for by name. An AI can
-say so, and the two ways it goes wrong are well known. It invents the link, and
-the student believes it. Or it does the work, and the student learns nothing.
+Closing that gap is what this hackathon is named for, and an AI is the obvious
+tool: it can read the lecture and it can read the postings. The two ways it
+goes wrong are well known. It invents the link, and the student believes it.
+Or it does the work, and the student learns nothing.
 
 Lilo is shaped around refusing both, and the refusals are in code, not in a
 prompt.
@@ -65,18 +73,6 @@ experience board and on Hacker News. Every claim carries a chip that opens the
 account. How old the newest account is comes from the dates, in code. With
 nothing to read, no model is called and it says so.
 
-## By the numbers
-
-| | |
-|---|---|
-| Companies in the evidence base | 30, read from their own public ATS endpoints |
-| Software engineering postings | 1,388, across 8 role families |
-| Sentences, every one tagged | 10,737 |
-| Vocabulary | 68 tools and 37 practices |
-| Hint ladder | 6 rungs under 3 tiers, each tier two ceilings |
-| Tests | 288, in 31 files beside the modules they check |
-| Platforms | macOS and Windows, one codebase |
-
 ## How it is built
 
 Three programs and one file on disk. Chrome runs the extension. Chrome launches
@@ -85,34 +81,7 @@ it. Lilo itself is an Electron main process, a preload, and a sandboxed React
 renderer with no Node in it. The evidence base is a JSON file, read at start
 and rebuilt by a script.
 
-```mermaid
-flowchart LR
-  subgraph chrome["Chrome, on leetcode.com"]
-    agent["agent.js<br>reads the editor model"] --> relay["relay.js"] --> worker["background.js"]
-  end
-
-  worker -- "native messaging" --> host["main/host.ts<br>plain Node, no Electron"]
-  host -- "local socket" --> bridge
-
-  subgraph lilo["Lilo"]
-    subgraph mainp["main process"]
-      bridge["leetcode/bridge.ts<br>every event parsed with zod"] --> session["session.ts<br>the loop"]
-      session --> practice["leetcode/<br>state, ladder, coach"]
-      session --> pipeline["pipeline/<br>extract, translate, evidence"]
-      session --> interviews["interviews/<br>gather, brief, cite"]
-      practice --> llm["llm/service.ts<br>one queue, one schema check"]
-      pipeline --> llm
-      interviews --> llm
-      pipeline --> ikb[("data/ikb.json<br>postings and sentences")]
-    end
-    session <--> preload["preload/index.ts<br>the one door"]
-    preload <--> renderer["renderer/<br>orb, thread, preferences"]
-  end
-
-  llm --> endpoint[("a model endpoint<br>hosted or on this machine")]
-  interviews --> boards[("LeetCode discuss<br>Hacker News")]
-  ingest["scripts/ingest-ikb.ts"] -- "30 ATS boards" --> ikb
-```
+![How Lilo is built: the student, the companion, its three practices and two rules, and what it draws on](docs/architecture.svg)
 
 **One loop.** `main/session.ts` is one conversation everything lands in: a
 lecture, a LeetCode event, a typed question. It holds the state the orb reads
@@ -151,26 +120,33 @@ it. [docs/architecture.md](docs/architecture.md) draws both paths.
 
 ### Where things are
 
-| | |
-|---|---|
-| `main/session.ts` | the loop: hear, see, lock in, recap |
-| `main/pipeline/` | lecture to concept to posting terms to evidence |
-| `main/ikb/` | the evidence base: tagging, search, roles, gap statistics |
-| `main/chat/` | the companion's answers, and the citation filter |
-| `main/leetcode/` | the practice: state, ladder, coach, bridge, connect, recordings |
-| `main/interviews/` | first-hand accounts: ask, sources, brief, cache |
-| `main/llm/` | the service layer, and a provider per protocol |
-| `main/panel.ts`, `main/tray.ts` | the window, and the menu bar mark |
-| `main/settings.ts`, `main/voice.ts` | settings layered over `.env`, keys sealed; speech to words |
-| `main/host.ts` | the native messaging host Chrome runs |
-| `main/guards.ts` | nothing from a renderer reaches a window unchecked |
-| `preload/index.ts` | the one door between main and a renderer |
-| `renderer/bubble/`, `renderer/thread/`, `renderer/settings/` | the orb and its face, the panel, the preferences window |
-| `shared/` | types, prompts, zod schemas, layout maths; both sides import it, it imports neither |
-| `extension/` | the agent, the relay and the service worker, loaded unpacked |
-| `data/` | the evidence base and the lists that build it |
-| `scripts/ingest-ikb.ts` | rebuilds the evidence base from the boards |
-| `docs/` | the reasoning |
+```
+lilo-companion
+├── main/              the Electron main process
+│   ├── session.ts     the loop: hear, see, lock in, recap
+│   ├── pipeline/      lecture to concept to posting terms to evidence
+│   ├── ikb/           the evidence base: tagging, search, roles, gaps
+│   ├── chat/          the companion's answers, and the citation filter
+│   ├── leetcode/      the practice: state, ladder, coach, bridge, recordings
+│   ├── interviews/    first-hand accounts: ask, sources, brief, cache
+│   ├── llm/           one queue, one schema check, a provider per protocol
+│   ├── panel.ts       the window
+│   ├── tray.ts        the menu bar mark
+│   ├── settings.ts    settings over .env, keys sealed in the keychain
+│   ├── voice.ts       speech to words
+│   ├── guards.ts      nothing from a renderer reaches a window unchecked
+│   └── host.ts        the native messaging host Chrome runs
+├── preload/           the one door between main and a renderer
+├── renderer/          React, sandboxed, no Node in it
+│   ├── bubble/        the orb and its face
+│   ├── thread/        the panel: one conversation
+│   └── settings/      the preferences window
+├── shared/            types, prompts, schemas, layout maths
+├── extension/         the Chrome extension: agent, relay, service worker
+├── data/              the evidence base, and the lists that build it
+├── scripts/           the ingest that rebuilds it
+└── docs/              the reasoning
+```
 
 ## Running it
 
@@ -298,3 +274,7 @@ and which of those a Mac cannot verify.
 | [docs/character.md](docs/character.md) | the orb: its geometry, its moods and the menu bar mark |
 | [docs/demo-script.md](docs/demo-script.md) | the three minute demo, beat by beat |
 | [AGENTS.md](AGENTS.md) | the working agreement for anyone changing the code, person or agent |
+
+## License
+
+Apache 2.0. See [LICENSE](LICENSE).
