@@ -4,17 +4,14 @@
 
 > "I will never use this."
 
-You have thought it. Week six, a lecture on amortized analysis, and the
-thought arrives: this has nothing to do with the job I want. Nobody up front
-tells you that a company you have heard of asks for exactly this, by name, on
-its own careers page. So you stop listening, and a little of the reason you
-enrolled goes with it. Later it is midnight and LeetCode, and you are stuck
-with nobody beside you. Later still it is an interview you know nothing about.
+Every student has said it, halfway through a lecture. That is the moment the
+motivation goes: the slides keep moving, the concept stays abstract, and the
+job it was all supposed to lead to feels further away, not closer. The gap
+between the classroom and that job is real, and the student is left to close
+it alone.
 
-That is the gap. It is real, and you are closing it alone.
-
-Lilo is a companion for that whole stretch: the lecture, the grind, the
-interview, the offer.
+Lilo is a companion that stays with the student through all of it, from that
+lecture to the LeetCode grind to the interview to the offer.
 
 - **Hand it a lecture.** It names the concept, says what industry calls the
   same thing, and quotes a real job posting to prove it, with the URL behind
