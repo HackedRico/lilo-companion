@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import MiniSearch from 'minisearch'
 import type { Posting, Sentence } from '../../shared/types.ts'
+import { buildTaxonomy, type ConceptMapRule, type TaxonomyEntry } from './map.ts'
 import { buildMatchers, type Matcher, type Term } from './tag.ts'
 
 export interface Ikb {
@@ -11,7 +12,12 @@ export interface Ikb {
   byTag: Map<string, Sentence[]>
   /** Lowercased term or alias to the canonical term it stands for. */
   vocabulary: Map<string, string>
+  /** Canonical tool and practice entries, normalized into one taxonomy. */
+  taxonomy: Map<string, TaxonomyEntry>
+  tools: Set<string>
   practices: Set<string>
+  /** Academic/coursework phrases and the posting terms they usually map to. */
+  conceptMappings: ConceptMapRule[]
   matchers: Matcher[]
   search: MiniSearch<Sentence>
   /** Job titles, so a phrase like "distributed systems" can find its track. */
@@ -47,6 +53,7 @@ export async function loadIkb(dataDir: string): Promise<Ikb> {
     read<Term[]>('tools.json'),
     read<Term[]>('practices.json')
   ])
+  const conceptMappings = await read<ConceptMapRule[]>('concept-mappings.json').catch(() => [])
 
   const postings = new Map(raw.postings.map((posting) => [posting.id, posting]))
 
@@ -63,6 +70,7 @@ export async function loadIkb(dataDir: string): Promise<Ikb> {
   for (const { term, aliases } of [...tools, ...practices]) {
     for (const word of [term, ...aliases]) vocabulary.set(word.toLowerCase(), term)
   }
+  const taxonomy = buildTaxonomy(tools, practices)
 
   const search = new MiniSearch<Sentence>({
     fields: ['text', 'tags'],
@@ -83,7 +91,10 @@ export async function loadIkb(dataDir: string): Promise<Ikb> {
     sentences: raw.sentences,
     byTag,
     vocabulary,
+    taxonomy,
+    tools: new Set(tools.map((tool) => tool.term)),
     practices: new Set(practices.map((practice) => practice.term)),
+    conceptMappings,
     matchers: buildMatchers([...tools, ...practices]),
     search,
     titles,

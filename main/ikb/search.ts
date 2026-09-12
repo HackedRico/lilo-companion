@@ -65,6 +65,37 @@ export function evidenceFor(ikb: Ikb, terms: TermHit[], roles: RoleFamily[]): Se
   return picked
 }
 
+export function evidenceSearch(ikb: Ikb, queries: string[], roles: RoleFamily[], limit = 5): Sentence[] {
+  const ranked = new Map<string, { sentence: Sentence; score: number }>()
+  for (const [index, query] of queries.entries()) {
+    const trimmed = query.trim()
+    if (trimmed.length < 3) continue
+    const priority = (queries.length - index) * 200
+    const results = [
+      ...ikb.search.search(trimmed, { combineWith: 'AND' }).slice(0, 80).map((result) => ({ result, priority })),
+      ...ikb.search.search(trimmed, { combineWith: 'OR' }).slice(0, 40).map((result) => ({ result, priority: priority / 10 }))
+    ]
+    for (const { result, priority: queryPriority } of results) {
+      const sentence = ikb.sentences.find((candidate) => candidate.id === result.id)
+      if (!sentence) continue
+      const score = Number(result.score) + queryPriority + scoreFor(sentence, roles, ikb)
+      const old = ranked.get(sentence.id)
+      if (!old || score > old.score) ranked.set(sentence.id, { sentence, score })
+    }
+  }
+
+  const picked: Sentence[] = []
+  const companies = new Set<string>()
+  for (const { sentence } of [...ranked.values()].sort((a, b) => b.score - a.score)) {
+    const company = ikb.postings.get(sentence.postingId)?.company
+    if (!company || companies.has(company)) continue
+    companies.add(company)
+    picked.push(sentence)
+    if (picked.length === limit) break
+  }
+  return picked
+}
+
 export function evidenceOf(ikb: Ikb, sentence: Sentence): Evidence | undefined {
   const posting = ikb.postings.get(sentence.postingId)
   if (!posting) return undefined

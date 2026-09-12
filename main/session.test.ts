@@ -24,11 +24,23 @@ class ScriptedLlm implements LlmLike {
   readonly asks: Ask[] = []
   /** How long a call sits in flight, so overlapping work can be tested. */
   delayMs = 0
+  concept = { name: 'sampling variability', summary: 'Sample means move around', confidence: 'high' as const }
+  terms = ['A/B testing', 'experimentation', 'not a real term at all']
 
   async json<T>(schema: ZodType<T>, ask: Ask): Promise<T> {
     if (!this.available) throw new Error('no model configured')
     this.asks.push(ask)
     if (this.delayMs > 0) await new Promise((done) => setTimeout(done, this.delayMs))
+    if (ask.system.includes('did not resolve to the fixed skill vocabulary')) {
+      const evidence = [...ask.user.matchAll(/\[S:([^\]]+)\] ([^\n]+)/g)]
+      const ids = evidence.map((match) => match[1]!)
+      const dsa = evidence.find((match) => /data structures|algorithms/i.test(match[2]!))?.[1]
+      return schema.parse({
+        skill: 'data structures and algorithms',
+        citations: [dsa ?? ids[0], 'not-a-real-id'].filter(Boolean),
+        oneLiner: 'This is the part interviews test because production code still needs clean fundamentals.'
+      }) as T
+    }
     return schema.parse(this.reply(schema)) as T
   }
 
@@ -52,14 +64,12 @@ class ScriptedLlm implements LlmLike {
   private reply(schema: ZodType<unknown>): unknown {
     if (schema === conceptsOut) {
       return {
-        concepts: [
-          { name: 'sampling variability', summary: 'Sample means move around', confidence: 'high' }
-        ]
+        concepts: [this.concept]
       }
     }
     if (schema === termsOut) {
       return {
-        terms: ['A/B testing', 'experimentation', 'not a real term at all'],
+        terms: this.terms,
         oneLiner: 'That wobble in the sample mean is what half of product work argues about.'
       }
     }
@@ -136,6 +146,30 @@ test('a card only claims terms the postings actually carry', async () => {
   const withEvidence = thread.find((item) => item.evidence)
   assert.ok(withEvidence?.evidence, 'the claim arrives with a real posting sentence')
   assert.ok(withEvidence.evidence.url.startsWith('http'), 'and a link back to it')
+})
+
+test('a vocabulary miss can still map to runtime evidence from postings', async () => {
+  const llm = new ScriptedLlm()
+  llm.concept = {
+    name: 'sliding window',
+    summary: 'A LeetCode array technique for keeping a moving range of values.',
+    confidence: 'high'
+  }
+  llm.terms = ['not a real term at all']
+  const { session, thread } = harness(llm, ikb)
+  await teach(session)
+
+  const said = thread.map((item) => item.text).join('\n')
+  assert.match(said, /data structures and algorithms/)
+  assert.doesNotMatch(said, /barely shows up/)
+
+  const withEvidence = thread.find((item) => item.evidence)
+  assert.ok(withEvidence?.evidence)
+  assert.ok(withEvidence.evidence.url.startsWith('http'))
+  assert.ok(
+    withEvidence.evidence.sentence.text.toLowerCase().includes('data structures') ||
+      withEvidence.evidence.sentence.text.toLowerCase().includes('algorithms')
+  )
 })
 
 test('what the student types routes to onboarding, leetcode, or chat', async () => {
