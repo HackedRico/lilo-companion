@@ -17,6 +17,10 @@ Every claim about industry traces to a sentence in `data/ikb.json`, and every se
 
 Every link is a pure function in `main/ikb/` with a test beside it. `tag.ts` has no Electron in it, so the ingest script and the app share one tagger.
 
+## The interview accounts
+
+`main/interviews/` is a second evidence source under the same rule. `gather` reads LeetCode's interview experience board and Hacker News comments, `sentencesOf` turns accounts into sentences with ids, and `briefInterview` hands the model those and nothing else, with `CitationFilter` dropping any id not in the list. Parsing is separate from fetching: `parseLeetCode` and `parseHn` run on fixtures in `sources.test.ts`, and `gather` runs against a fake fetch. Add a source by adding a parser with a fixture, a fetcher, and a line in the README naming it. Never add one that wants a login.
+
 ## Adding a company
 
 1. Add a row to `data/boards.json`: `ats` of greenhouse, lever or ashby, the board token, the display name. The token is the slug in the company's own careers URL.

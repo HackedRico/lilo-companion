@@ -20,6 +20,15 @@ Never claim anything about industry that was not given to you as evidence.`
 
 const JSON_ONLY = 'Reply with one JSON object and nothing else. No prose, no code fences.'
 
+/** The one rule every cited answer carries, in the words the citation filter enforces. */
+const CITE_RULE =
+  'Cite it as [S:id] right after the claim. Never cite an id that is not listed. If nothing below supports a claim, do not make it.'
+
+/** Sentences in the only form the model may cite them. */
+function citable(sentences: Sentence[]): string {
+  return sentences.map((sentence) => `[S:${sentence.id}] ${sentence.text}`).join('\n')
+}
+
 // Hear -------------------------------------------------------------------
 
 export function extractConcepts(transcript: string): Prompt {
@@ -101,12 +110,11 @@ You never do a student's homework, quiz or exam question for them. If they ask f
 graded work, say plainly that you will not, then explain the idea behind it or offer to explore
 how the concept applies to real work instead.
 
-When a claim about industry comes from one of the posting sentences below, cite it as [S:id] right
-after the claim. Never cite an id that is not listed. If nothing below supports a claim, do not make it.`,
+When a claim about industry comes from one of the posting sentences below, cite it. ${CITE_RULE}`,
     user: `About the student: software engineering, ${profile.major ? `studying ${profile.major}` : 'course not said'}, ${profile.year || 'year not said'}, aiming at ${labelRoles(profile.targetRoles) || 'no track said yet'}.
 ${card ? `They are looking at: ${card.concept.name} — ${card.oneLiner}\n` : ''}${transcript ? `Recent lecture:\n"""\n${transcript.slice(-2500)}\n"""\n` : ''}
 Posting sentences you may cite:
-${sentences.length > 0 ? sentences.map((sentence) => `[S:${sentence.id}] ${sentence.text}`).join('\n') : '(none retrieved)'}
+${sentences.length > 0 ? citable(sentences) : '(none retrieved)'}
 
 ${history.length > 0 ? `Conversation so far:\n${history.map((turn) => `${turn.role}: ${turn.text}`).join('\n')}\n\n` : ''}They said: "${question}"`
   }
@@ -188,5 +196,40 @@ Their code, ${input.language || 'language unknown'}, with line numbers:
 ${numbered(input.code) || '(nothing written yet)'}
 
 ${input.question ? `They asked: "${input.question}"` : 'Nobody asked. You are volunteering, so the lowest rung that moves them is the right one.'}`
+  }
+}
+
+// Interviews -------------------------------------------------------------
+
+export interface BriefInput {
+  company: string
+  sentences: Sentence[]
+  accounts: number
+  newestDaysAgo: number
+  oldestDaysAgo: number
+}
+
+/**
+ * What a recent interview at a company looked like, from first-hand accounts
+ * and nothing else. The accounts are the only thing that may be cited, and
+ * the citation filter drops any id that is not in the list.
+ */
+export function interviewBrief(input: BriefInput): Prompt {
+  const plural = input.accounts === 1 ? '' : 's'
+  const when =
+    input.newestDaysAgo === input.oldestDaysAgo
+      ? `${input.newestDaysAgo} days ago`
+      : `between ${input.newestDaysAgo} and ${input.oldestDaysAgo} days ago`
+  return {
+    system: `${VOICE}
+For this one answer, up to six short sentences rather than two.
+
+A software engineering student asked what interviewing at ${input.company} is like. Below are sentences from ${input.accounts} first-hand account${plural} people posted publicly ${when}.
+Say what the process looked like: how many rounds, what kind of questions, what people wished they had known. Address the student as "you".
+Every claim comes from a sentence below. ${CITE_RULE}
+If the accounts are few, old, or about a different role than the student is aiming at, say so in one plain sentence first.
+No headings, no bullet points, no advice about how to feel.`,
+    user: `Sentences you may cite:
+${citable(input.sentences)}`
   }
 }
