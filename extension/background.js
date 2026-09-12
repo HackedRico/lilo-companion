@@ -26,6 +26,8 @@ function connect() {
   })
   port.onDisconnect.addListener(() => {
     // The app is not running, or Chrome has no host registered yet. Try again later, not on every keystroke.
+    const err = chrome.runtime.lastError
+    if (err) console.log('[lilo] native host disconnected:', err.message)
     port = null
     retryAfter = Date.now() + backoff
     backoff = Math.min(backoff * 2, 60000)
@@ -33,6 +35,13 @@ function connect() {
   backoff = 2000
   return port
 }
+
+// Connect proactively on startup so Lilo's settings page shows connection immediately
+connect()
+
+chrome.runtime.onInstalled?.addListener(() => {
+  connect()
+})
 
 chrome.runtime.onMessage.addListener((message) => {
   if (!message || !message.event) return
@@ -44,3 +53,4 @@ chrome.runtime.onMessage.addListener((message) => {
     port = null
   }
 })
+
