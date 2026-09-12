@@ -197,7 +197,11 @@ export class Session {
    */
   updatePractice(on: boolean): void {
     this.patch({ practice: on })
-    if (!on) this.focusProblem(null)
+    // Switched back on, the problem the practice still holds takes the composer
+    // again. Without this the composer said "Ask me anything" over a problem
+    // that was open, the chips under it were still the problem's, and a
+    // question about the code was answered from the lecture.
+    this.focusProblem(on ? (this.leetcode.work.problem?.title ?? null) : null)
   }
 
   // Speaking -------------------------------------------------------------

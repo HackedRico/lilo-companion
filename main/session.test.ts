@@ -700,3 +700,27 @@ test('a card shows every company that asks for it, not only the first', async ()
   assert.equal(new Set(companies).size, companies.length, 'and no company is shown twice')
   for (const source of cited.sources) assert.ok(source.url.startsWith('http'))
 })
+
+test('switching the practice back on gives the composer back to the problem', async () => {
+  // Off and on again left the composer saying "Ask me anything" over an open
+  // problem, with the problem's own chips under it, so a question about the
+  // code was answered from the lecture.
+  const llm = new ScriptedLlm()
+  const { session } = harness(llm, ikb)
+  await session.observe({ kind: 'opened', at: Date.now(), problem: { slug: 'two-sum', title: 'Two Sum', difficulty: 'Easy', statement: 'add up to target' } })
+
+  session.updatePractice(false)
+  assert.equal(session.state.composer.mode, 'chat')
+
+  session.updatePractice(true)
+  assert.equal(session.state.composer.mode, 'leetcode')
+  assert.equal(session.state.composer.hint, 'Ask about Two Sum')
+})
+
+test('switching it on with nothing open leaves the composer alone', async () => {
+  const llm = new ScriptedLlm()
+  const { session } = harness(llm, ikb)
+  session.updatePractice(false)
+  session.updatePractice(true)
+  assert.equal(session.state.composer.mode, 'chat')
+})
