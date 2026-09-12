@@ -15,6 +15,13 @@ import { OUT } from '../shared/api.ts'
 import type { Layout, Placement, Point, Rect, Size } from '../shared/types.ts'
 
 /**
+ * How often the pointer is asked for. Fast enough that a file carried over the
+ * companion is taken, slow enough to be nothing: one call into the window
+ * server, eight times a second.
+ */
+const CURSOR_EVERY = 120
+
+/**
  * The one window. It floats above whatever the student is working in and never
  * takes that app out of front. The orb is the fixed point: opening and closing
  * the panel move the window's edges, never the orb's place on screen.
@@ -29,6 +36,9 @@ export class Panel {
   private wanted: Size
   private dragOffset: Point | null = null
   private passthrough = true
+  /** What was last asked of the window, so the watch does not ask again every tick. */
+  private ignoring = false
+  private watch: ReturnType<typeof setInterval> | null = null
 
   onExpandedChange: ((expanded: boolean) => void) | null = null
 
@@ -39,6 +49,8 @@ export class Panel {
     this.harden()
     this.apply()
     void this.load()
+    this.watchCursor()
+    this.win.on('closed', () => this.close())
     screen.on('display-metrics-changed', () => this.apply())
   }
 
@@ -233,13 +245,53 @@ export class Panel {
    */
   setClickThrough(on: boolean): void {
     if (this.dragOffset || !this.passthrough) return
+    this.ignoring = on
     this.win.setIgnoreMouseEvents(on, { forward: true })
+  }
+
+  /**
+   * Where the pointer is, asked rather than waited for.
+   *
+   * The renderer decides what is solid from mouse moves, and a file dragged in
+   * from Finder produces none: the system is carrying a file, not moving a
+   * cursor. A window that is ignoring mouse input does not accept a drop
+   * either, so a lecture dragged onto the companion went to whatever was
+   * behind it. This only ever makes the window solid, never the other way, so
+   * it can rescue that case without overruling anything the renderer knows
+   * about elements this does not.
+   */
+  private watchCursor(): void {
+    this.watch = setInterval(() => {
+      if (!this.ignoring || this.dragOffset || this.win.isDestroyed()) return
+      if (this.covers(screen.getCursorScreenPoint())) this.setClickThrough(false)
+    }, CURSOR_EVERY)
+  }
+
+  /** Whether a point on screen is over what the companion is drawing. */
+  private covers(point: Point): boolean {
+    const bounds = this.win.getBounds()
+    const layout = this.layout()
+    return [layout.orb, layout.panel].some((rect) => {
+      if (!rect) return false
+      const x = bounds.x + rect.x
+      const y = bounds.y + rect.y
+      return point.x >= x && point.x < x + rect.width && point.y >= y && point.y < y + rect.height
+    })
+  }
+
+  /** Stops the cursor watch. Called when the window goes. */
+  close(): void {
+    if (this.watch) clearInterval(this.watch)
+    this.watch = null
   }
 
   /** The way out if forwarded mouse moves ever stop arriving. */
   setPassthrough(on: boolean): void {
     this.passthrough = on
-    if (!on) this.win.setIgnoreMouseEvents(false)
+    if (!on) {
+      this.ignoring = false
+      this.win.setIgnoreMouseEvents(false)
+    }
   }
 
   get isPassthrough(): boolean {
