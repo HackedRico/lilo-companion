@@ -12,7 +12,7 @@ import { api } from '../api.ts'
 import { Action, Field, Group, KeyRow, TextInput } from './fields.tsx'
 import { ModelField } from './ModelField.tsx'
 
-type Tab = 'profile' | 'model' | 'leetcode'
+type Tab = 'profile' | 'model' | 'leetcode' | 'advanced'
 
 const TABS: { value: Tab; label: string; icon: ReactElement }[] = [
   {
@@ -44,6 +44,18 @@ const TABS: { value: Tab; label: string; icon: ReactElement }[] = [
         <path d="M10 3.5 13.2 8 10 12.5" />
       </svg>
     )
+  },
+  {
+    value: 'advanced',
+    label: 'Advanced',
+    icon: (
+      <svg viewBox="0 0 16 16" aria-hidden>
+        <circle cx="5" cy="4.5" r="2" />
+        <path d="M7 4.5h6.5M2.5 4.5h.5" />
+        <circle cx="11" cy="11.5" r="2" />
+        <path d="M2.5 11.5H9M13 11.5h.5" />
+      </svg>
+    )
   }
 ]
 
@@ -51,7 +63,7 @@ const TABS: { value: Tab; label: string; icon: ReactElement }[] = [
 function lastTab(): Tab {
   try {
     const saved = localStorage.getItem('prefs-tab')
-    return saved === 'model' || saved === 'leetcode' ? saved : 'profile'
+    return saved === 'model' || saved === 'leetcode' || saved === 'advanced' ? saved : 'profile'
   } catch {
     return 'profile'
   }
@@ -125,21 +137,24 @@ export function Prefs(): ReactElement {
               <ProfileTab profile={profile} save={saveProfile} />
             ) : tab === 'leetcode' ? (
               <LeetCodeTab profile={profile} save={saveProfile} />
-            ) : (
+            ) : tab === 'model' ? (
               <ModelTab settings={settings} save={saveSettings} />
+            ) : (
+              <AdvancedTab
+                storage={storage}
+                settings={settings}
+                onForget={() => {
+                  void api.forgetSettings().then(setSettings)
+                  void api.readProfile().then(setProfile)
+                }}
+              />
             )}
           </div>
         </div>
 
         <footer className="pane-foot">
-          <p className="m-0 min-w-0 flex-1 text-[11px] leading-[1.6]" style={{ color: 'var(--faint)' }}>
-            {settings?.encrypted === false
-              ? 'No keychain here, so keys sit in plain text.'
-              : 'Keys are in your keychain.'}{' '}
-            {/* One line, clipped: a path broken mid-word is worse than a path you hover. */}
-            <span className="input-mono block truncate" title={storage}>
-              {storage}
-            </span>
+          <p className="m-0 text-[11px] leading-[1.6]" style={{ color: 'var(--faint)' }}>
+            Lilo companion
           </p>
           <span
             className="shrink-0 text-[11.5px] transition-opacity duration-300"
@@ -147,16 +162,6 @@ export function Prefs(): ReactElement {
           >
             Saved
           </span>
-          <Action
-            tone="danger"
-            onClick={() => {
-              if (!window.confirm('Forget your profile, your keys and everything else?')) return
-              void api.forgetSettings().then(setSettings)
-              void api.readProfile().then(setProfile)
-            }}
-          >
-            Forget everything
-          </Action>
         </footer>
       </div>
     </div>
@@ -568,6 +573,109 @@ function LeetCodeTab({
                 Tip: Restart Chrome if it was already open before step 1.
               </p>
             </div>
+          </div>
+        </div>
+      </Group>
+    </>
+  )
+}
+
+function obfuscatePath(fullPath: string): string {
+  if (!fullPath) return ''
+  const unixHome = fullPath.replace(/^(\/(?:Users|home)\/[^/]+)/, '~')
+  if (unixHome !== fullPath) return unixHome
+  return fullPath.replace(/^[a-zA-Z]:\\Users\\[^\\]+/i, '%USERPROFILE%')
+}
+
+function AdvancedTab({
+  storage,
+  settings,
+  onForget
+}: {
+  storage: string
+  settings: SettingsView
+  onForget: () => void
+}): ReactElement {
+  const [copied, setCopied] = useState(false)
+  const displayPath = obfuscatePath(storage)
+
+  const copyStorage = (): void => {
+    if (storage) {
+      void navigator.clipboard.writeText(storage)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1600)
+    }
+  }
+
+  return (
+    <>
+      <p className="lede">
+        Data storage location, keychain security, and machine-level reset.
+      </p>
+
+      <Group title="Storage & Security">
+        <div className="flex flex-col gap-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <span className="text-[12.5px] font-medium text-[var(--ink)] block">
+                Keychain encryption
+              </span>
+              <p className="m-0 mt-0.5 text-[12px] text-[var(--dim)] leading-[1.5]">
+                {settings.encrypted === false
+                  ? 'No system keychain detected. Keys are saved in plain text on this device.'
+                  : 'API keys are sealed with your operating system keychain (Keychain on macOS, DPAPI on Windows).'}
+              </p>
+            </div>
+            <span
+              className={`shrink-0 text-[11px] font-medium px-2 py-0.5 rounded-full border ${
+                settings.encrypted === false
+                  ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
+                  : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+              }`}
+            >
+              {settings.encrypted === false ? 'Unencrypted' : 'Encrypted'}
+            </span>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between gap-2 mb-1.5">
+              <span className="text-[12.5px] font-medium text-[var(--ink)]">
+                Local configuration file
+              </span>
+              <Action onClick={copyStorage} className="!py-0.5 !px-2 !text-[11px]">
+                {copied ? 'Copied full path!' : 'Copy path'}
+              </Action>
+            </div>
+            <div className="input-mono text-[11.5px] text-[var(--ink-soft)] select-all break-all leading-normal bg-[var(--well)] p-2.5 rounded-lg border border-[var(--rule-strong)]">
+              {displayPath || 'Loading path…'}
+            </div>
+            <p className="m-0 mt-1.5 text-[11.5px] text-[var(--faint)]">
+              Usernames in file paths are abbreviated with <code className="input-mono text-[11px]">~</code> to avoid showing personal paths on screen.
+            </p>
+          </div>
+        </div>
+      </Group>
+
+      <Group title="Danger zone">
+        <div className="flex flex-col gap-2">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <span className="text-[12.5px] font-medium text-[var(--ink)] block">
+                Reset everything
+              </span>
+              <p className="m-0 mt-0.5 text-[12px] text-[var(--dim)] leading-[1.5]">
+                Erases your saved profile, model configurations, stored API keys, and local session data from this machine.
+              </p>
+            </div>
+            <Action
+              tone="danger"
+              onClick={() => {
+                if (!window.confirm('Forget your profile, your keys and everything else on this machine?')) return
+                onForget()
+              }}
+            >
+              Forget everything
+            </Action>
           </div>
         </div>
       </Group>
