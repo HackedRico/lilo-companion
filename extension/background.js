@@ -59,6 +59,20 @@ function connect() {
 // Connect proactively on startup so Lilo's settings page shows connection immediately
 connect()
 
+/**
+ * The app can restart while the student is reading the problem rather than
+ * typing in it, and nothing here would notice: the connection is only ever
+ * tried on startup and when the page has something to say. So it is tried on a
+ * timer as well, and the practice comes back on its own within a minute of the
+ * app coming back. The alarm also wakes this worker, which Chrome is free to
+ * stop whenever it likes.
+ */
+const RECONNECT = 'lilo-reconnect'
+chrome.alarms.create(RECONNECT, { periodInMinutes: 0.5 })
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === RECONNECT) connect()
+})
+
 chrome.runtime.onInstalled?.addListener(() => {
   connect()
 })
