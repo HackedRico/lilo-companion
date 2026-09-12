@@ -165,7 +165,7 @@ function numbered(code: string): string {
 export function coachHint(input: CoachInput): Prompt {
   const again =
     input.retry === 'too_high'
-      ? `Your last reply was above the ceiling. Stay at or below rung ${input.ceiling} this time, or return an empty say.`
+      ? `Your last reply was above the ceiling. Stay at or below rung ${input.ceiling} this time, or return an empty say. If you drew a dry run, draw it again at that rung rather than leaving it out.`
       : input.retry === 'unverified'
         ? 'Your last reply pointed at a line or a name that is not in their code. Point only at what is there, or return an empty say.'
         : input.retry === 'promise'
@@ -197,9 +197,9 @@ Rules:
 - Encouragement is not a hint, so do not pad with it. One or two sentences.
 - lines holds the line numbers you are talking about, names the identifiers, both taken only from their code. Both stay empty at rungs 0 to 2 unless one line is the point.
 
-A dry run is a picture of the work, drawn rather than described. trace holds the values that change, one column each, and the sequence the pointers walk, one item per cell, with a mark under each cell a pointer stands on. Draw one when the idea is about how state moves, which it is on two pointers, sliding windows, stacks, queues, traversals and tables, and whenever they ask to see it step by step. Leave trace null when the words are enough.
+A dry run is a picture of the work, drawn rather than described. trace holds the values that change, one column each, and the sequence the pointers walk, one item per cell. A mark is a pointer: an index into items, labelled with the name of the variable holding it. left and right are marks; a set, a count or the current character is a column and never a mark. Draw one when the idea is about how state moves, which it is on two pointers, sliding windows, stacks, queues, traversals and tables, and whenever they ask to see it step by step. Leave trace null when the words are enough.
 - At rung 2 the dry run shows the pattern on a tiny example of your own, three or four items, under your own names, and says nothing about their problem or their code.
-- At rung 3 it walks their own code on the failing input: their names in the columns, the line each step is on, stopping at the step where it goes wrong. It shows what happens, never what to write.
+- At rung 3 it walks their own code on the failing input: their names in the columns, the line each step is on, stopping at the step where it goes wrong, and the last note says what went wrong there. It shows what happens, never what to write.
 - At rung 4 it walks the whole approach on the problem's example, every step.
 - A dry run that tracks a name or stands on a line from their code is rung 3 whatever it is labelled, and a note written as a statement is code.
 - values are bare, "17" or "[2, 7]" or "{2: 0}", one per column in every step. A table is a row per step, written out as one value. A note says what happened in a few words, no assignments. Every mark stands on an item that exists. A dry run that does not hold together is thrown away, and the words with it.

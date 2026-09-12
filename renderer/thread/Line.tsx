@@ -2,10 +2,12 @@ import type { ReactElement } from 'react'
 import type { ThreadItem } from '../../shared/types.ts'
 import { RUNG_LABEL } from '../../shared/leetcode.ts'
 import { api } from '../api.ts'
+import { DryRun } from './DryRun.tsx'
 
 /**
  * The companion is a voice in the margin. The student's own words come back
- * quieter on the right. Evidence and sources appear as chips below.
+ * quieter on the right. A dry run is drawn under the words that introduce it,
+ * and evidence and sources appear as chips below.
  */
 export function Line({ item }: { item: ThreadItem }): ReactElement {
   if (item.speaker === 'user') {
@@ -14,6 +16,7 @@ export function Line({ item }: { item: ThreadItem }): ReactElement {
   return (
     <div className="arriving">
       <Said item={item} />
+      {item.trace && <DryRun trace={item.trace} />}
       {/* Every hint carries its rung, so the student can see what it cost them. */}
       {item.rung !== undefined && <span className="meta">{RUNG_LABEL[item.rung]}</span>}
       <Evidence item={item} />

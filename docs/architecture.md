@@ -103,6 +103,20 @@ and every line number and name against the code; a reply that fails is asked
 once more under a stricter instruction and then withheld with an honest line,
 or dropped. The model is told the ceiling and never trusted with it.
 
+**A dry run is drawn, and read like the words.** A student stuck on a
+two pointer or sliding window problem is usually not missing the idea, they
+are missing how the pointers move, and a sentence about advancing the left one
+is hard to hold in the head. So a hint may carry a trace: the case being
+walked, the sequence the pointers stand on, the values that change, one row
+per step. The thread draws it and the student steps through it or plays it,
+with no model involved once it is there. The gate reads it under the same
+rules as the say: a column or a mark that names something in their code, or a
+step that stands on a line of theirs, is a claim about their code and rung 3
+whatever it is labelled; steps written as statements are code in pieces and
+the top of the ladder; any dry run is at least the idea drawn, so none reaches
+hands off. A mark off the end of the array or a row short of a value does not
+hold together and is asked for again, then dropped rather than drawn.
+
 **Climb on effort.** `nextRung` lets a volunteered hint rise one rung at a
 time, no oftener than a minute, and only after the code changed since the last
 one. Nothing is volunteered into a run, on top of an accepted answer, during

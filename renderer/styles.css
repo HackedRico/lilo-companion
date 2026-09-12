@@ -585,6 +585,163 @@ button {
   line-height: 1.6;
 }
 
+/* A dry run: the picture drawn beside a hint, stepped through here. Set the
+   way handed-over code is set, on the well in mono, because it is the working
+   shown rather than the companion speaking. */
+.dryrun {
+  margin: 8px 0 2px;
+  padding: 9px 11px 8px;
+  border: 1px solid var(--rule);
+  border-radius: 7px;
+  background: var(--well);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.dryrun-input {
+  margin: 0 0 8px;
+  color: var(--dim);
+  white-space: pre-wrap;
+}
+
+/* Anything wide scrolls inside its own strip, so the panel never scrolls sideways. */
+.dryrun-scroll {
+  overflow-x: auto;
+  margin-bottom: 8px;
+}
+
+/* The sequence sizes itself in the markup, cell by cell, so a pointer's place is arithmetic. */
+.dryrun-seq {
+  position: relative;
+}
+
+.dryrun-cells {
+  display: flex;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dryrun-item {
+  flex: none;
+  padding: 3px 0;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--surface);
+  text-align: center;
+  transition: border-color 200ms var(--ease), background 200ms var(--ease);
+}
+
+.dryrun-item[data-marked] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  font-weight: 600;
+}
+
+.dryrun-pointers {
+  position: relative;
+  margin-top: 3px;
+}
+
+/* A pointer's name under the cell it stands on, the way it is drawn on a
+   whiteboard, and it slides to the next cell rather than reappearing there. */
+.dryrun-pointer {
+  position: absolute;
+  transform: translateX(-50%);
+  font-size: var(--step-meta);
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--accent);
+  transition: left 280ms var(--ease), opacity 200ms var(--ease);
+}
+
+.dryrun-pointer[data-off] {
+  opacity: 0;
+}
+
+.dryrun-table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: collapse;
+}
+
+.dryrun-table th,
+.dryrun-table td {
+  padding: 2px 10px 2px 4px;
+  text-align: left;
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+.dryrun-table thead th {
+  border-bottom: 1px solid var(--rule);
+  font-weight: 600;
+  color: var(--dim);
+}
+
+.dryrun-table tbody th {
+  font-weight: 400;
+  color: var(--faint);
+}
+
+.dryrun-table tbody tr {
+  cursor: default;
+  transition: background 120ms var(--ease);
+}
+
+.dryrun-table tbody tr:hover {
+  background: var(--raised);
+}
+
+.dryrun-table tbody tr[data-current] {
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+
+.dryrun-note {
+  margin: 0;
+  font-family: var(--sans);
+  font-size: var(--step-fine);
+  line-height: 1.5;
+  color: var(--ink);
+  text-wrap: pretty;
+}
+
+.dryrun-line {
+  margin-left: 8px;
+}
+
+.dryrun-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.dryrun-step {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--rule);
+  border-radius: 99px;
+  background: var(--raised);
+  color: var(--dim);
+  transition: border-color 140ms var(--ease), color 140ms var(--ease);
+}
+
+.dryrun-step:enabled:hover {
+  border-color: var(--rule-strong);
+  color: var(--ink);
+}
+
+.dryrun-step:disabled {
+  opacity: 0.4;
+}
+
 .dispatch pre {
   margin: 0 12px 12px;
   padding: 9px 11px;
@@ -1266,6 +1423,12 @@ button {
   .arriving,
   .caret::after {
     animation: none !important;
+  }
+
+  .dryrun-pointer,
+  .dryrun-item,
+  .dryrun-table tbody tr {
+    transition: none;
   }
 
   .evidence:hover,
