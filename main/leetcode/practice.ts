@@ -26,7 +26,12 @@ export interface PracticeDeps {
 }
 
 /** What the student is asking for when they press the button rather than typing. */
-export const HELP_QUESTION = 'Give me a hint.'
+/**
+ * What the chip sends the model, which is not what it says on the chip. "Give
+ * me a hint" reads to a model as "something small", and it answered rung 1 on
+ * every tier however the prompt was worded.
+ */
+export const HELP_QUESTION = 'Help me with this, at the level I have you set to.'
 export const BETTER_QUESTION = 'It passes now. Is there a better approach, and why?'
 export const TRACE_QUESTION = 'Walk me through it step by step.'
 

@@ -52,6 +52,17 @@ export const profileOut = z.object({
  * code, is the gate's to decide, so a loose reply is refused with a reason
  * rather than thrown away as unparseable.
  */
+/**
+ * One cell of a dry run. The prompt asks for it bare, "17" or "[2, 7]" or
+ * "{2: 0}", and a model handed a cell that holds a list writes it as a list
+ * rather than as the text of one. That is the same cell, so it is read as one
+ * rather than throwing the whole picture away.
+ */
+const cell = z
+  .union([z.string(), z.number(), z.array(z.union([z.string(), z.number()])).max(12)])
+  .transform((value) => (Array.isArray(value) ? `[${value.join(', ')}]` : String(value)))
+  .pipe(z.string().max(60))
+
 export const traceOut = z.object({
   input: z.string().max(240),
   items: z.array(z.string().max(24)).max(32),
@@ -59,7 +70,7 @@ export const traceOut = z.object({
   steps: z
     .array(
       z.object({
-        values: z.array(z.string().max(60)).max(8),
+        values: z.array(cell).max(8),
         marks: z.array(z.object({ at: z.number().int(), label: z.string().max(12) })).max(6),
         note: z.string().max(200),
         line: z.number().int().nullable().optional()
