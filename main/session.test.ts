@@ -753,3 +753,18 @@ test('with a problem in view the coach still gets it', async () => {
   await session.typed('my code is failing test cases')
   assert.ok(llm.lastAsk('you are beside them'), 'the coach answered it')
 })
+
+test('a card says where the student stands, counted rather than cheered', async () => {
+  // The pitch is that this keeps a student going, and the card said nothing
+  // about them: what it is worth to the work they are aiming at, and how much
+  // of what that work asks for they have covered, are both counted.
+  const llm = new ScriptedLlm()
+  const { session, thread } = harness(llm, ikb)
+  await teach(session)
+
+  const said = thread.filter((item) => item.speaker === 'companion').map((item) => item.text).join('\n')
+  const standing = said.match(/That is (\d+) of the things .* postings ask for that you have covered now/)
+  assert.ok(standing, `a standing line was said:\n${said}`)
+  assert.ok(Number(standing[1]) >= 1, 'the term just heard is one of them')
+  assert.doesNotMatch(said, /percent of the postings I have/, 'and no second denominator to argue with the first')
+})

@@ -31,6 +31,44 @@ function mostQuotable(candidates: Sentence[]): Sentence | undefined {
   )
 }
 
+/** Where the student stands in the postings they are aiming at. */
+export interface Standing {
+  /** How many of the things that cohort asks for they have now covered. */
+  covered: number
+  roles: RoleFamily[]
+}
+
+/**
+ * How much of what this student's own track asks for they have covered so far.
+ * Counted, never estimated, and deliberately without a denominator: the number
+ * that means something is the one that goes up every time they hand over
+ * another lecture, and "11 of 94" is a reason to stop rather than to carry on.
+ */
+export function standingOn(ikb: Ikb, term: string, roles: RoleFamily[], heardTerms: string[]): Standing | null {
+  const all = [...ikb.postings.values()]
+  const onTrack = all.filter((posting) => wantsFamily(roles, posting.roleFamily))
+  const early = onTrack.filter((posting) => EARLY.includes(posting.seniority))
+  const cohort = early.length >= MIN_COHORT ? early : onTrack.length >= MIN_COHORT ? onTrack : all
+  if (cohort.length === 0) return null
+  const cohortIds = new Set(cohort.map((posting) => posting.id))
+
+  const asking = new Map<string, Set<string>>()
+  for (const sentence of ikb.sentences) {
+    if (!cohortIds.has(sentence.postingId)) continue
+    for (const tag of sentence.tags) {
+      const seen = asking.get(tag)
+      if (seen) seen.add(sentence.postingId)
+      else asking.set(tag, new Set([sentence.postingId]))
+    }
+  }
+
+  if (!asking.has(term)) return null
+  const heard = new Set(heardTerms.map((one) => one.toLowerCase()))
+  const covered = [...asking.keys()].filter((one) => heard.has(one.toLowerCase())).length
+  if (covered === 0) return null
+  return { covered, roles: roles.length === 0 ? ['swe'] : roles }
+}
+
 export function computeGaps(
   ikb: Ikb,
   roles: RoleFamily[],

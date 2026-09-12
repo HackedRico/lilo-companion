@@ -79,12 +79,20 @@ exactly as it is written. Handing the academic name back is the one thing you mu
 "amortised analysis" is not a posting term, "performance optimization" is.
 Only invent a term if the list has nothing related at all, and then at most one.
 
-Also write one sentence saying where this shows up in the work itself. Address the student as "you".
-No company names, no numbers, no first person, under 25 words.
+Also write one sentence putting the student in the job doing this. Not what the idea
+is, and not what a team does with it in general: the moment on the job where they
+are the one who has to know it. A sentence that would be true of anybody is worth
+nothing to them. Address the student as "you". No company names, no numbers, no
+first person, under 25 words.
 
 Worked example.
 Concept: amortised analysis, the cost of a rare expensive step spread over the cheap ones around it.
 Good reply: {"terms":["performance optimization","scalability","system design"],"oneLiner":"Every time someone asks why the tail latency spikes once an hour, this is the answer you are about to give."}
+
+Second worked example, on a weaker idea.
+Concept: relational databases, tables with keys, queried with SQL.
+Weak: "You will use SQL and relational databases daily." Says nothing; true of anybody.
+Good reply: {"terms":["SQL","PostgreSQL"],"oneLiner":"The first time a query takes nine seconds in production, you are the one reading the plan to find out why."}
 
 ${JSON_ONLY}
 Schema: {"terms":[string],"oneLiner":string}`,

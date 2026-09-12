@@ -15,7 +15,7 @@ import type {
 import type { LlmLike } from './llm/service.ts'
 import type { Ikb } from './ikb/load.ts'
 import { evidenceOf, profileRoles } from './ikb/search.ts'
-import { computeGaps } from './ikb/gaps.ts'
+import { computeGaps, standingOn } from './ikb/gaps.ts'
 import { extractConcepts } from './pipeline/extract.ts'
 import { buildCard } from './pipeline/evidence.ts'
 import { askCompanion } from './chat/companion.ts'
@@ -468,6 +468,19 @@ export class Session {
       `They do not call it ${concept.name} though. On a posting it reads as ${top.term}, and I have ${top.hits} ${top.hits === 1 ? 'posting' : 'postings'} that ask for it.`,
       { ...(evidence ? { evidence } : {}), ...(alsoAsking.length > 0 ? { sources: alsoAsking } : {}) }
     )
+
+    // What it is worth to them rather than to everybody, and what they have
+    // covered so far. Both counted from the postings, because a number that is
+    // theirs and true is worth more than any amount of being told well done.
+    const standing = standingOn(this.deps.ikb, top.term, this.roles, this.profile.heardTerms)
+    if (standing) {
+      await this.say(
+        `That is ${standing.covered} of the things ${labelRoles(standing.roles)} postings ask for that you have covered now.`,
+        {},
+        'companion',
+        false
+      )
+    }
 
     this.suggest([
       { id: nextId(), text: 'Tell me more about this at work', intent: { kind: 'chat', text: `Tell me more about ${concept.name} at work` } },
