@@ -62,6 +62,28 @@ What the lecturer said about it: ${summary}`
   }
 }
 
+export function nameRuntimeSkill(concept: string, summary: string, sentences: Sentence[]): Prompt {
+  return {
+    system: `A software engineering student just heard or practiced a concept that did not resolve to the fixed skill vocabulary.
+
+You are given real job-posting sentences retrieved for that concept. Name the skill or requirement those postings use for the idea.
+Use a short phrase that appears directly in the sentences, or a near-verbatim phrase made from their words.
+Return citation ids for the sentences that support the phrase. Never cite an id that is not listed.
+If the sentences do not support a useful skill, return an empty skill and no citations.
+
+Also write one sentence saying where this shows up in the work itself. Address the student as "you".
+No company names, no numbers, no first person, under 25 words.
+
+${JSON_ONLY}
+Schema: {"skill":string,"citations":[string],"oneLiner":string}`,
+    user: `Concept: ${concept}
+What is known about it: ${summary}
+
+Retrieved posting sentences:
+${sentences.length > 0 ? sentences.map((sentence) => `[S:${sentence.id}] ${sentence.text}`).join('\n') : '(none retrieved)'}`
+  }
+}
+
 // Chat -------------------------------------------------------------------
 
 export function companionChat(

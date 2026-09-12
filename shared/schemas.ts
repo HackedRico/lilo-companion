@@ -24,6 +24,12 @@ export const termsOut = z.object({
   oneLiner: z.string().min(10).max(240)
 })
 
+export const runtimeSkillOut = z.object({
+  skill: z.string().max(80),
+  citations: z.array(z.string().min(1).max(80)).max(5),
+  oneLiner: z.string().min(10).max(240)
+})
+
 export const profileOut = z.object({
   major: z.string().max(80),
   year: z.string().max(40),
@@ -46,5 +52,6 @@ export const hintOut = z.object({
 
 export type ConceptsOut = z.infer<typeof conceptsOut>
 export type TermsOut = z.infer<typeof termsOut>
+export type RuntimeSkillOut = z.infer<typeof runtimeSkillOut>
 export type ProfileOut = z.infer<typeof profileOut>
 export type HintOut = z.infer<typeof hintOut>

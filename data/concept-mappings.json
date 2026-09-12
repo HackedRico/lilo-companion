@@ -1,0 +1,122 @@
+[
+  {
+    "concept": "amortized analysis",
+    "aliases": ["amortised analysis", "amortized complexity", "dynamic array resizing"],
+    "terms": ["performance optimization", "scalability", "system design"]
+  },
+  {
+    "concept": "algorithmic complexity",
+    "aliases": ["time complexity", "space complexity", "big o notation", "asymptotic analysis", "runtime analysis"],
+    "terms": ["performance optimization", "scalability", "system design"]
+  },
+  {
+    "concept": "hash tables",
+    "aliases": ["hash maps", "hashing", "dictionaries", "sets"],
+    "terms": ["data structures and algorithms", "performance optimization", "debugging", "system design"]
+  },
+  {
+    "concept": "linked lists",
+    "aliases": ["linked list", "singly linked list", "doubly linked list", "pointers"],
+    "terms": ["data structures and algorithms", "computer science fundamentals"]
+  },
+  {
+    "concept": "recursion",
+    "aliases": ["recursive functions", "recursive algorithms"],
+    "terms": ["debugging", "system design", "performance optimization"]
+  },
+  {
+    "concept": "graph algorithms",
+    "aliases": ["graphs", "breadth first search", "depth first search", "shortest path", "graph traversal", "bfs", "dfs"],
+    "terms": ["data structures and algorithms", "computer science fundamentals", "system design", "performance optimization"]
+  },
+  {
+    "concept": "sliding window",
+    "aliases": ["windowed substring", "fixed window", "variable window"],
+    "terms": ["data structures and algorithms", "computer science fundamentals", "problem-solving skills"]
+  },
+  {
+    "concept": "two pointers",
+    "aliases": ["two pointer", "fast and slow pointers", "left and right pointers"],
+    "terms": ["data structures and algorithms", "computer science fundamentals", "problem-solving skills"]
+  },
+  {
+    "concept": "dynamic programming",
+    "aliases": ["memoization", "tabulation", "optimal substructure", "overlapping subproblems"],
+    "terms": ["data structures and algorithms", "computer science fundamentals", "problem-solving skills", "performance optimization"]
+  },
+  {
+    "concept": "monotonic stack",
+    "aliases": ["monotone stack", "monotonic queue", "next greater element"],
+    "terms": ["data structures and algorithms", "computer science fundamentals", "problem-solving skills"]
+  },
+  {
+    "concept": "topological sort",
+    "aliases": ["topological sorting", "directed acyclic graph", "dag ordering"],
+    "terms": ["data structures and algorithms", "computer science fundamentals", "system design"]
+  },
+  {
+    "concept": "database normalization",
+    "aliases": ["normal forms", "relational database design", "relational modeling"],
+    "terms": ["SQL", "PostgreSQL", "system design"]
+  },
+  {
+    "concept": "transactions",
+    "aliases": ["acid", "database transactions", "atomicity", "isolation levels"],
+    "terms": ["SQL", "PostgreSQL", "system design"]
+  },
+  {
+    "concept": "indexes",
+    "aliases": ["database indexes", "indexing", "query planning", "query optimization"],
+    "terms": ["SQL", "PostgreSQL", "performance optimization"]
+  },
+  {
+    "concept": "rest apis",
+    "aliases": ["rest api", "http api", "http methods", "status codes", "resources and routes"],
+    "terms": ["REST", "API design", "microservices"]
+  },
+  {
+    "concept": "distributed systems",
+    "aliases": ["replication", "consensus", "fault tolerance", "eventual consistency"],
+    "terms": ["system design", "scalability", "microservices"]
+  },
+  {
+    "concept": "concurrency",
+    "aliases": ["parallelism", "threads", "race conditions", "locks", "deadlocks"],
+    "terms": ["performance optimization", "debugging", "system design"]
+  },
+  {
+    "concept": "unit tests",
+    "aliases": ["unit testing", "test driven development", "tdd"],
+    "terms": ["unit testing", "test automation", "CI/CD"]
+  },
+  {
+    "concept": "software design patterns",
+    "aliases": ["design patterns", "solid principles", "object oriented design"],
+    "terms": ["system design", "refactoring", "code review"]
+  },
+  {
+    "concept": "requirements analysis",
+    "aliases": ["requirements engineering", "user stories", "use cases"],
+    "terms": ["product requirements", "stakeholder communication", "estimation"]
+  },
+  {
+    "concept": "sampling variability",
+    "aliases": ["standard error", "confidence intervals", "statistical significance", "hypothesis testing"],
+    "terms": ["A/B testing", "metrics", "experimentation"]
+  },
+  {
+    "concept": "machine learning",
+    "aliases": ["supervised learning", "classification", "regression", "model training"],
+    "terms": ["Python", "PyTorch", "TensorFlow", "scikit-learn"]
+  },
+  {
+    "concept": "operating systems",
+    "aliases": ["processes", "memory management", "scheduling", "file systems"],
+    "terms": ["Linux", "debugging", "performance optimization"]
+  },
+  {
+    "concept": "security",
+    "aliases": ["authentication", "authorization", "encryption", "input validation"],
+    "terms": ["security best practices", "debugging", "code review"]
+  }
+]

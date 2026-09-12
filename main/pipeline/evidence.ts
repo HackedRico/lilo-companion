@@ -14,7 +14,7 @@ export async function buildCard(
   concept: Concept,
   roles: RoleFamily[]
 ): Promise<Card> {
-  const { terms, oneLiner } = await translate(llm, ikb, concept)
+  const { terms, oneLiner, sentences } = await translate(llm, ikb, concept, roles)
   if (terms.length === 0) {
     return cardFrom(
       concept,
@@ -23,5 +23,5 @@ export async function buildCard(
       `${concept.name} barely shows up in postings for the work you are aiming at. That does not make it useless, it just is not what they advertise for.`
     )
   }
-  return cardFrom(concept, terms.slice(0, 5), evidenceFor(ikb, terms, roles), oneLiner)
+  return cardFrom(concept, terms.slice(0, 5), sentences.length > 0 ? sentences : evidenceFor(ikb, terms, roles), oneLiner)
 }
