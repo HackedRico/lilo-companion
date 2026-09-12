@@ -44,9 +44,10 @@ class ScriptedLlm implements LlmLike {
     return schema.parse(this.reply(schema)) as T
   }
 
+  /** The brief is the one call that comes back whole, so this answers as one. */
   async text(ask: Ask): Promise<string> {
     this.asks.push(ask)
-    return 'Oh, that was our holiday sale week. Does that matter?'
+    return 'Four rounds, and the debugging one is the hard one. [S:hn:1#0] Nobody said otherwise. [S:made-up]'
   }
 
   async stream(ask: Ask, onToken: (token: string) => void): Promise<string> {
@@ -297,8 +298,9 @@ test('asking about an interview at a company reads the accounts, not the posting
   assert.ok(llm.lastAsk('first-hand account'), 'the brief was asked for')
   assert.ok(!llm.lastAsk("never do a student's homework"), 'and companion chat was not')
   const answer = thread.at(-1)!
-  assert.doesNotMatch(answer.text, /\[S:/)
-  assert.deepEqual(answer.citations, [], 'an invented id is not credited')
+  assert.doesNotMatch(answer.text, /\[S:/, 'the markers never reach the student')
+  assert.deepEqual(answer.citations, ['hn:1#0'], 'an invented id is not credited, a real one is')
+  assert.equal(answer.sources?.[0]?.url, 'https://news.ycombinator.com/item?id=1', 'and the chip opens the account')
 })
 
 test('with nothing to read, the companion says so and still answers the question', async () => {
@@ -322,4 +324,28 @@ test('a line that breaks off mid-stream is closed as it stands', async () => {
   assert.ok(broken, 'what was said stays in the thread')
   assert.equal(broken.streaming, false, 'and the caret stops')
   assert.match(thread.at(-1)!.text, /could not answer that/)
+})
+
+test('a problem open in chrome takes the composer, but not an interview ask', async () => {
+  const llm = new ScriptedLlm()
+  const asked: string[] = []
+  const { session } = harness(llm, ikb, {
+    gatherInterviews: async (company) => {
+      asked.push(company)
+      return []
+    }
+  })
+  await session.observe({
+    kind: 'opened',
+    at: Date.now(),
+    problem: { slug: 'two-sum', title: 'Two Sum', difficulty: 'Easy', statement: 'Find two numbers.' }
+  })
+  assert.equal(session.state.composer.mode, 'leetcode')
+
+  await session.typed('why is my loop wrong')
+  assert.deepEqual(asked, [], 'a question about the code reaches the coach')
+
+  await session.typed('what is the Stripe interview like')
+  assert.deepEqual(asked, ['Stripe'], 'and one about an interview does not')
+  assert.equal(session.state.composer.mode, 'leetcode', 'the problem still has the composer afterwards')
 })

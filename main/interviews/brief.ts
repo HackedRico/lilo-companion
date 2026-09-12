@@ -22,11 +22,16 @@ export function degenerate(text: string): boolean {
 /** The chip reads as the account, so six citations are six different chips, and the source is the small print. */
 /** A marker pulled out of a sentence leaves a gap before the full stop; the prose closes over it. */
 export function tidy(text: string): string {
-  return text
+  const closed = text
     .replace(/\s+([.,;:!?])/g, '$1')
     .replace(/,\s*([.;:!?])/g, '$1')
     .replace(/[ \t]{2,}/g, ' ')
     .trim()
+  if (/[.!?]["')\]]?$/.test(closed)) return closed
+  // The reply ran out of room mid-sentence. Half a sentence reads as a bug, so
+  // it is cut back to the last one that finished.
+  const end = Math.max(closed.lastIndexOf('.'), closed.lastIndexOf('!'), closed.lastIndexOf('?'))
+  return end > 40 ? closed.slice(0, end + 1) : closed
 }
 
 function evidenceOf(sentence: Sentence, account: Account): Evidence {
@@ -58,12 +63,15 @@ export async function briefInterview(
     const raw = await llm.text({
       lane: 'strong',
       temperature,
-      maxTokens: 400,
+      maxTokens: 700,
       ...interviewBrief({ company, sentences, ...span })
     })
     if (degenerate(raw)) return null
     const filter = new CitationFilter(new Set(sentences.map((sentence) => sentence.id)))
     const text = tidy(`${filter.push(raw)}${filter.flush()}`)
+    // Prose about an interview with nothing behind it is the one thing this
+    // must not write, so it counts as a reply that did not work out.
+    if (filter.citations.length === 0) return null
     const cited = new Set(filter.citations)
     // One chip per account: two sentences from one write-up are one place to go.
     const seen = new Set<string>()

@@ -37,13 +37,14 @@ export function nextRung(ceiling: Rung, last: Climb | null, work: Work, now: num
 
 export type Gate =
   | { ok: true }
-  | { ok: false; reason: 'too_high' | 'unverified' | 'generic' | 'empty' }
+  | { ok: false; reason: 'too_high' | 'unverified' | 'generic' | 'empty' | 'promise' }
 
 /**
  * Whether a hint may be said. Above the ceiling is never said. A line number
- * that is not in the code, or a name that is not there, is never said either,
- * and from the rung that points at the work upward the hint has to point at
- * something real, or it could be said about anyone's work.
+ * that is not in the code, or a name that is not there, is never said either.
+ * Rung 3 is a claim about their code, so it has to point at their code or it
+ * could be said about anyone's work. Rungs 4 and 5 are what to do next, which
+ * is new work rather than a line of theirs, so they carry no such duty.
  */
 export function gate(hint: Hint, ceiling: Rung, work: Work): Gate {
   if (!hint.say.trim()) return { ok: false, reason: 'empty' }
@@ -51,7 +52,10 @@ export function gate(hint: Hint, ceiling: Rung, work: Work): Gate {
   const lines = lineCount(work.code)
   if (hint.lines.some((line) => line < 1 || line > lines)) return { ok: false, reason: 'unverified' }
   if (hint.names.some((name) => !mentions(work.code, name))) return { ok: false, reason: 'unverified' }
-  if (hint.rung >= 3 && hint.lines.length === 0 && hint.names.length === 0) return { ok: false, reason: 'generic' }
+  if (hint.rung === 3 && hint.lines.length === 0 && hint.names.length === 0) return { ok: false, reason: 'generic' }
+  // "Here is the working code:" with nothing after it is worse than refusing,
+  // because the student is told help is coming and then handed nothing.
+  if (hint.rung >= 4 && /:\s*$/.test(hint.say)) return { ok: false, reason: 'promise' }
   return { ok: true }
 }
 

@@ -45,7 +45,9 @@ export const profileOut = z.object({
  */
 export const hintOut = z.object({
   rung: z.number().int().min(0).max(5),
-  say: z.string().max(400),
+  // Long, because the top of the ladder hands over code, and a reply cut off
+  // mid-string is a reply that never parses.
+  say: z.string().max(2000),
   lines: z.array(z.number().int()).max(6),
   names: z.array(z.string().max(40)).max(6)
 })

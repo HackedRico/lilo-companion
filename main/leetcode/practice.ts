@@ -143,9 +143,14 @@ export class LeetCodePractice {
     try {
       const ceiling = TIER_CEILING[this.deps.tier()].onAsk
       const result = await coach(this.deps.llm, this.work, ceiling, question, this.now)
-      if (result.kind === 'hint') await this.speak(result.hint.say, result.hint.rung, result.hint.lines)
-      else if (result.kind === 'withheld') await voice.say(result.say)
-      else await voice.say('I have nothing specific enough to say about that yet.')
+      if (result.kind === 'hint') {
+        // Asked for is still a rung climbed. Without this the timer volunteers a
+        // question about the same code moments after answering it.
+        this.last = { rung: result.hint.rung, at: this.now, codeAt: this.work.changedAt }
+        await this.speak(result.hint.say, result.hint.rung, result.hint.lines)
+      }
+      if (result.kind === 'withheld') await voice.say(result.say)
+      if (result.kind === 'silent') await voice.say('I have nothing specific enough to say about that yet.')
       this.offer()
     } catch (error) {
       if (!this.deps.llm.available) {

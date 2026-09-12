@@ -13,12 +13,40 @@ export function Line({ item }: { item: ThreadItem }): ReactElement {
   }
   return (
     <div className="arriving">
-      <p className={`said${item.streaming ? ' caret' : ''}`}>{item.text}</p>
+      <Said item={item} />
       {/* Every hint carries its rung, so the student can see what it cost them. */}
       {item.rung !== undefined && <span className="meta">{RUNG_LABEL[item.rung]}</span>}
       <Evidence item={item} />
       <Sources item={item} />
     </div>
+  )
+}
+
+/**
+ * What the companion said. The top of the ladder hands over code, and a fenced
+ * block reads as code rather than as prose with backticks in it.
+ */
+function Said({ item }: { item: ThreadItem }): ReactElement {
+  const parts = item.text.split(/```[a-zA-Z]*\n?/)
+  const caret = item.streaming ? ' caret' : ''
+  if (parts.length < 2) return <p className={`said${caret}`}>{item.text}</p>
+  return (
+    <>
+      {parts.map((part, index) =>
+        // The fences alternate, so every odd part is what sat between them.
+        index % 2 === 1 ? (
+          <pre key={index} className="scroller code">
+            {part.replace(/\n$/, '')}
+          </pre>
+        ) : (
+          part.trim() && (
+            <p key={index} className={`said${index === parts.length - 1 ? caret : ''}`}>
+              {part.trim()}
+            </p>
+          )
+        )
+      )}
+    </>
   )
 }
 

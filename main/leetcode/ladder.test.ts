@@ -56,7 +56,7 @@ test('a line or a name that is not in the code is never said', () => {
   assert.deepEqual(gate(real, 3, working), { ok: true })
 })
 
-test('from the rung that points at the work, the hint has to point at something', () => {
+test('a claim about their code has to point at their code', () => {
   const vague: Hint = { rung: 3, say: 'Think about what you store versus what you look up.', lines: [], names: [] }
   assert.deepEqual(gate(vague, 3, working), { ok: false, reason: 'generic' })
   const question: Hint = { rung: 1, say: 'What would you need to have seen before n to answer at n?', lines: [], names: [] }
@@ -70,4 +70,21 @@ test('a name counts as a whole word only', () => {
   assert.ok(!mentions(CODE, 'see'))
   assert.ok(!mentions(CODE, 'num'))
   assert.ok(!mentions(CODE, ''))
+})
+
+test('the steps and the answer are new work, so they point at nothing of theirs', () => {
+  const steps: Hint = { rung: 4, say: 'Walk the array once, storing each value against its index as you go.', lines: [], names: [] }
+  assert.deepEqual(gate(steps, 4, working), { ok: true })
+  const answer: Hint = { rung: 5, say: 'seen = {}\nfor i, n in enumerate(nums):\n    if target - n in seen:\n        return [seen[target - n], i]', lines: [], names: [] }
+  assert.deepEqual(gate(answer, 5, working), { ok: true }, 'a tutor who may answer can hand over code')
+  assert.deepEqual(gate(answer, 3, working), { ok: false, reason: 'too_high' }, 'and a coach still cannot')
+})
+
+test('a promise with nothing after it is refused rather than said', () => {
+  const promise: Hint = { rung: 5, say: "Here's the working code for Two Sum:", lines: [], names: [] }
+  assert.deepEqual(gate(promise, 5, working), { ok: false, reason: 'promise' })
+  const kept: Hint = { rung: 5, say: "Here's the working code:\nseen = {}\nfor i, n in enumerate(nums): ...", lines: [], names: [] }
+  assert.deepEqual(gate(kept, 5, working), { ok: true })
+  const question: Hint = { rung: 1, say: 'What do you need to have seen before n:', lines: [], names: [] }
+  assert.deepEqual(gate(question, 3, working), { ok: true }, 'a low rung is not a promise of anything')
 })

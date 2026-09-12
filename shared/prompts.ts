@@ -22,7 +22,7 @@ const JSON_ONLY = 'Reply with one JSON object and nothing else. No prose, no cod
 
 /** The one rule every cited answer carries, in the words the citation filter enforces. */
 const CITE_RULE =
-  'Cite it as [S:id] right after the claim. Never cite an id that is not listed. If nothing below supports a claim, do not make it.'
+  'Cite it as [S:id] right after the claim, one id per marker, copied exactly as it is listed. Never invent an id or a range of ids. If nothing below supports a claim, do not make it.'
 
 /** Sentences in the only form the model may cite them. */
 function citable(sentences: Sentence[]): string {
@@ -146,7 +146,7 @@ export interface CoachInput {
   /** What the student asked, or null when the companion is volunteering. */
   question: string | null
   /** Why the last reply was refused, when this is the second try. */
-  retry: 'too_high' | 'unverified' | null
+  retry: 'too_high' | 'unverified' | 'promise' | null
 }
 
 /** The student's code with the line numbers the hint has to use. */
@@ -168,7 +168,9 @@ export function coachHint(input: CoachInput): Prompt {
       ? `Your last reply was above the ceiling. Stay at or below rung ${input.ceiling} this time, or return an empty say.`
       : input.retry === 'unverified'
         ? 'Your last reply pointed at a line or a name that is not in their code. Point only at what is there, or return an empty say.'
-        : ''
+        : input.retry === 'promise'
+          ? 'Your last reply announced help and then gave none. Put the whole of it in say this time, the code included.'
+          : ''
   return {
     system: `${VOICE}
 
@@ -182,6 +184,9 @@ Rules:
 - Finish their idea first. Until their own approach works, help that approach. A better approach waits until theirs works.
 - Specific or silent. If a line could be said about anyone's code, do not say it. Point at the line numbers and names in their code, and every one you name is checked against it.
 - Never write code unless the rung is 5 and they asked for the answer outright. Never paste their code back at them.
+- say holds the whole of what you are giving them, code included. Never announce something you do not then write, and never end say with a colon.
+- Code inside say goes in a fenced block, so it reaches them as code rather than as a paragraph.
+- When they ask for the answer outright and rung 5 is at or below the ceiling, give it to them rather than a question.
 - Encouragement is not a hint, so do not pad with it. One or two sentences.
 - lines holds the line numbers you are talking about, names the identifiers, both taken only from their code. Both stay empty at rungs 0 to 2 unless one line is the point.
 ${again}

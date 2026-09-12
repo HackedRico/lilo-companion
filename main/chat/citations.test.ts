@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { CitationFilter } from './citations.ts'
+import { CitationFilter, expand } from './citations.ts'
 
 function run(tokens: string[], valid: string[]): { text: string; citations: string[] } {
   const filter = new CitationFilter(new Set(valid))
@@ -42,4 +42,39 @@ test('an unterminated bracket at the end is prose, not a lost token', () => {
 test('the same source cited twice is one chip', () => {
   const { citations } = run(['[S:a#1] and again [S:a#1]'], ['a#1'])
   assert.deepEqual(citations, ['a#1'])
+})
+
+test('one marker holding several ids credits each one it was given', () => {
+  const { text, citations } = run(
+    ['Rounds vary ', '[S:leetcode:591#0, S:leetcode:584#2, S:leetcode:000#9]', ' by role.'],
+    ['leetcode:591#0', 'leetcode:584#2']
+  )
+  assert.equal(text, 'Rounds vary  by role.')
+  assert.deepEqual(citations, ['leetcode:591#0', 'leetcode:584#2'])
+})
+
+test('a long compound marker is plumbing, not prose', () => {
+  const long = `[S:${['a#0', 'b#1', 'c#2', 'd#3', 'e#4', 'f#5'].map((id) => `S:leetcode:123456789${id}`).join(', ')}]`
+  const { text } = run(['Before ', long, ' after'], [])
+  assert.ok(long.length > 120, 'longer than a marker used to be allowed to be')
+  assert.equal(text, 'Before  after', 'the student never sees the markers')
+})
+
+test('a range is the sentences of one account written short', () => {
+  assert.deepEqual(expand('leetcode:99#0-#2'), ['leetcode:99#0', 'leetcode:99#1', 'leetcode:99#2'])
+  assert.deepEqual(expand('leetcode:99#1-3'), ['leetcode:99#1', 'leetcode:99#2', 'leetcode:99#3'])
+  assert.deepEqual(expand('leetcode:99#0'), ['leetcode:99#0'], 'a plain id is left alone')
+  assert.deepEqual(expand('leetcode:99#5-#0'), ['leetcode:99#5-#0'], 'backwards is not a range')
+  assert.deepEqual(expand('leetcode:99#0-#900'), ['leetcode:99#0-#900'], 'nor is a wave at a whole source')
+})
+
+test('a range credits the sentences it named that were actually retrieved', () => {
+  const { text, citations } = run(['They said so [S:leetcode:99#0-#5] plainly'], ['leetcode:99#0', 'leetcode:99#2'])
+  assert.equal(text, 'They said so  plainly')
+  assert.deepEqual(citations, ['leetcode:99#0', 'leetcode:99#2'], 'and nothing it did not')
+})
+
+test('prose in brackets is let go at once rather than held to the end', () => {
+  const { text } = run(['An array [of integers] and [S:a#1] a citation'], ['a#1'])
+  assert.equal(text, 'An array [of integers] and  a citation')
 })

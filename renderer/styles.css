@@ -572,6 +572,19 @@ button {
   text-wrap: pretty;
 }
 
+/* Code the companion hands over: the same treatment a quoted attachment gets. */
+.code {
+  margin: 6px 0 2px;
+  padding: 9px 11px;
+  max-height: 220px;
+  overflow: auto;
+  border-radius: 7px;
+  background: var(--well);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+
 .dispatch pre {
   margin: 0 12px 12px;
   padding: 9px 11px;

@@ -404,7 +404,10 @@ export class Session {
   async typed(text: string): Promise<void> {
     const { mode } = this.state.composer
     if (mode === 'onboarding') return this.onboardingTurn(text)
-    if (mode === 'leetcode') {
+    // A problem open in Chrome takes the composer, but asking what an interview
+    // there is like is never a question about the code on screen.
+    const aboutAnInterview = interviewAsk(text, this.companies) !== null
+    if (mode === 'leetcode' && !aboutAnInterview) {
       this.heardFromStudent(text)
       return this.observe({ kind: 'asked', at: Date.now(), text })
     }

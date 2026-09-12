@@ -14,6 +14,9 @@ export type Coached =
 
 export const WITHHELD = 'I have a thought, but it is above the level you set. Raise it in settings if you want it.'
 
+/** Why the first reply was refused, in the words the prompt answers to. */
+type Retry = 'too_high' | 'unverified' | 'promise' | null
+
 /**
  * One hint, gated. The model is asked once, checked, asked once more under a
  * stricter instruction if the first reply broke a rule, and then either said,
@@ -27,11 +30,12 @@ export async function coach(
   now: number
 ): Promise<Coached> {
   if (!work.problem) return { kind: 'silent' }
-  const ask = (retry: 'too_high' | 'unverified' | null) =>
+  const ask = (retry: Retry) =>
     llm.json(hintOut, {
       lane: 'strong',
       temperature: 0.4,
-      maxTokens: 300,
+      // The steps and the answer are long, and a truncated reply is no reply at all.
+      maxTokens: ceiling >= 4 ? 900 : 300,
       ...coachHint({
         problem: work.problem!,
         state: describe(work, now),
@@ -48,7 +52,8 @@ export async function coach(
   if (verdict.ok) return { kind: 'hint', hint: first }
   if (verdict.reason === 'empty') return { kind: 'silent' }
 
-  const retry = verdict.reason === 'too_high' ? 'too_high' : 'unverified'
+  const retry: Retry =
+    verdict.reason === 'too_high' ? 'too_high' : verdict.reason === 'promise' ? 'promise' : 'unverified'
   const second = asHint(await ask(retry))
   const again = gate(second, ceiling, work)
   if (again.ok) return { kind: 'hint', hint: second }
