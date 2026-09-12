@@ -42,9 +42,13 @@ export function defaultModelsFor(baseUrl: string): { fast: string; strong: strin
   try {
     const host = new URL(baseUrl).hostname.toLowerCase()
     if (host.includes('featherless.ai')) {
+      // A general model, not a Coder one. Most of what is asked here is prose
+      // and judgement, and the code models wrote flat prose and went silent on
+      // the coach: measured against the same lecture and the same half written
+      // solution, Coder-14B refused twice where this answered twice.
       return {
-        fast: 'Qwen/Qwen2.5-Coder-7B-Instruct',
-        strong: 'Qwen/Qwen2.5-Coder-14B-Instruct'
+        fast: 'Qwen/Qwen2.5-72B-Instruct',
+        strong: 'Qwen/Qwen2.5-72B-Instruct'
       }
     }
     if (host.includes('anthropic.com')) {
@@ -75,8 +79,8 @@ export function defaultModelsFor(baseUrl: string): { fast: string; strong: strin
     // Address may still be incomplete while typing.
   }
   return {
-    fast: 'Qwen/Qwen2.5-Coder-7B-Instruct',
-    strong: 'Qwen/Qwen2.5-Coder-14B-Instruct'
+    fast: 'Qwen/Qwen2.5-72B-Instruct',
+    strong: 'Qwen/Qwen2.5-72B-Instruct'
   }
 }
 

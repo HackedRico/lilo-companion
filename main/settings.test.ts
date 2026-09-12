@@ -60,8 +60,10 @@ test('with neither, nothing is configured and nothing is invented', () => {
 })
 
 test('known providers supply default fast and strong models when none are set', () => {
-  assert.equal(defaultModelsFor('https://api.featherless.ai/v1').fast, 'Qwen/Qwen2.5-Coder-7B-Instruct')
-  assert.equal(defaultModelsFor('https://api.featherless.ai/v1').strong, 'Qwen/Qwen2.5-Coder-14B-Instruct')
+  // A general model, not a Coder one: most of what is asked here is prose and
+  // judgement, and the code models wrote flat prose and refused hints outright.
+  assert.equal(defaultModelsFor('https://api.featherless.ai/v1').fast, 'Qwen/Qwen2.5-72B-Instruct')
+  assert.equal(defaultModelsFor('https://api.featherless.ai/v1').strong, 'Qwen/Qwen2.5-72B-Instruct')
   assert.equal(defaultModelsFor('https://api.anthropic.com').fast, 'claude-3-5-haiku-20241022')
   assert.equal(defaultModelsFor('https://api.groq.com/openai/v1').fast, 'llama-3.1-8b-instant')
   assert.equal(defaultModelsFor('https://openrouter.ai/api/v1').fast, 'meta-llama/llama-3.1-8b-instruct')
@@ -69,8 +71,8 @@ test('known providers supply default fast and strong models when none are set', 
 
   const store = new SettingsStore(home(), vault, NOTHING)
   store.apply({ baseUrl: 'https://api.featherless.ai' })
-  assert.equal(store.llmConfig().fast, 'Qwen/Qwen2.5-Coder-7B-Instruct')
-  assert.equal(store.llmConfig().strong, 'Qwen/Qwen2.5-Coder-14B-Instruct')
+  assert.equal(store.llmConfig().fast, 'Qwen/Qwen2.5-72B-Instruct')
+  assert.equal(store.llmConfig().strong, 'Qwen/Qwen2.5-72B-Instruct')
 })
 
 test('the protocol is decided from the address and shown, never chosen', () => {
