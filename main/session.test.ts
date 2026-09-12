@@ -12,7 +12,7 @@ import type { CompanionState, Profile, ThreadItem } from '../shared/types.ts'
 import { loadIkb, type Ikb } from './ikb/load.ts'
 import type { Ask, LlmLike } from './llm/service.ts'
 import { EMPTY_PROFILE } from './profile.ts'
-import { Session } from './session.ts'
+import { Session, firstSentence } from './session.ts'
 
 /**
  * A model that answers from a script, so the orchestration can be checked
@@ -348,4 +348,31 @@ test('a problem open in chrome takes the composer, but not an interview ask', as
   await session.typed('what is the Stripe interview like')
   assert.deepEqual(asked, ['Stripe'], 'and one about an interview does not')
   assert.equal(session.state.composer.mode, 'leetcode', 'the problem still has the composer afterwards')
+})
+
+test('what the practice says reaches the orb while the panel is shut', async () => {
+  const llm = new ScriptedLlm()
+  const { session, states } = harness(llm, ikb)
+  session.setExpanded(false)
+  await session.observe({
+    kind: 'opened',
+    at: Date.now(),
+    problem: { slug: 'two-sum', title: 'Two Sum', difficulty: 'Easy', statement: 'Find two numbers.' }
+  })
+  const whispered = states.filter((patch) => patch.whisper).at(-1)?.whisper
+  assert.ok(whispered, 'the student working in chrome is told there is something to read')
+  assert.equal(whispered.text, 'Two Sum, easy.')
+
+  // With the panel open there is nothing to nudge them about: they can see it.
+  session.setExpanded(true)
+  const before = states.filter((patch) => patch.whisper).length
+  await session.observe({ kind: 'outcome', at: Date.now(), outcome: { verdict: 'time_limit', detail: '' } })
+  assert.equal(states.filter((patch) => patch.whisper).length, before)
+})
+
+test('a whisper is one sentence, and never a wall of code', () => {
+  assert.equal(firstSentence('Two Sum, easy. Nothing written yet. You have me on Coach.'), 'Two Sum, easy.')
+  assert.equal(firstSentence("Here's the working code:\n```python\nseen = {}\n```"), "Here's the working code:")
+  assert.equal(firstSentence('What resets count between windows?'), 'What resets count between windows?')
+  assert.ok(firstSentence('x'.repeat(200)).length <= 90)
 })

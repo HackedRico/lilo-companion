@@ -59,6 +59,14 @@ export interface SessionDeps {
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
 
+/** As much as fits beside the orb: the first sentence, or the first line of code. */
+export function firstSentence(text: string, limit = 90): string {
+  const prose = text.split('```')[0]?.trim() || text.trim()
+  const end = prose.search(/[.!?](\s|$)/)
+  const first = end > 0 ? prose.slice(0, end + 1) : prose
+  return first.length > limit ? `${first.slice(0, limit - 1).trimEnd()}…` : first
+}
+
 function nextId(): string {
   return randomUUID().slice(0, 8)
 }
@@ -108,13 +116,28 @@ export class Session {
       record: deps.record,
       nextId,
       voice: {
-        say: (text, extra) => this.say(text, extra),
+        say: (text, extra) => this.saidWhileWorking(text, extra),
         suggest: (suggestions) => this.suggest(suggestions),
         orb: (orb) => this.patch({ orb }),
         mark: (mark) => deps.mark?.(mark),
         focus: (problem) => this.focusProblem(problem)
       }
     })
+  }
+
+  /**
+   * The student is in Chrome, so the panel is usually shut and the thread is
+   * out of sight. Whatever the practice says still goes in the thread, and a
+   * short form of it goes to the orb, or the companion would be talking to a
+   * closed window while they work.
+   */
+  private async saidWhileWorking(
+    text: string,
+    extra?: Omit<Partial<ThreadItem>, 'id' | 'text' | 'at'>
+  ): Promise<unknown> {
+    const said = await this.say(text, extra)
+    this.whisper(firstSentence(text))
+    return said
   }
 
   /** A LeetCode problem in view takes the composer; leaving it hands it back. */
