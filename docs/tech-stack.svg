@@ -88,7 +88,7 @@
   <g>
     <rect x="852" y="490" width="272" height="112" rx="10" fill="#fbf6ec" stroke="#e4d9c3"/>
     <text x="868" y="516" font-size="14" font-weight="600" font-family="ui-serif, 'New York', Georgia, serif" fill="#171f33">Public sources</text>
-    <text x="868" y="538" font-size="13" fill="#4b5368">30 Greenhouse and Lever boards,</text>
+    <text x="868" y="538" font-size="13" fill="#4b5368">30 Greenhouse, Ashby and Lever</text>
     <text x="868" y="556" font-size="13" fill="#4b5368">the endpoints the careers pages</text>
     <text x="868" y="574" font-size="13" fill="#4b5368">call. LeetCode's interview board</text>
     <text x="868" y="592" font-size="13" fill="#4b5368">and Hacker News for write-ups.</text>
