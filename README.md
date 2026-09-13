@@ -183,7 +183,7 @@ does one job, and the versions are the ones in `package.json`.
 | Main | Electron 44 on Node 22. The `openai` and `@anthropic-ai/sdk` clients under one queue, one backoff and a zod 4 schema over every structured reply. MiniSearch 7 over the tagged sentences. `unpdf` and `jszip` read PDFs and PowerPoint. `electron-store` over `dotenv` for settings, with keys sealed by `safeStorage`. |
 | Chrome | A Manifest V3 extension, three plain files loaded unpacked, and a native messaging host that is Lilo's own binary run as plain Node over a local socket. |
 | Model | Any OpenAI-compatible endpoint, hosted or on this machine, or Anthropic's own. The protocol is decided from the address. Speech goes to any whisper-style endpoint as 16 kHz WAV. |
-| Sources | 30 Greenhouse and Lever boards, read from the endpoints the careers pages call. LeetCode's interview board and Hacker News for first-hand write-ups. |
+| Sources | 30 boards on Greenhouse, Ashby and Lever, read from the endpoints the careers pages call. LeetCode's interview board and Hacker News for first-hand write-ups. |
 | Build and check | `electron-vite` 5 for dev and bundles, `node --test` loading the TypeScript directly, `electron-builder` 26 for a DMG and an NSIS installer, GitHub Actions running typecheck, tests and both packages on every push. |
 
 ## Running it
