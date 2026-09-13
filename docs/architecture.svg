@@ -1,0 +1,145 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 830" width="1200" height="830" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title>How Lilo is built</title>
+  <desc>The student hands over a lecture, works on LeetCode, or asks a question. Lilo, one conversation on the desktop, proves where a concept turns up at work, coaches on LeetCode within a ceiling, and briefs on interviews. Two rules are kept in code. It draws on real postings, a model the student chooses, and first-hand interview write-ups.</desc>
+  <defs>
+    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#14a3fa"/>
+      <stop offset="1" stop-color="#0d4ff0"/>
+    </linearGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#171f33"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="830" fill="#f6f7fb"/>
+
+  <!-- The student -->
+  <text x="40" y="78" font-size="11" font-weight="600" letter-spacing="2" fill="#6b7288">THE STUDENT</text>
+  <text x="40" y="106" font-size="15" fill="#4b5368">A software engineering</text>
+  <text x="40" y="126" font-size="15" fill="#4b5368">student, in class, on</text>
+  <text x="40" y="146" font-size="15" fill="#4b5368">LeetCode, and in the</text>
+  <text x="40" y="166" font-size="15" fill="#4b5368">interview room.</text>
+
+  <g>
+    <rect x="316" y="56" width="256" height="112" rx="10" fill="#ffffff" stroke="#d7dbe6"/>
+    <text x="332" y="86" font-size="16" font-weight="600" fill="#171f33">A lecture</text>
+    <text x="332" y="112" font-size="13" fill="#4b5368">Slides, notes, captions or a PDF,</text>
+    <text x="332" y="130" font-size="13" fill="#4b5368">handed over whole.</text>
+  </g>
+  <g>
+    <rect x="592" y="56" width="256" height="112" rx="10" fill="#ffffff" stroke="#d7dbe6"/>
+    <text x="608" y="86" font-size="16" font-weight="600" fill="#171f33">LeetCode, open in Chrome</text>
+    <text x="608" y="112" font-size="13" fill="#4b5368">A problem, your code, and</text>
+    <text x="608" y="130" font-size="13" fill="#4b5368">every run you make.</text>
+  </g>
+  <g>
+    <rect x="868" y="56" width="256" height="112" rx="10" fill="#ffffff" stroke="#d7dbe6"/>
+    <text x="884" y="86" font-size="16" font-weight="600" fill="#171f33">A question, in your words</text>
+    <text x="884" y="112" font-size="13" fill="#4b5368">Typed, or spoken and read back</text>
+    <text x="884" y="130" font-size="13" fill="#4b5368">before it is sent.</text>
+  </g>
+
+  <!-- Down into Lilo -->
+  <line x1="444" y1="168" x2="444" y2="238" stroke="#171f33" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="720" y1="168" x2="720" y2="238" stroke="#171f33" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="996" y1="168" x2="996" y2="238" stroke="#171f33" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="732" y="196" font-size="12" fill="#6b7288">a small Chrome extension reads</text>
+  <text x="732" y="212" font-size="12" fill="#6b7288">the editor, and nothing else</text>
+
+  <!-- Lilo -->
+  <rect x="40" y="240" width="1120" height="380" rx="16" fill="#eef1f8" stroke="#c9cfdf"/>
+
+  <!-- The orb, and one conversation -->
+  <g transform="translate(80 268)">
+    <rect width="56" height="56" rx="12" fill="#ffffff" stroke="#d7dbe6"/>
+    <g transform="translate(2.8 2.8) scale(0.504)">
+      <path d="M 22 26 L 34 12 L 56 12 C 107 12 107 88 56 88 L 28 88 L 28 48 L 40 48 L 40 74 L 56 74 C 84 74 84 26 56 26 Z" fill="url(#blue)"/>
+      <rect x="46.25" y="37.5" width="7.5" height="11.5" rx="3.75" fill="#171f33"/>
+      <rect x="60.25" y="37.5" width="7.5" height="11.5" rx="3.75" fill="#171f33"/>
+      <path d="M 52.5 58.4 Q 57 63.6 61.5 58.4" fill="none" stroke="#171f33" stroke-width="2" stroke-linecap="round"/>
+    </g>
+  </g>
+  <text x="80" y="356" font-size="16" font-weight="600" fill="#171f33">One conversation</text>
+  <text x="80" y="382" font-size="13" fill="#4b5368">The orb sits in the corner of</text>
+  <text x="80" y="400" font-size="13" fill="#4b5368">the screen. The panel opens</text>
+  <text x="80" y="418" font-size="13" fill="#4b5368">beside it, and everything</text>
+  <text x="80" y="436" font-size="13" fill="#4b5368">lands in one thread: cards,</text>
+  <text x="80" y="454" font-size="13" fill="#4b5368">hints, briefs, your words.</text>
+  <text x="80" y="490" font-size="13" font-weight="600" fill="#171f33">It cheers when you get there.</text>
+  <text x="80" y="508" font-size="13" font-weight="600" fill="#171f33">It never does the work for you.</text>
+
+  <!-- Three practices -->
+  <g>
+    <rect x="316" y="268" width="256" height="136" rx="10" fill="#ffffff" stroke="#d7dbe6"/>
+    <rect x="316" y="268" width="256" height="4" rx="2" fill="url(#blue)"/>
+    <text x="332" y="300" font-size="16" font-weight="600" fill="#171f33">Proves where it turns up</text>
+    <text x="332" y="328" font-size="13" fill="#4b5368">Names the concept, says what</text>
+    <text x="332" y="346" font-size="13" fill="#4b5368">industry calls it, and quotes</text>
+    <text x="332" y="364" font-size="13" fill="#4b5368">three real postings to prove it.</text>
+  </g>
+  <g>
+    <rect x="592" y="268" width="256" height="136" rx="10" fill="#ffffff" stroke="#d7dbe6"/>
+    <rect x="592" y="268" width="256" height="4" rx="2" fill="url(#blue)"/>
+    <text x="608" y="300" font-size="16" font-weight="600" fill="#171f33">Coaches on LeetCode</text>
+    <text x="608" y="328" font-size="13" fill="#4b5368">Says what it sees, with no model.</text>
+    <text x="608" y="346" font-size="13" fill="#4b5368">Then a hint, one rung at a time,</text>
+    <text x="608" y="364" font-size="13" fill="#4b5368">never past the level you set.</text>
+  </g>
+  <g>
+    <rect x="868" y="268" width="256" height="136" rx="10" fill="#ffffff" stroke="#d7dbe6"/>
+    <rect x="868" y="268" width="256" height="4" rx="2" fill="url(#blue)"/>
+    <text x="884" y="300" font-size="16" font-weight="600" fill="#171f33">Briefs you on an interview</text>
+    <text x="884" y="328" font-size="13" fill="#4b5368">What the process looked like at</text>
+    <text x="884" y="346" font-size="13" fill="#4b5368">a company, from write-ups people</text>
+    <text x="884" y="364" font-size="13" fill="#4b5368">posted, with a citation on each.</text>
+  </g>
+
+  <!-- Two rules -->
+  <g>
+    <rect x="316" y="428" width="808" height="164" rx="10" fill="#171f33"/>
+    <text x="336" y="456" font-size="11" font-weight="600" letter-spacing="2" fill="#9aa3bd">TWO RULES, KEPT IN CODE AND NOT IN A PROMPT</text>
+    <text x="336" y="490" font-size="15" font-weight="600" fill="#ffffff">The model translates and explains. Real postings prove.</text>
+    <text x="336" y="510" font-size="13" fill="#c9cfdf">A term survives only if the evidence base has it. A citation survives only if the retriever returned it.</text>
+    <text x="336" y="546" font-size="15" font-weight="600" fill="#ffffff">The ladder is enforced by code.</text>
+    <text x="336" y="566" font-size="13" fill="#c9cfdf">Every hint carries a rung, 0 to 5. A gate checks it against your level and your own code before a word is said.</text>
+  </g>
+
+  <!-- Down to what it draws on -->
+  <line x1="444" y1="620" x2="444" y2="662" stroke="#171f33" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="720" y1="620" x2="720" y2="662" stroke="#171f33" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="996" y1="620" x2="996" y2="662" stroke="#171f33" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="732" y="646" font-size="12" fill="#6b7288">every reply checked before it is said</text>
+
+  <!-- What it draws on -->
+  <text x="40" y="700" font-size="11" font-weight="600" letter-spacing="2" fill="#6b7288">WHAT IT DRAWS ON</text>
+  <text x="40" y="728" font-size="15" fill="#4b5368">Public job boards. Public</text>
+  <text x="40" y="748" font-size="15" fill="#4b5368">write-ups. A model you</text>
+  <text x="40" y="768" font-size="15" fill="#4b5368">point it at. Nothing is</text>
+  <text x="40" y="788" font-size="15" fill="#4b5368">bundled that points at</text>
+  <text x="40" y="808" font-size="15" fill="#4b5368">anybody's service.</text>
+
+  <g>
+    <rect x="316" y="664" width="256" height="126" rx="10" fill="#fbf6ec" stroke="#e4d9c3"/>
+    <text x="332" y="694" font-size="16" font-weight="600" font-family="ui-serif, 'New York', Georgia, serif" fill="#171f33">1,388 real postings</text>
+    <text x="332" y="720" font-size="13" fill="#4b5368">From 30 companies' own job</text>
+    <text x="332" y="738" font-size="13" fill="#4b5368">boards. Software engineering</text>
+    <text x="332" y="756" font-size="13" fill="#4b5368">roles only. 10,737 sentences,</text>
+    <text x="332" y="774" font-size="13" fill="#4b5368">every one tagged.</text>
+  </g>
+  <g>
+    <rect x="592" y="664" width="256" height="126" rx="10" fill="#ffffff" stroke="#d7dbe6"/>
+    <text x="608" y="694" font-size="16" font-weight="600" fill="#171f33">A model you choose</text>
+    <text x="608" y="720" font-size="13" fill="#4b5368">Hosted, or on this machine.</text>
+    <text x="608" y="738" font-size="13" fill="#4b5368">One address, one key, two model</text>
+    <text x="608" y="756" font-size="13" fill="#4b5368">names. The key stays sealed</text>
+    <text x="608" y="774" font-size="13" fill="#4b5368">in the OS keychain.</text>
+  </g>
+  <g>
+    <rect x="868" y="664" width="256" height="126" rx="10" fill="#fbf6ec" stroke="#e4d9c3"/>
+    <text x="884" y="694" font-size="16" font-weight="600" font-family="ui-serif, 'New York', Georgia, serif" fill="#171f33">Interview write-ups</text>
+    <text x="884" y="720" font-size="13" fill="#4b5368">LeetCode's interview board and</text>
+    <text x="884" y="738" font-size="13" fill="#4b5368">Hacker News, from the last year.</text>
+    <text x="884" y="756" font-size="13" fill="#4b5368">Kept for a day, so the second</text>
+    <text x="884" y="774" font-size="13" fill="#4b5368">ask is instant and offline.</text>
+  </g>
+</svg>
