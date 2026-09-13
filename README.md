@@ -2,7 +2,7 @@
 
 **A desktop companion for the software engineering student who wants the job.**
 
-> "I will never use this."
+> **"I will never use this in my career."**
 
 Every student has said it, halfway through a lecture. That is the moment the
 motivation goes: the slides keep moving, the concept stays abstract, and the
