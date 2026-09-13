@@ -49,6 +49,12 @@ prompt.
   every name against the student's own code before a word is said. The model
   is told the ceiling and never trusted with it.
 
+## The journey
+
+The four layers in the order a student meets them, then why it matters.
+
+![Lilo, from lecture to offer: a lecture or your voice, the skill mapped to the job, first-hand interview notes, and LeetCode help up to the level you set](docs/journey.png)
+
 ## How it is built
 
 A picture first, then the same thing in words.
