@@ -3,6 +3,46 @@
 The shape of the app, and the reasoning behind the parts that are not obvious
 from reading them.
 
+## The shape
+
+[README.md](../README.md) holds the map of processes. This is the path of one
+lecture and one hint through them, with the check at each step that the two
+rules rest on. Every diamond is code with no model in it.
+
+```mermaid
+flowchart TB
+  subgraph hint["A hint"]
+    direction TB
+    H1["workEvent<br>parsed with zod on the way in"] --> H2["fold<br>one state"]
+    H2 --> H3["describe<br>the state in words, no model"]
+    H3 --> H4{"nextRung<br>a minute passed, the code changed, the tab in front?"}
+    H4 -- no --> H5["quiet"]
+    H4 -- yes --> H6["coach<br>the model proposes a hint with a rung on it"]
+    H6 --> H7{"gate<br>under the ceiling? every line and name in their code?"}
+    H7 -- no --> H8["asked once more, stricter, then withheld"]
+    H7 -- yes --> H9["said, and the lines marked in the editor"]
+  end
+
+  subgraph question["A question"]
+    direction TB
+    Q1["freeSearch<br>five sentences with ids"] --> Q2["companionChat<br>the model answers over those and nothing else"]
+    Q2 --> Q3{"CitationFilter<br>did the retriever return this marker?"}
+    Q3 -- no --> Q4["the marker is stripped"]
+    Q3 -- yes --> Q5["a chip that opens the posting"]
+  end
+
+  subgraph lecture["A lecture"]
+    direction TB
+    L1["readLecture<br>the whole file, one line per thing said"] --> L2["extractConcepts<br>at most three, in one call"]
+    L2 --> L3["nearbyTerms<br>the retriever hands the model the vocabulary"]
+    L3 --> L4["translate<br>the model copies one term exactly"]
+    L4 --> L5{"resolveTerms<br>is it in the base?"}
+    L5 -- no --> L6["dropped, or said to be unadvertised"]
+    L5 -- yes --> L7["buildCard<br>three sentences, three companies"]
+    L7 --> L8["a card in the thread<br>a posting URL behind every quote"]
+  end
+```
+
 ## The loop
 
 `main/session.ts` holds one loop and every state it can be in.
