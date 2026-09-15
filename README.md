@@ -34,25 +34,12 @@ lecture to the LeetCode grind to the interview to the offer.
 - **Ask about an interview.** It reads what people posted first-hand about a
   company, with a citation on every claim.
 
-It cheers when you get there. It never does the work for you. It runs on
-macOS and Windows from one codebase, with a model you choose, hosted or on
-your own machine.
+It cheers when you get there. It never does the work for you. It never
+invents a source, and it never gives more help than you asked for: both are
+checked in code after the model answers, not asked of the model.
 
-## Two promises the code enforces
-
-Most AI study tools keep their promises in the prompt: only cite real
-sources, never give the answer away. The model reads that, and then does what
-it does. Lilo does not rely on it. Both promises are checked after the model
-has answered, by code that can throw the answer out.
-
-![The two checks: a citation is shown only if it points at a sentence that was retrieved; a hint is said only if it stays under your level and points at lines in your code](docs/two-checks.svg)
-
-The cost is real and worth paying. When no posting mentions a concept, the
-honest answer is that nobody advertises for it, which is less satisfying than
-a stretched match and more useful. When a hint reaches above the level you
-set, or points at a line that is not in your code, Lilo asks once more under
-a stricter instruction and then says nothing, because a wrong hint costs you
-more than no hint. The model is told the rules. The code is what keeps them.
+It runs on macOS and Windows from one codebase, with a model you choose,
+hosted or on your own machine.
 
 ## How it works
 
@@ -109,9 +96,11 @@ The drawing is the shape. What follows is what happens along each path.
    that does not is dropped where it stands. How old the newest account is
    comes from the dates, not from the model.
 
-Two things hold on every path. Every model call waits in one queue, and every
-structured reply is checked against a schema before it is believed. And
-nothing you ask for is dropped because the app is busy.
+On every path:
+
+- Every model call waits in one queue, and every structured reply is checked
+  against a schema before it is believed.
+- Nothing you ask for is dropped because the app is busy.
 
 ## Getting started
 
@@ -123,27 +112,36 @@ node node_modules/electron/install.js
 npm run dev
 ```
 
-Node 22.18 or newer. The second line fetches the Electron binary, because
-npm 11 skips install scripts. The same three lines work in PowerShell and cmd.
+- Node 22.18 or newer.
+- The second line fetches the Electron binary, because npm 11 skips install
+  scripts.
+- The same three lines work in PowerShell and cmd.
+- Nothing has to be configured before the app starts.
 
-An orb appears bottom right, and a mark in the menu bar on macOS or the
-notification area on Windows. There is no Dock tile or taskbar button.
-Cmd+Shift+Y on macOS and Ctrl+Shift+Y on Windows open and close the panel.
-Escape closes it. Nothing has to be configured before the app starts.
+What you see:
+
+- An orb, bottom right, and a mark in the menu bar on macOS or the
+  notification area on Windows. No Dock tile, no taskbar button.
+- Cmd+Shift+Y on macOS, Ctrl+Shift+Y on Windows, opens and closes the panel.
+  Escape closes it.
 
 ### Choose a model
 
-Open the panel and press the gear. A model is an address, a key and two model
-names, and you type all three. How the endpoint speaks is decided from the
-address: api.anthropic.com gets the messages API, and everything else gets the
-OpenAI chat API, which is what every hosted service, gateway and local server
-speaks. The model list is read from the endpoint, and "Test it" makes one real
-call and says what came back.
+Open the panel and press the gear.
 
-Keys are sealed with the OS keychain, Keychain on macOS and DPAPI on Windows,
-and never reach the renderer, which learns only whether a key is set and its
-last four characters. Anything left blank falls through to `.env`, so a
-developer checkout needs no clicking.
+- A model is an address, a key and two model names. You type all three.
+- The protocol is decided from the address: api.anthropic.com gets the
+  messages API, everything else gets the OpenAI chat API, which every hosted
+  service, gateway and local server speaks.
+- The model list is read from the endpoint. "Test it" makes one real call and
+  says what came back.
+- Keys are sealed with the OS keychain, Keychain on macOS and DPAPI on
+  Windows. The window only ever learns whether a key is set and its last four
+  characters.
+- Anything left blank falls through to `.env`, so a developer checkout needs
+  no clicking.
+- The quick model reads lectures and answers questions. The careful one
+  coaches on LeetCode.
 
 To run with no network at all, pull a model into Ollama and give Lilo the
 address. A local address is recognised and asks for no key.
@@ -158,14 +156,15 @@ MODEL_FAST=qwen2.5-coder:7b
 MODEL_STRONG=qwen2.5-coder:7b
 ```
 
-The quick model reads lectures and answers questions. The careful one coaches
-on LeetCode.
-
 ### Connect LeetCode
 
-Settings, the LeetCode tab, "Set up Chrome". It writes the file Chrome needs.
-Then open chrome://extensions, turn on Developer mode, press Load unpacked and
-pick the folder the tab shows. The tab says Connected once a problem is open.
+1. Open Settings, the LeetCode tab, and press "Set up Chrome". It writes the
+   file Chrome needs.
+2. Open chrome://extensions, turn on Developer mode, press Load unpacked and
+   pick the folder the tab shows.
+3. Open a problem. The tab says Connected.
+
+Then pick how much help you want:
 
 | Level | Volunteers up to | Answers up to |
 |---|---|---|
@@ -178,15 +177,16 @@ clears them on your next edit. Nothing else is ever written to the page.
 
 ### Lectures and voice
 
-A lecture is a `.txt`, `.md`, `.vtt`, `.pdf` or `.pptx`. Drag it onto the orb
-or the panel, pick it from the menu bar mark, or paste notes into the composer.
-`--lecture path` or `LECTURE_FILE=` in `.env` starts with one already read.
-
-Voice mode is the mic beside "Upload a lecture". Cmd+Shift+M on macOS and
-Ctrl+Shift+M on Windows records, and the words land in the composer to be
-read before they are sent. Speech goes where the model is when that address
-transcribes, as OpenAI's and Groq's do. A whisper server on this machine keeps
-it here:
+- A lecture is a `.txt`, `.md`, `.vtt`, `.pdf` or `.pptx`.
+- Drag it onto the orb or the panel, pick it from the menu bar mark, or paste
+  notes into the composer.
+- `--lecture path`, or `LECTURE_FILE=` in `.env`, starts with one already
+  read.
+- Voice mode is the mic beside "Upload a lecture". Cmd+Shift+M on macOS,
+  Ctrl+Shift+M on Windows, records. The words land in the composer to be read
+  before they are sent.
+- Speech goes where the model is when that address transcribes, as OpenAI's
+  and Groq's do. A whisper server on this machine keeps it local:
 
 ```
 VOICE_BASE_URL=http://localhost:8000
@@ -195,10 +195,10 @@ VOICE_MODEL=Systran/faster-whisper-small.en
 
 ### Interviews
 
-An interview brief is a question in your own words: "I have an onsite with
-Coinbase". What was read is kept for a day, so the second ask is instant and
-offline. Glassdoor, Blind and Reddit are not read: they want a login or refuse
-the request.
+- Ask in your own words: "I have an onsite with Coinbase".
+- What was read is kept for a day, so the second ask is instant and offline.
+- Glassdoor, Blind and Reddit are not read. They want a login or refuse the
+  request.
 
 ## Tech stack
 
@@ -256,19 +256,18 @@ lilo-companion
 | `npm run package:mac`, `npm run package:win` | installers, which CI also builds on both platforms |
 | `npm run ingest` | rebuilds the evidence base from the 30 boards in `data/boards.json` |
 
-A posting is kept only if its title is a software engineering role; sales,
-product and design are dropped at ingest. Add a company by adding a row.
-
-Every LeetCode session is written to a file under the app's data folder, one
-event per line. `--work-recording path/to/session.jsonl` plays one back with
-no browser open, which is how the companion's manners are tuned.
-`LILO_DEBUG_LLM=1` prints every model call with its queue wait and its wire
-time. `LILO_OPEN_PREFS=1` opens the preferences window on launch.
-
-What differs between macOS and Windows sits behind `process.platform`: how a
-floating window takes focus, how the menu bar mark is drawn, where keys and
-the Chrome host manifest live. [docs/platforms.md](docs/platforms.md) says
-exactly where, and which of those a Mac cannot verify.
+- A posting is kept only if its title is a software engineering role. Sales,
+  product and design are dropped at ingest. Add a company by adding a row to
+  `data/boards.json`.
+- Every LeetCode session is written to a file under the app's data folder,
+  one event per line. `--work-recording path/to/session.jsonl` plays one back
+  with no browser open, which is how the companion's manners are tuned.
+- `LILO_DEBUG_LLM=1` prints every model call with its queue wait and its wire
+  time. `LILO_OPEN_PREFS=1` opens the preferences window on launch.
+- What differs between macOS and Windows sits behind `process.platform`: how
+  a floating window takes focus, how the menu bar mark is drawn, where keys
+  and the Chrome host manifest live. [docs/platforms.md](docs/platforms.md)
+  says exactly where, and which of those a Mac cannot verify.
 
 ## Documentation
 
