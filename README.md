@@ -205,16 +205,7 @@ VOICE_MODEL=Systran/faster-whisper-small.en
 One codebase in TypeScript, from the window to the Chrome host. The versions
 are the ones in `package.json`.
 
-| Layer | What it is |
-|---|---|
-| Renderer | React 19, TypeScript 5.9, Tailwind 4 and zustand 5. A sandboxed page with no Node in it. The orb and the menu bar mark are drawn in code, so there are no image assets to keep in step. |
-| Preload | Electron's `contextBridge`, exposing exactly the channels named in `shared/api.ts`. Every value from a renderer is checked in main before it reaches a window. |
-| Main | Electron 44 on Node 22, the only process that reaches the disk, the network or your keys. The `openai` and `@anthropic-ai/sdk` clients under one queue, one backoff and a zod 4 schema over every structured reply. MiniSearch 7 over the tagged sentences. `unpdf` and `jszip` read PDFs and PowerPoint. `electron-store` over `dotenv` for settings, with keys sealed by `safeStorage`. |
-| Chrome | A Manifest V3 extension, three plain files loaded unpacked. It reads the LeetCode editor and nothing else. A native messaging host, Lilo's own binary run as plain Node, carries its events to the app over a local socket. |
-| Model | Any OpenAI-compatible endpoint, hosted or on this machine, or Anthropic's own. The protocol is decided from the address. Speech goes to any whisper-style endpoint as 16 kHz WAV. |
-| Evidence | `data/ikb.json`: 1,388 software engineering postings from 30 companies, split into 10,737 sentences, each tagged with the tools and practices it mentions. Read from the Greenhouse, Ashby and Lever endpoints the careers pages call, and rebuilt with one command. |
-| Sources | LeetCode's interview board and Hacker News for first-hand write-ups. |
-| Build and check | `electron-vite` 5 for dev and bundles, `node --test` loading the TypeScript directly, `electron-builder` 26 for a DMG and an NSIS installer, GitHub Actions running typecheck, tests and both packages on every push. |
+![The Lilo tech stack: React in the renderer, one preload door, Electron on Node in main with the model, evidence and settings libraries, and Chrome, a model and public sources beside it](docs/tech-stack.svg)
 
 ### Where things are
 
