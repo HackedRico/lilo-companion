@@ -2,6 +2,12 @@
 
 **A desktop companion for the software engineering student who wants the job.**
 
+> [!IMPORTANT]
+> **Winner, LILO Hackathon 2026.** Track 01, LILO Behind the Scenes: DSA
+> practice and interviewing.
+
+## The problem
+
 > **"I will never use this in my career."**
 
 Every student has said it, halfway through a lecture. That is the moment the
@@ -9,6 +15,13 @@ motivation goes: the slides keep moving, the concept stays abstract, and the
 job it was all supposed to lead to feels further away, not closer. The gap
 between the classroom and that job is real, and the student is left to close
 it alone.
+
+An AI is the obvious tool for closing it: it can read the lecture and it can
+read the postings. The two ways it goes wrong are well known. It invents the
+link, and the student believes it. Or it does the work, and the student
+learns nothing.
+
+## What Lilo does
 
 Lilo is a companion that stays with the student through all of it, from that
 lecture to the LeetCode grind to the interview to the offer.
@@ -22,66 +35,31 @@ lecture to the LeetCode grind to the interview to the offer.
   company, with a citation on every claim.
 
 It cheers when you get there. It never does the work for you. It runs on
-macOS and Windows from one codebase.
+macOS and Windows from one codebase, with a model you choose, hosted or on
+your own machine.
 
-> [!IMPORTANT]
-> **Built for the LILO Summer Academy Hackathon, September 2026.**
-> Track 01, LILO Behind the Scenes: DSA practice and interviewing.
+## Two rules, kept in code
 
-## Why it matters
+Lilo is shaped around refusing both failures, and the refusals are in code,
+not in a prompt.
 
-Closing that gap is what this hackathon is named for, and an AI is the obvious
-tool: it can read the lecture and it can read the postings. The two ways it
-goes wrong are well known. It invents the link, and the student believes it.
-Or it does the work, and the student learns nothing.
+**The model translates and explains. Real postings prove.** Every claim about
+industry traces to a sentence with a posting URL. A term the model returns
+survives only if the evidence base has it, and a citation survives only if the
+retriever returned it. A concept nobody advertises for is said to be one,
+which is a truer answer than a stretched term.
 
-Lilo is shaped around refusing both, and the refusals are in code, not in a
-prompt.
+**The help is capped by code.** Every LeetCode hint is graded, 0 to 5, by how
+much of the answer it gives away. The level the student picks is a ceiling on
+that scale, and a gate checks the grade, every line number and every name
+against the student's own code before a word is said. The model is told the
+ceiling and never trusted with it.
 
-- **The model translates and explains. Real postings prove.** Every claim
-  about industry traces to a sentence with a posting URL. A term the model
-  returns survives only if the evidence base has it, and a citation survives
-  only if the retriever returned it. A concept nobody advertises for is said
-  to be one, which is a truer answer than a stretched term.
-- **The ladder is enforced by code.** Every LeetCode hint carries a rung, 0 to
-  5, by how much of the answer it gives away. The tier the student picks is a
-  ceiling on that ladder, and a gate checks the rung, every line number and
-  every name against the student's own code before a word is said. The model
-  is told the ceiling and never trusted with it.
-
-## The journey
-
-The four layers in the order a student meets them, then why it matters.
-
-![Lilo, from lecture to offer: a lecture or your voice, the skill mapped to the job, first-hand interview notes, and LeetCode help up to the level you set](docs/journey.png)
-
-## How it is built
-
-A picture first, then the same thing in words.
+## How it works
 
 ![How Lilo is built: the student, the companion, its three practices and two rules, and what it draws on](docs/architecture.svg)
 
-When Lilo is running, three things are on your machine.
-
-- **Lilo itself**, an Electron app. It is the orb in the corner, the panel
-  beside it, and a main process behind them that does all the thinking. Only
-  the main process can reach the disk, the network or your keys. The panel is
-  a sandboxed web page that can ask it for things, and nothing more.
-- **A Chrome extension**, three small files you load once. It reads the code
-  in your LeetCode editor and tells Lilo what changed. It never reads any
-  other site, and it never writes to the page, except to mark a line a hint
-  points at.
-- **A small helper that Chrome starts**, so the extension has a way to reach
-  the app. It is Lilo's own program, started by Chrome as plain Node with no
-  window.
-
-Beside them, on disk, sits **the evidence base**: 1,388 real software
-engineering postings from 30 companies, broken into 10,737 sentences, each
-tagged with the tools and practices it mentions. It is one file, rebuilt by
-one command, and Lilo reads it when it starts.
-
-And somewhere you choose, **a model**. Hosted, or on your own machine. Lilo
-never picks one for you.
+The drawing is the shape. What follows is what happens along each path.
 
 ### When you hand it a lecture
 
@@ -101,18 +79,18 @@ never picks one for you.
 
 ### When you are stuck on LeetCode
 
-1. The extension reports the problem, your code, and every run with its
+1. A Chrome extension reports the problem, your code, and every run with its
    verdict. Every report is checked against a fixed shape before anything
    reads it.
 2. Lilo says what it sees first, in plain words, with no model involved: the
    problem, how many lines you have, what the last run said.
-3. A hint it offers on its own is earned: one rung higher at a time, no more
+3. A hint it offers on its own is earned: one grade higher at a time, no more
    than once a minute, and only after your code has changed. Ask, and it
    answers at the level you set.
-4. The model is asked once, for a hint that carries a rung from 0 to 5. A gate
-   then reads the hint, decides which rung it really reaches, and refuses it
-   if that is above your level, or if it names a line or a variable that is
-   not in your code.
+4. The model is asked once, for a hint that carries its grade. A gate then
+   reads the hint, decides which grade it really reaches, and refuses it if
+   that is above your level, or if it names a line or a variable that is not
+   in your code.
 5. A refused hint is asked for once more under a stricter instruction, then
    dropped. Only then is a word said, and any line it names is marked in your
    editor.
@@ -132,12 +110,112 @@ never picks one for you.
    that does not is dropped where it stands. How old the newest account is
    comes from the dates, not from the model.
 
-Two things hold on every one of these paths. Every model call waits in one
-queue, and every structured reply is checked against a schema before it is
-believed. And nothing you ask for is dropped because the app is busy.
+Two things hold on every path. Every model call waits in one queue, and every
+structured reply is checked against a schema before it is believed. And
+nothing you ask for is dropped because the app is busy.
 
-[docs/architecture.md](docs/architecture.md) has the reasoning behind each of
-these choices, and the tree below maps them to the code.
+## Getting started
+
+### Install and run
+
+```bash
+npm install
+node node_modules/electron/install.js
+npm run dev
+```
+
+Node 22.18 or newer. The second line fetches the Electron binary, because
+npm 11 skips install scripts. The same three lines work in PowerShell and cmd.
+
+An orb appears bottom right, and a mark in the menu bar on macOS or the
+notification area on Windows. There is no Dock tile or taskbar button.
+Cmd+Shift+Y on macOS and Ctrl+Shift+Y on Windows open and close the panel.
+Escape closes it. Nothing has to be configured before the app starts.
+
+### Choose a model
+
+Open the panel and press the gear. A model is an address, a key and two model
+names, and you type all three. How the endpoint speaks is decided from the
+address: api.anthropic.com gets the messages API, and everything else gets the
+OpenAI chat API, which is what every hosted service, gateway and local server
+speaks. The model list is read from the endpoint, and "Test it" makes one real
+call and says what came back.
+
+Keys are sealed with the OS keychain, Keychain on macOS and DPAPI on Windows,
+and never reach the renderer, which learns only whether a key is set and its
+last four characters. Anything left blank falls through to `.env`, so a
+developer checkout needs no clicking.
+
+To run with no network at all, pull a model into Ollama and give Lilo the
+address. A local address is recognised and asks for no key.
+
+```bash
+ollama pull qwen2.5-coder:7b
+```
+
+```
+LLM_BASE_URL=http://localhost:11434
+MODEL_FAST=qwen2.5-coder:7b
+MODEL_STRONG=qwen2.5-coder:7b
+```
+
+The quick model reads lectures and answers questions. The careful one coaches
+on LeetCode.
+
+### Connect LeetCode
+
+Settings, the LeetCode tab, "Set up Chrome". It writes the file Chrome needs.
+Then open chrome://extensions, turn on Developer mode, press Load unpacked and
+pick the folder the tab shows. The tab says Connected once a problem is open.
+
+| Level | Volunteers up to | Answers up to |
+|---|---|---|
+| Hands off | what it sees | a question to think about |
+| Coach | the idea by name | where your own code goes wrong |
+| Tutor | the steps | the answer, and only when asked outright |
+
+A hint that names lines marks them in the editor, as the companion's, and
+clears them on your next edit. Nothing else is ever written to the page.
+
+### Lectures and voice
+
+A lecture is a `.txt`, `.md`, `.vtt`, `.pdf` or `.pptx`. Drag it onto the orb
+or the panel, pick it from the menu bar mark, or paste notes into the composer.
+`--lecture path` or `LECTURE_FILE=` in `.env` starts with one already read.
+
+Voice mode is the mic beside "Upload a lecture". Cmd+Shift+M on macOS and
+Ctrl+Shift+M on Windows records, and the words land in the composer to be
+read before they are sent. Speech goes where the model is when that address
+transcribes, as OpenAI's and Groq's do. A whisper server on this machine keeps
+it here:
+
+```
+VOICE_BASE_URL=http://localhost:8000
+VOICE_MODEL=Systran/faster-whisper-small.en
+```
+
+### Interviews
+
+An interview brief is a question in your own words: "I have an onsite with
+Coinbase". What was read is kept for a day, so the second ask is instant and
+offline. Glassdoor, Blind and Reddit are not read: they want a login or refuse
+the request.
+
+## Tech stack
+
+One codebase in TypeScript, from the window to the Chrome host. The versions
+are the ones in `package.json`.
+
+| Layer | What it is |
+|---|---|
+| Renderer | React 19, TypeScript 5.9, Tailwind 4 and zustand 5. A sandboxed page with no Node in it. The orb and the menu bar mark are drawn in code, so there are no image assets to keep in step. |
+| Preload | Electron's `contextBridge`, exposing exactly the channels named in `shared/api.ts`. Every value from a renderer is checked in main before it reaches a window. |
+| Main | Electron 44 on Node 22, the only process that reaches the disk, the network or your keys. The `openai` and `@anthropic-ai/sdk` clients under one queue, one backoff and a zod 4 schema over every structured reply. MiniSearch 7 over the tagged sentences. `unpdf` and `jszip` read PDFs and PowerPoint. `electron-store` over `dotenv` for settings, with keys sealed by `safeStorage`. |
+| Chrome | A Manifest V3 extension, three plain files loaded unpacked. It reads the LeetCode editor and nothing else. A native messaging host, Lilo's own binary run as plain Node, carries its events to the app over a local socket. |
+| Model | Any OpenAI-compatible endpoint, hosted or on this machine, or Anthropic's own. The protocol is decided from the address. Speech goes to any whisper-style endpoint as 16 kHz WAV. |
+| Evidence | `data/ikb.json`: 1,388 software engineering postings from 30 companies, split into 10,737 sentences, each tagged with the tools and practices it mentions. Read from the Greenhouse, Ashby and Lever endpoints the careers pages call, and rebuilt with one command. |
+| Sources | LeetCode's interview board and Hacker News for first-hand write-ups. |
+| Build and check | `electron-vite` 5 for dev and bundles, `node --test` loading the TypeScript directly, `electron-builder` 26 for a DMG and an NSIS installer, GitHub Actions running typecheck, tests and both packages on every push. |
 
 ### Where things are
 
@@ -169,141 +247,31 @@ lilo-companion
 └── docs/              the reasoning
 ```
 
-## Tech stack
-
-One codebase in TypeScript, from the window to the Chrome host. Each layer
-does one job, and the versions are the ones in `package.json`.
-
-![The Lilo tech stack: React in the renderer, one preload door, Electron on Node in main with the model, evidence and settings libraries, and Chrome, a model and public sources beside it](docs/tech-stack.svg)
-
-| Layer | What it is |
-|---|---|
-| Renderer | React 19, TypeScript 5.9, Tailwind 4 and zustand 5. Sandboxed, no Node. The orb and the menu bar mark are drawn in code, so there are no image assets to keep in step. |
-| Preload | Electron's `contextBridge`, exposing exactly the channels named in `shared/api.ts`. Every value from a renderer is checked in main before it reaches a window. |
-| Main | Electron 44 on Node 22. The `openai` and `@anthropic-ai/sdk` clients under one queue, one backoff and a zod 4 schema over every structured reply. MiniSearch 7 over the tagged sentences. `unpdf` and `jszip` read PDFs and PowerPoint. `electron-store` over `dotenv` for settings, with keys sealed by `safeStorage`. |
-| Chrome | A Manifest V3 extension, three plain files loaded unpacked, and a native messaging host that is Lilo's own binary run as plain Node over a local socket. |
-| Model | Any OpenAI-compatible endpoint, hosted or on this machine, or Anthropic's own. The protocol is decided from the address. Speech goes to any whisper-style endpoint as 16 kHz WAV. |
-| Sources | 30 boards on Greenhouse, Ashby and Lever, read from the endpoints the careers pages call. LeetCode's interview board and Hacker News for first-hand write-ups. |
-| Build and check | `electron-vite` 5 for dev and bundles, `node --test` loading the TypeScript directly, `electron-builder` 26 for a DMG and an NSIS installer, GitHub Actions running typecheck, tests and both packages on every push. |
-
-## Running it
-
-```bash
-npm install
-node node_modules/electron/install.js
-npm run dev
-```
-
-Node 22.18 or newer. The second line fetches the Electron binary, because
-npm 11 skips install scripts. The same three lines work in PowerShell and cmd.
-
-An orb appears bottom right, and a mark in the menu bar on macOS or the
-notification area on Windows. There is no Dock tile or taskbar button.
-Cmd+Shift+Y on macOS and Ctrl+Shift+Y on Windows open and close the panel.
-Escape closes it. Nothing has to be configured before the app starts.
-
-## A model
-
-Open the panel and press the gear. A model is an address, a key and two model
-names, and you type all three. How the endpoint speaks is decided from the
-address: api.anthropic.com gets the messages API, and everything else gets the
-OpenAI chat API, which is what every hosted service, gateway and local server
-speaks. The model list is read from the endpoint, and "Test it" makes one real
-call and says what came back.
-
-Keys are sealed with the OS keychain, Keychain on macOS and DPAPI on Windows,
-and never reach the renderer, which learns only whether a key is set and its
-last four characters. Anything left blank falls through to `.env`, so a
-developer checkout needs no clicking.
-
-To run with no network at all, pull a model into Ollama and give Lilo the
-address. A local address is recognised and asks for no key.
-
-```bash
-ollama pull qwen2.5-coder:7b
-```
-
-```
-LLM_BASE_URL=http://localhost:11434
-MODEL_FAST=qwen2.5-coder:7b
-MODEL_STRONG=qwen2.5-coder:7b
-```
-
-The quick model reads lectures and answers questions. The careful one coaches
-on LeetCode.
-
-## LeetCode
-
-Settings, the LeetCode tab, "Set up Chrome". It writes the file Chrome needs.
-Then open chrome://extensions, turn on Developer mode, press Load unpacked and
-pick the folder the tab shows. The tab says Connected once a problem is open.
-
-| Tier | Volunteers up to | Answers up to |
-|---|---|---|
-| Hands off | what it sees | a question to think about |
-| Coach | the idea by name | where your own code goes wrong |
-| Tutor | the steps | the answer, and only when asked outright |
-
-A hint that names lines marks them in the editor, as the companion's, and
-clears them on your next edit. Nothing else is ever written to the page.
-
-Every session is written to a file under the app's data folder, one event per
-line. `--work-recording path/to/session.jsonl` plays one back with no browser
-open, which is how the companion's manners are tuned.
-
-## Lectures, voice and interviews
-
-A lecture is a `.txt`, `.md`, `.vtt`, `.pdf` or `.pptx`. Drag it onto the orb
-or the panel, pick it from the menu bar mark, or paste notes into the composer.
-`--lecture path` or `LECTURE_FILE=` in `.env` starts with one already read.
-
-Voice mode is the mic beside "Upload a lecture". Cmd+Shift+M on macOS and
-Ctrl+Shift+M on Windows records, and the words land in the composer to be
-read before they are sent. Speech goes where the model is when that address
-transcribes, as OpenAI's and Groq's do. A whisper server on this machine keeps
-it here:
-
-```
-VOICE_BASE_URL=http://localhost:8000
-VOICE_MODEL=Systran/faster-whisper-small.en
-```
-
-An interview brief is a question in your own words: "I have an onsite with
-Coinbase". What was read is kept for a day, so the second ask is instant and
-offline. Glassdoor, Blind and Reddit are not read: they want a login or refuse
-the request.
-
-## The evidence base
-
-`data/ikb.json` ships built from the 30 boards in `data/boards.json`, the same
-endpoints the companies' own careers pages call. No auth, no scraping. A
-posting is kept only if its title is a software engineering role; sales,
-product and design are dropped at ingest. Add a company by adding a row.
-
-```bash
-npm run ingest
-```
-
-## Checks
+## Development
 
 | | |
 |---|---|
-| `npm test` | 288 tests: tagging, search, gaps, citations, the ladder, the bridge, the tray mark, and the whole loop against a scripted model |
+| `npm test` | 296 tests: tagging, search, gaps, citations, the ladder, the bridge, the tray mark, and the whole loop against a scripted model |
 | `npm run typecheck` | main, preload, renderer and the tests |
 | `npm run build` | the three bundles under `out/` |
 | `npm run package:mac`, `npm run package:win` | installers, which CI also builds on both platforms |
+| `npm run ingest` | rebuilds the evidence base from the 30 boards in `data/boards.json` |
 
+A posting is kept only if its title is a software engineering role; sales,
+product and design are dropped at ingest. Add a company by adding a row.
+
+Every LeetCode session is written to a file under the app's data folder, one
+event per line. `--work-recording path/to/session.jsonl` plays one back with
+no browser open, which is how the companion's manners are tuned.
 `LILO_DEBUG_LLM=1` prints every model call with its queue wait and its wire
 time. `LILO_OPEN_PREFS=1` opens the preferences window on launch.
 
-## Both platforms
+What differs between macOS and Windows sits behind `process.platform`: how a
+floating window takes focus, how the menu bar mark is drawn, where keys and
+the Chrome host manifest live. [docs/platforms.md](docs/platforms.md) says
+exactly where, and which of those a Mac cannot verify.
 
-One codebase. What differs sits behind `process.platform`: how a floating
-window takes focus, how the menu bar mark is drawn, where keys and the Chrome
-host manifest live. [docs/platforms.md](docs/platforms.md) says exactly where,
-and which of those a Mac cannot verify.
-
-## Read next
+## Documentation
 
 | | |
 |---|---|
