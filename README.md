@@ -1,6 +1,6 @@
 # Lilo
 
-**A desktop companion for the software engineering student who wants the job.**
+**A desktop companion for the computer science student who wants the job.**
 
 > [!IMPORTANT]
 > **Winner, LILO Hackathon 2026.** Track 01, LILO Behind the Scenes: DSA
