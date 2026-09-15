@@ -4,7 +4,7 @@
 
 > [!IMPORTANT]
 > **Winner, LILO Hackathon 2026.** Track 01, LILO Behind the Scenes: DSA
-> practice and interviewing.
+> practice and interviewing. [Watch the three minute demo.](https://www.youtube.com/watch?v=WbIb-SBFMYU)
 
 ## The problem
 
