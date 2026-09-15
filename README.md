@@ -38,22 +38,21 @@ It cheers when you get there. It never does the work for you. It runs on
 macOS and Windows from one codebase, with a model you choose, hosted or on
 your own machine.
 
-## Two rules, kept in code
+## Two promises the code enforces
 
-Lilo is shaped around refusing both failures, and the refusals are in code,
-not in a prompt.
+Most AI study tools keep their promises in the prompt: only cite real
+sources, never give the answer away. The model reads that, and then does what
+it does. Lilo does not rely on it. Both promises are checked after the model
+has answered, by code that can throw the answer out.
 
-**The model translates and explains. Real postings prove.** Every claim about
-industry traces to a sentence with a posting URL. A term the model returns
-survives only if the evidence base has it, and a citation survives only if the
-retriever returned it. A concept nobody advertises for is said to be one,
-which is a truer answer than a stretched term.
+![The two checks: a citation is shown only if it points at a sentence that was retrieved; a hint is said only if it stays under your level and points at lines in your code](docs/two-checks.svg)
 
-**The help is capped by code.** Every LeetCode hint is graded, 0 to 5, by how
-much of the answer it gives away. The level the student picks is a ceiling on
-that scale, and a gate checks the grade, every line number and every name
-against the student's own code before a word is said. The model is told the
-ceiling and never trusted with it.
+The cost is real and worth paying. When no posting mentions a concept, the
+honest answer is that nobody advertises for it, which is less satisfying than
+a stretched match and more useful. When a hint reaches above the level you
+set, or points at a line that is not in your code, Lilo asks once more under
+a stricter instruction and then says nothing, because a wrong hint costs you
+more than no hint. The model is told the rules. The code is what keeps them.
 
 ## How it works
 

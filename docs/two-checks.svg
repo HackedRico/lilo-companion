@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 440" width="1200" height="440" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title>The two checks that run after the model answers</title>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#171f33"/>
+    </marker>
+  </defs>
+  <rect width="1200" height="440" fill="#f6f7fb"/>
+
+  <!-- Row 1: a claim about industry -->
+  <text x="40" y="78" font-size="11" font-weight="600" letter-spacing="2" fill="#6b7288">A CLAIM ABOUT INDUSTRY</text>
+  <text x="40" y="104" font-size="14" fill="#4b5368">What a card or an answer</text>
+  <text x="40" y="122" font-size="14" fill="#4b5368">may say about the job.</text>
+
+  <rect x="250" y="56" width="190" height="96" rx="10" fill="#fbf6ec" stroke="#e4d9c3"/>
+  <text x="266" y="86" font-size="14" font-weight="600" font-family="ui-serif, 'New York', Georgia, serif" fill="#171f33">Real posting sentences</text>
+  <text x="266" y="108" font-size="12" fill="#4b5368">pulled from the evidence base</text>
+  <text x="266" y="126" font-size="12" fill="#4b5368">first, each with an id</text>
+
+  <line x1="440" y1="104" x2="478" y2="104" stroke="#171f33" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <rect x="480" y="56" width="190" height="96" rx="10" fill="#ffffff" stroke="#d7dbe6"/>
+  <text x="496" y="86" font-size="14" font-weight="600" fill="#171f33">The model answers</text>
+  <text x="496" y="108" font-size="12" fill="#4b5368">over those sentences only,</text>
+  <text x="496" y="126" font-size="12" fill="#4b5368">citing them by id</text>
+
+  <line x1="670" y1="104" x2="708" y2="104" stroke="#171f33" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <polygon points="790,50 880,104 790,158 700,104" fill="#ffffff" stroke="#0d4ff0" stroke-width="2"/>
+  <text x="790" y="100" font-size="12" font-weight="600" fill="#171f33" text-anchor="middle">Every citation</text>
+  <text x="790" y="116" font-size="12" font-weight="600" fill="#171f33" text-anchor="middle">on that list?</text>
+
+  <line x1="880" y1="104" x2="912" y2="78" stroke="#171f33" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="880" y1="104" x2="912" y2="130" stroke="#171f33" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="884" y="70" font-size="11" fill="#6b7288">yes</text>
+  <text x="884" y="146" font-size="11" fill="#6b7288">no</text>
+
+  <rect x="916" y="56" width="244" height="40" rx="8" fill="#ffffff" stroke="#d7dbe6"/>
+  <text x="932" y="81" font-size="13" fill="#171f33">Shown, with the posting's URL</text>
+  <rect x="916" y="112" width="244" height="40" rx="8" fill="#171f33"/>
+  <text x="932" y="137" font-size="13" fill="#ffffff">Stripped, never shown</text>
+
+  <line x1="40" y1="212" x2="1160" y2="212" stroke="#d7dbe6"/>
+
+  <!-- Row 2: a hint on LeetCode -->
+  <text x="40" y="288" font-size="11" font-weight="600" letter-spacing="2" fill="#6b7288">A HINT ON LEETCODE</text>
+  <text x="40" y="314" font-size="14" fill="#4b5368">How much help may be given,</text>
+  <text x="40" y="332" font-size="14" fill="#4b5368">and about whose code.</text>
+
+  <rect x="250" y="266" width="190" height="96" rx="10" fill="#ffffff" stroke="#d7dbe6"/>
+  <text x="266" y="296" font-size="14" font-weight="600" fill="#171f33">Your code, your level</text>
+  <text x="266" y="318" font-size="12" fill="#4b5368">hands off, coach or tutor,</text>
+  <text x="266" y="336" font-size="12" fill="#4b5368">chosen by you</text>
+
+  <line x1="440" y1="314" x2="478" y2="314" stroke="#171f33" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <rect x="480" y="266" width="190" height="96" rx="10" fill="#ffffff" stroke="#d7dbe6"/>
+  <text x="496" y="296" font-size="14" font-weight="600" fill="#171f33">The model proposes</text>
+  <text x="496" y="318" font-size="12" fill="#4b5368">a hint, and claims how much</text>
+  <text x="496" y="336" font-size="12" fill="#4b5368">of the answer it gives away</text>
+
+  <line x1="670" y1="314" x2="708" y2="314" stroke="#171f33" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <polygon points="790,260 880,314 790,368 700,314" fill="#ffffff" stroke="#0d4ff0" stroke-width="2"/>
+  <text x="790" y="304" font-size="12" font-weight="600" fill="#171f33" text-anchor="middle">Under your level,</text>
+  <text x="790" y="320" font-size="12" font-weight="600" fill="#171f33" text-anchor="middle">and about lines</text>
+  <text x="790" y="336" font-size="12" font-weight="600" fill="#171f33" text-anchor="middle">in your code?</text>
+
+  <line x1="880" y1="314" x2="912" y2="288" stroke="#171f33" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="880" y1="314" x2="912" y2="340" stroke="#171f33" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="884" y="280" font-size="11" fill="#6b7288">yes</text>
+  <text x="884" y="356" font-size="11" fill="#6b7288">no</text>
+
+  <rect x="916" y="266" width="244" height="40" rx="8" fill="#ffffff" stroke="#d7dbe6"/>
+  <text x="932" y="291" font-size="13" fill="#171f33">Said, lines marked in your editor</text>
+  <rect x="916" y="322" width="244" height="40" rx="8" fill="#171f33"/>
+  <text x="932" y="347" font-size="13" fill="#ffffff">Refused, then one stricter retry</text>
+
+  <text x="40" y="410" font-size="12" fill="#6b7288">The gate reads the hint for itself and grades it. What the model claimed is not trusted.</text>
+</svg>
