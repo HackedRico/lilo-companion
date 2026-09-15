@@ -6,7 +6,7 @@
   "engines": {
     "node": ">=22.18"
   },
-  "description": "A desktop companion for the software engineering student who wants the job.",
+  "description": "A desktop companion for the computer science student who wants the job.",
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",

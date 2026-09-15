@@ -1,7 +1,7 @@
 # Working on Lilo
 
-Lilo is an Electron companion for software engineering students, there to
-keep them going toward the job. It reads a lecture the student hands it and
+Lilo is an Electron companion for computer science students, there to keep
+them going toward a software engineering job. It reads a lecture the student hands it and
 says where the concept turns up in real software engineering postings with
 verifiable evidence. And it sits beside them on LeetCode, with help at a
 level they set, so the effort stays theirs. It ships on macOS and Windows, and
@@ -35,11 +35,12 @@ moods or the tray mark: it holds the geometry and the numbers.
 
 ## One audience
 
-Lilo is for software engineering students and nobody else. The evidence base
-holds software engineering postings only: `classifyRole` answers null for any
-other title and the ingest drops it. The role families are engineering tracks,
-every prompt says who the student is, and copy, placeholders and worked
-examples name software engineering rather than a stand-in from another field.
+Lilo is for the computer science student who wants a software engineering
+job, and nobody else. The evidence base holds software engineering postings
+only: `classifyRole` answers null for any other title and the ingest drops it.
+The role families are engineering tracks, every prompt says who the student is
+and what work they are aiming at, and copy, placeholders and worked examples
+name software engineering rather than a stand-in from another field.
 
 ## Two rules the code keeps
 
